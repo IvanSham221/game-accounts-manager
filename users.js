@@ -6,7 +6,7 @@ let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
 if (users.length === 0) {
     const adminUser = {
         id: 1,
-        username: 'admin',
+        username: 'Ivan',
         password: '@Az27831501112',
         name: 'Администратор',
         role: 'admin',
