@@ -86,6 +86,17 @@
                 }
             });
         });
+
+        setTimeout(async () => {
+    if (window.dataSync) {
+        try {
+            const workers = await dataSync.loadWorkers();
+            console.log('👥 Работники загружены при входе:', workers.length);
+        } catch (error) {
+            console.log('⚠️ Не удалось загрузить работников:', error);
+        }
+    }
+}, 1000);
     </script>
     
     <style>

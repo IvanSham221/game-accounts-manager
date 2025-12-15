@@ -101,20 +101,22 @@
         }
         
         // Загрузка работников
-        function loadWorkers() {
-            try {
-                const workers = JSON.parse(localStorage.getItem('workers')) || [];
-                displayWorkers(workers);
-            } catch (e) {
-                console.error('Ошибка загрузки работников:', e);
-                document.getElementById('workersList').innerHTML = `
-                    <div class="empty">
-                        <div style="color: #f72585; margin-bottom: 10px;">❌ Ошибка загрузки</div>
-                        <button onclick="loadWorkers()" class="btn btn-small">Повторить</button>
-                    </div>
-                `;
-            }
-        }
+        // ОБНОВЛЕННАЯ функция загрузки работников
+async function loadWorkers() {
+    try {
+        // Используем dataSync для загрузки
+        const workers = await dataSync.loadWorkers();
+        displayWorkers(workers);
+    } catch (error) {
+        console.error('Ошибка загрузки работников:', error);
+        document.getElementById('workersList').innerHTML = `
+            <div class="empty">
+                <div style="color: #f72585; margin-bottom: 10px;">❌ Ошибка загрузки</div>
+                <button onclick="loadWorkers()" class="btn btn-small">Повторить</button>
+            </div>
+        `;
+    }
+}
         
         // Отображение работников
         function displayWorkers(workers) {
@@ -170,70 +172,74 @@
         }
         
         // Добавить работника
-        function addWorker() {
-            const name = document.getElementById('workerName').value.trim();
-            const username = document.getElementById('workerLogin').value.trim();
-            const password = document.getElementById('workerPassword').value;
-            const confirmPassword = document.getElementById('workerConfirmPassword').value;
-            const active = document.getElementById('workerActive').checked;
-            
-            // Валидация
-            if (!name || !username || !password) {
-                alert('Заполните все поля');
-                return;
-            }
-            
-            if (password !== confirmPassword) {
-                alert('Пароли не совпадают');
-                return;
-            }
-            
-            if (password.length < 4) {
-                alert('Пароль должен быть минимум 4 символа');
-                return;
-            }
-            
-            if (username === 'admin') {
-                alert('Логин "admin" зарезервирован');
-                return;
-            }
-            
-            // Загружаем существующих работников
-            let workers = JSON.parse(localStorage.getItem('workers')) || [];
-            
-            // Проверяем уникальность логина
-            if (workers.find(w => w.username === username)) {
-                alert('Такой логин уже существует');
-                return;
-            }
-            
-            // Добавляем нового работника
-            workers.push({
-                name: name,
-                username: username,
-                password: password,
-                active: active,
-                created: new Date().toLocaleDateString('ru-RU'),
-                role: 'worker'
-            });
-            
-            // Сохраняем
-            localStorage.setItem('workers', JSON.stringify(workers));
-            
-            // Очищаем форму
-            document.getElementById('workerName').value = '';
-            document.getElementById('workerLogin').value = '';
-            document.getElementById('workerPassword').value = '';
-            document.getElementById('workerConfirmPassword').value = '';
-            
-            // Обновляем список
-            loadWorkers();
-            
-            // Логируем
-            security.logEvent('Создан новый работник', { username: username });
-            
-            alert(`Работник "${name}" добавлен!`);
-        }
+        // ОБНОВЛЕННАЯ функция добавления работника
+async function addWorker() {
+    const name = document.getElementById('workerName').value.trim();
+    const username = document.getElementById('workerLogin').value.trim();
+    const password = document.getElementById('workerPassword').value;
+    const confirmPassword = document.getElementById('workerConfirmPassword').value;
+    const active = document.getElementById('workerActive').checked;
+    
+    // Валидация
+    if (!name || !username || !password) {
+        alert('Заполните все поля');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        alert('Пароли не совпадают');
+        return;
+    }
+    
+    if (password.length < 4) {
+        alert('Пароль должен быть минимум 4 символа');
+        return;
+    }
+    
+    if (username === 'admin') {
+        alert('Логин "admin" зарезервирован');
+        return;
+    }
+    
+    // Загружаем существующих работников через dataSync
+    let workers = await dataSync.loadWorkers();
+    
+    // Проверяем уникальность логина
+    if (workers.find(w => w.username === username)) {
+        alert('Такой логин уже существует');
+        return;
+    }
+    
+    // Добавляем нового работника
+    workers.push({
+        name: name,
+        username: username,
+        password: password,
+        active: active,
+        created: new Date().toLocaleString('ru-RU'),
+        role: 'worker',
+        createdBy: JSON.parse(localStorage.getItem('currentUser')).username
+    });
+    
+    // Сохраняем через dataSync (он сам синхронизирует с Firebase)
+    const result = await dataSync.saveWorkers(workers);
+    
+    if (result.success) {
+        // Очищаем форму
+        document.getElementById('workerName').value = '';
+        document.getElementById('workerLogin').value = '';
+        document.getElementById('workerPassword').value = '';
+        document.getElementById('workerConfirmPassword').value = '';
+        
+        // Обновляем список
+        loadWorkers();
+        
+        // Показываем уведомление
+        alert(`Работник "${name}" добавлен! ${result.synced ? 'Синхронизировано с облаком.' : 'Сохранено локально.'}`);
+    } else {
+        alert('Ошибка сохранения');
+    }
+}
         
         // Изменить статус работника
         function toggleWorker(username, active) {
