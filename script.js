@@ -33,6 +33,68 @@ function checkAuth() {
     return true;
 }
 
+// ==================== УНИВЕРСАЛЬНЫЕ ФУНКЦИИ МОДАЛЬНЫХ ОКОН ====================
+
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        const content = modal.querySelector('.modal-content');
+        if (content) {
+            content.classList.add('fade-out');
+        }
+        
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            if (content) {
+                content.classList.remove('fade-out');
+            }
+        }, 300);
+    }
+}
+
+// Обновленные функции закрытия
+function closeModal() {
+    closeModal('editModal');
+}
+
+function closeFreeModal() {
+    closeModal('editFreeModal');
+}
+
+function closeSaleModal() {
+    closeModal('saleModal');
+}
+
+// Обработчик клика вне модального окна
+window.onclick = function(event) {
+    const modals = ['editModal', 'editFreeModal', 'saleModal'];
+    
+    modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (modal && event.target === modal) {
+            closeModal(modalId);
+        }
+    });
+}
+
+// Закрытие по ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeModal('editModal');
+        closeModal('editFreeModal');
+        closeModal('saleModal');
+    }
+});
+
 // Выход из системы
 function logout() {
     if (security && security.logout) {
@@ -251,10 +313,10 @@ function initUIEnhancements() {
     
     // Проверяем сохраненную тему
     if (localStorage.getItem('theme') === 'dark') {
-        document.body.classList.add('dark-theme');
-        const themeIcon = document.getElementById('themeIcon');
-        if (themeIcon) themeIcon.textContent = '☀️';
-    }
+    document.body.classList.add('dark-theme');
+    const themeIcon = document.getElementById('themeIcon');
+    if (themeIcon) themeIcon.textContent = '☀️';
+}
     
     // Плавное появление
     document.addEventListener('DOMContentLoaded', () => {
@@ -285,6 +347,12 @@ function toggleTheme() {
 
 // Система уведомлений
 function showNotification(message, type = 'info', duration = 3000) {
+    // Проверяем, есть ли уже уведомление
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(notification => {
+        notification.remove();
+    });
+    
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     
@@ -296,7 +364,7 @@ function showNotification(message, type = 'info', duration = 3000) {
     };
     
     notification.innerHTML = `
-        <span>${icons[type] || icons.info}</span>
+        <span style="font-size: 1.2em;">${icons[type] || icons.info}</span>
         <span>${message}</span>
     `;
     
@@ -311,29 +379,73 @@ function showNotification(message, type = 'info', duration = 3000) {
     setTimeout(() => {
         notification.classList.remove('show');
         setTimeout(() => {
-            notification.remove();
+            if (notification.parentNode) {
+                notification.remove();
+            }
         }, 400);
     }, duration);
 }
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 document.addEventListener('DOMContentLoaded', function() {
-    const currentPage = window.location.pathname.split('/').pop();
+    // Инициализация мобильного меню
+    initMobileMenu();
     
-    // Не проверяем на странице входа
-    if (currentPage === 'login.html' || currentPage === 'index.html') {
-        return;
-    }
-    
-    // Проверяем сессию
+    // Проверка сессии
     if (!security || !security.isSessionValid()) {
-        console.log('Сессия недействительна, перенаправление на вход');
-        window.location.href = 'login.html';
-        return;
+        const currentPage = window.location.pathname.split('/').pop();
+        if (currentPage !== 'login.html' && currentPage !== 'index.html') {
+            console.log('Сессия недействительна, перенаправление на вход');
+            window.location.href = 'login.html';
+            return;
+        }
     }
     
-    // Продолжаем обычную инициализацию
-    initApp();
+    // Обновление навигации
+    if (typeof updateNavigation === 'function') {
+        updateNavigation();
+    }
+    
+    // Загрузка данных
+    if (typeof loadAllDataWithSync === 'function') {
+        loadAllDataWithSync().then(() => {
+            console.log('✅ Все данные загружены');
+            
+            // Инициализация страниц
+            const currentPage = window.location.pathname.split('/').pop();
+            
+            if (currentPage === 'add-account.html' && typeof loadGamesForSelect === 'function') {
+                loadGamesForSelect();
+            } else if (currentPage === 'accounts.html' && typeof loadGamesForFilter === 'function') {
+                loadGamesForFilter();
+                displayAccounts();
+            } else if (currentPage === 'games.html' && typeof displayGames === 'function') {
+                displayGames();
+            } else if (currentPage === 'manager.html' && typeof loadGamesForManager === 'function') {
+                loadGamesForManager();
+            } else if (currentPage === 'free-accounts.html' && typeof displayFreeAccounts === 'function') {
+                displayFreeAccounts();
+            } else if (currentPage === 'reports.html') {
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 30);
+                const startInput = document.getElementById('startDate');
+                const endInput = document.getElementById('endDate');
+                if (startInput && endInput) {
+                    startInput.value = startDate.toISOString().split('T')[0];
+                    endInput.value = endDate.toISOString().split('T')[0];
+                }
+            }
+            
+            // Показываем уведомление приветствия
+            const user = security.getCurrentUser();
+            if (user && typeof showNotification === 'function') {
+                setTimeout(() => {
+                    showNotification(`Добро пожаловать, ${user.name}! 👋`, 'info', 2000);
+                }, 1000);
+            }
+        });
+    }
 });
 
 // ФУНКЦИЯ ДЛЯ ЗАГРУЗКИ ВСЕХ ДАННЫХ С СИНХРОНИЗАЦИЕЙ
@@ -403,8 +515,7 @@ function initApp() {
                 }
             }
             
-            // Инициализация UI улучшений
-            initMobileMenu();
+            // Инициализация UI улучшений (ДОБАВЬТЕ ЭТУ СТРОЧКУ!)
             initUIEnhancements();
             
             // Запускаем проверку обновлений
@@ -905,44 +1016,126 @@ function clearFilters() {
 
 function editAccount(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
-    if (!account) return;
+    if (!account) {
+        showNotification('Аккаунт не найден', 'error');
+        return;
+    }
     
     const editForm = document.getElementById('editForm');
     editForm.innerHTML = `
         <input type="hidden" id="editAccountId" value="${account.id}">
         
-        <select id="editGame" class="input" required>
-            <option value="">Выберите игру</option>
-            ${games.map(game => `<option value="${game.id}" ${game.id === account.gameId ? 'selected' : ''}>${game.name}</option>`).join('')}
-        </select>
-        <input type="number" id="editPurchaseAmount" value="${account.purchaseAmount}" placeholder="Сумма закупа" class="input" step="0.01">
+        <div style="grid-column: 1 / -1;">
+            <label for="editGame" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">Игра:</label>
+            <select id="editGame" class="input" required>
+                <option value="">Выберите игру</option>
+                ${games.map(game => `
+                    <option value="${game.id}" ${game.id === account.gameId ? 'selected' : ''}>
+                        ${game.name}
+                    </option>
+                `).join('')}
+                <option value="0" ${account.gameId === 0 ? 'selected' : ''}>Свободный</option>
+            </select>
+        </div>
         
-        <input type="text" id="editPsnLogin" value="${account.psnLogin}" placeholder="Логин PSN" class="input">
-        <input type="text" id="editPsnPassword" value="${account.psnPassword}" placeholder="Пароль PSN" class="input">
+        <div>
+            <label for="editPurchaseAmount" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">Сумма закупа (₽):</label>
+            <input type="number" id="editPurchaseAmount" value="${account.purchaseAmount}" 
+                   placeholder="Сумма закупа" class="input" step="0.01">
+        </div>
         
-        <input type="email" id="editEmail" value="${account.email}" placeholder="Почта" class="input">
-        <input type="text" id="editEmailPassword" value="${account.emailPassword}" placeholder="Пароль от почты" class="input">
+        <div>
+            <label for="editPsnLogin" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">Логин PSN:</label>
+            <input type="text" id="editPsnLogin" value="${account.psnLogin}" 
+                   placeholder="Логин PSN" class="input" required>
+        </div>
         
-        <input type="email" id="editBackupEmail" value="${account.backupEmail || ''}" placeholder="Резервная почта" class="input">
-        <input type="text" id="editBirthDate" value="${account.birthDate || ''}" placeholder="Дата рождения" class="input">
+        <div>
+            <label for="editPsnPassword" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">Пароль PSN:</label>
+            <input type="text" id="editPsnPassword" value="${account.psnPassword || ''}" 
+                   placeholder="Пароль PSN" class="input">
+        </div>
         
-        <input type="text" id="editPsnCodes" value="${account.psnCodes || ''}" placeholder="Коды PSN (через запятую)" class="input">
-        <input type="text" id="editPsnAuthenticator" value="${account.psnAuthenticator || ''}" placeholder="PSN Аутентификатор" class="input">
+        <div>
+            <label for="editEmail" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">Почта:</label>
+            <input type="email" id="editEmail" value="${account.email || ''}" 
+                   placeholder="Почта" class="input">
+        </div>
         
-        <div class="positions-section" style="grid-column: 1 / -1;">
-            <h3>Количество позиций:</h3>
+        <div>
+            <label for="editEmailPassword" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">Пароль от почты:</label>
+            <input type="text" id="editEmailPassword" value="${account.emailPassword || ''}" 
+                   placeholder="Пароль от почты" class="input">
+        </div>
+        
+        <div>
+            <label for="editBackupEmail" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">Резервная почта:</label>
+            <input type="email" id="editBackupEmail" value="${account.backupEmail || ''}" 
+                   placeholder="Резервная почта" class="input">
+        </div>
+        
+        <div>
+            <label for="editBirthDate" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">Дата рождения:</label>
+            <input type="text" id="editBirthDate" value="${account.birthDate || ''}" 
+                   placeholder="Дата рождения" class="input">
+        </div>
+        
+        <div>
+            <label for="editPsnCodes" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">Коды PSN:</label>
+            <input type="text" id="editPsnCodes" value="${account.psnCodes || ''}" 
+                   placeholder="Коды PSN (через запятую)" class="input">
+        </div>
+        
+        <div>
+            <label for="editPsnAuthenticator" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">PSN Аутентификатор:</label>
+            <input type="text" id="editPsnAuthenticator" value="${account.psnAuthenticator || ''}" 
+                   placeholder="PSN Аутентификатор" class="input">
+        </div>
+        
+        <div class="positions-section">
+            <h3 style="margin-bottom: 20px; color: #2d3748; font-size: 1.2rem;">🎮 Количество позиций:</h3>
             <div class="positions-grid">
-                <label>П2 PS4: <input type="number" id="editP2_ps4" value="${account.positions.p2_ps4}" class="input-small" min="0"></label>
-                <label>П3 PS4: <input type="number" id="editP3_ps4" value="${account.positions.p3_ps4}" class="input-small" min="0"></label>
-                <label>П2 PS5: <input type="number" id="editP2_ps5" value="${account.positions.p2_ps5}" class="input-small" min="0"></label>
-                <label>П3 PS5: <input type="number" id="editP3_ps5" value="${account.positions.p3_ps5}" class="input-small" min="0"></label>
+                <div>
+                    <label for="editP2_ps4" style="display: block; margin-bottom: 8px; font-weight: 600; color: #4a5568;">П2 PS4:</label>
+                    <input type="number" id="editP2_ps4" value="${account.positions.p2_ps4}" 
+                           class="input" min="0" style="width: 100%;">
+                </div>
+                <div>
+                    <label for="editP3_ps4" style="display: block; margin-bottom: 8px; font-weight: 600; color: #4a5568;">П3 PS4:</label>
+                    <input type="number" id="editP3_ps4" value="${account.positions.p3_ps4}" 
+                           class="input" min="0" style="width: 100%;">
+                </div>
+                <div>
+                    <label for="editP2_ps5" style="display: block; margin-bottom: 8px; font-weight: 600; color: #4a5568;">П2 PS5:</label>
+                    <input type="number" id="editP2_ps5" value="${account.positions.p2_ps5}" 
+                           class="input" min="0" style="width: 100%;">
+                </div>
+                <div>
+                    <label for="editP3_ps5" style="display: block; margin-bottom: 8px; font-weight: 600; color: #4a5568;">П3 PS5:</label>
+                    <input type="number" id="editP3_ps5" value="${account.positions.p3_ps5}" 
+                           class="input" min="0" style="width: 100%;">
+                </div>
             </div>
         </div>
         
-        <button onclick="saveAccountChanges()" class="btn btn-success" style="grid-column: 1 / -1;">💾 Сохранить изменения</button>
+        <div class="modal-buttons">
+            <button class="btn btn-secondary" onclick="closeModal()" style="padding: 12px 24px;">
+                Отмена
+            </button>
+            <button class="btn btn-success" onclick="saveAccountChanges()" style="padding: 12px 24px;">
+                <span style="margin-right: 8px;">💾</span>
+                Сохранить изменения
+            </button>
+        </div>
     `;
     
-    document.getElementById('editModal').style.display = 'block';
+    openModal('editModal');
+    
+    // Автофокус на первом поле
+    setTimeout(() => {
+        const firstInput = editForm.querySelector('input, select');
+        if (firstInput) firstInput.focus();
+    }, 100);
 }
 
 async function saveAccountChanges() {
@@ -1019,19 +1212,39 @@ function attachGameToAccount(accountId) {
     
     const editForm = document.getElementById('editFreeForm');
     editForm.innerHTML = `
+        <h2 style="margin-bottom: 25px; color: #2d3748; text-align: center;">
+            <span style="display: inline-block; margin-right: 10px;">🎮</span>
+            Привязать игру к аккаунту
+        </h2>
+        
         <input type="hidden" id="editFreeAccountId" value="${account.id}">
         
-        <select id="editFreeGame" class="input" required style="grid-column: 1 / -1;">
-            <option value="">Выберите игру</option>
-            ${games.map(game => `<option value="${game.id}">${game.name}</option>`).join('')}
-        </select>
+        <div style="grid-column: 1 / -1;">
+            <label for="editFreeGame" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">Игра:</label>
+            <select id="editFreeGame" class="input" required>
+                <option value="">Выберите игру</option>
+                ${games.map(game => `<option value="${game.id}">${game.name}</option>`).join('')}
+            </select>
+        </div>
         
-        <input type="number" id="editFreePurchaseAmount" value="${account.purchaseAmount}" placeholder="Сумма закупа" class="input" step="0.01" style="grid-column: 1 / -1;">
+        <div>
+            <label for="editFreePurchaseAmount" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">Сумма закупа (₽):</label>
+            <input type="number" id="editFreePurchaseAmount" value="${account.purchaseAmount}" 
+                   placeholder="Сумма закупа" class="input" step="0.01">
+        </div>
         
-        <button onclick="saveFreeAccountChanges()" class="btn btn-success" style="grid-column: 1 / -1;">💾 Привязать игру</button>
+        <div class="modal-buttons">
+            <button class="btn btn-secondary" onclick="closeFreeModal()" style="padding: 12px 24px;">
+                Отмена
+            </button>
+            <button class="btn btn-success" onclick="saveFreeAccountChanges()" style="padding: 12px 24px;">
+                <span style="margin-right: 8px;">💾</span>
+                Привязать игру
+            </button>
+        </div>
     `;
     
-    document.getElementById('editFreeModal').style.display = 'block';
+    openModal('editFreeModal');
 }
 
 async function saveFreeAccountChanges() {
@@ -1362,36 +1575,99 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
     
     const modalContent = document.getElementById('saleModalContent');
     modalContent.innerHTML = `
-        <h2>💰 Оформить продажу</h2>
+        <h2 style="margin-bottom: 25px; color: #2d3748; text-align: center;">
+            <span style="display: inline-block; margin-right: 10px;">💰</span>
+            Оформить продажу
+        </h2>
         
         <div class="sale-info">
-            <div class="sale-info-item"><strong>Аккаунт:</strong><span>${account.psnLogin}</span></div>
-            <div class="sale-info-item"><strong>Игра:</strong><span>${account.gameName}</span></div>
-            <div class="sale-info-item"><strong>Позиция:</strong><span>${positionName}</span></div>
+            <div class="sale-info-item">
+                <strong>Аккаунт:</strong>
+                <span style="font-weight: 600; color: #1e293b;">${account.psnLogin}</span>
+            </div>
+            <div class="sale-info-item">
+                <strong>Игра:</strong>
+                <span style="font-weight: 600; color: #1e293b;">${account.gameName}</span>
+            </div>
+            <div class="sale-info-item">
+                <strong>Позиция:</strong>
+                <span style="
+                    font-weight: 600; 
+                    color: white;
+                    background: linear-gradient(135deg, #4361ee 0%, #3a56d4 100%);
+                    padding: 6px 15px;
+                    border-radius: 20px;
+                    font-size: 0.9em;
+                ">${positionName}</span>
+            </div>
         </div>
         
         <div class="sale-form">
-            <div><label for="salePrice">Цена продажи (₽):</label><input type="number" id="salePrice" class="sale-input" placeholder="Введите цену" required></div>
+            <div>
+                <label for="salePrice" style="
+                    display: block;
+                    margin-bottom: 8px;
+                    font-weight: 600;
+                    color: #2d3748;
+                ">Цена продажи (₽):</label>
+                <input type="number" id="salePrice" class="sale-input" 
+                       placeholder="Введите цену" required 
+                       style="font-size: 18px; font-weight: 600; text-align: center;">
+            </div>
+            
             <div class="datetime-group">
                 <div>
-                    <label for="saleDate">Дата продажи:</label>
+                    <label for="saleDate" style="
+                        display: block;
+                        margin-bottom: 8px;
+                        font-weight: 600;
+                        color: #2d3748;
+                    ">Дата продажи:</label>
                     <input type="date" id="saleDate" class="sale-input" value="${currentDate}">
                 </div>
                 <div>
-                    <label for="saleTime">Время продажи:</label>
+                    <label for="saleTime" style="
+                        display: block;
+                        margin-bottom: 8px;
+                        font-weight: 600;
+                        color: #2d3748;
+                    ">Время продажи:</label>
                     <input type="time" id="saleTime" class="sale-input" value="${currentTime}">
                 </div>
             </div>
-            <div><label for="saleNotes">Примечания:</label><input type="text" id="saleNotes" class="sale-input" placeholder="Дополнительная информация"></div>
+            
+            <div>
+                <label for="saleNotes" style="
+                    display: block;
+                    margin-bottom: 8px;
+                    font-weight: 600;
+                    color: #2d3748;
+                ">Примечания:</label>
+                <input type="text" id="saleNotes" class="sale-input" 
+                       placeholder="Дополнительная информация (необязательно)">
+            </div>
         </div>
         
         <div class="sale-buttons">
-            <button class="btn btn-secondary" onclick="closeSaleModal()">Отмена</button>
-            <button class="btn btn-success" onclick="confirmSaleAndShowData()">✅ Подтвердить продажу</button>
+            <button class="btn btn-secondary" onclick="closeSaleModal()" 
+                    style="padding: 12px 24px; min-width: 120px;">
+                Отмена
+            </button>
+            <button class="btn btn-success" onclick="confirmSaleAndShowData()"
+                    style="padding: 12px 24px; min-width: 180px; font-weight: 600;">
+                <span style="margin-right: 8px;">✅</span>
+                Подтвердить продажу
+            </button>
         </div>
     `;
     
-    document.getElementById('saleModal').style.display = 'block';
+    openModal('saleModal');
+    
+    // Автофокус на поле цены
+    setTimeout(() => {
+        const priceInput = document.getElementById('salePrice');
+        if (priceInput) priceInput.focus();
+    }, 100);
 }
 
 async function confirmSaleAndShowData() {
@@ -1630,8 +1906,22 @@ async function deleteSale(saleId) {
     }
 }
 
+function sanitizeHTML(str) {
+    const temp = document.createElement('div');
+    temp.textContent = str;
+    return temp.innerHTML;
+}
+
 function closeSaleModal() {
-    document.getElementById('saleModal').style.display = 'none';
+    const modal = document.getElementById('saleModal');
+    const content = modal.querySelector('.modal-content');
+    
+    content.classList.add('fade-out');
+    
+    setTimeout(() => {
+        modal.style.display = 'none';
+        content.classList.remove('fade-out');
+    }, 300);
 }
 
 function clearManagerSearch() {
@@ -2010,3 +2300,44 @@ document.addEventListener('keydown', function(e) {
         if (syncBtn) syncBtn.click();
     }
 });
+
+// ==================== ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ ====================
+
+// Автоматическое создание кнопки темы
+(function() {
+    // Проверяем сохраненную тему
+    if (localStorage.getItem('theme') === 'dark') {
+        document.body.classList.add('dark-theme');
+    }
+    
+    // Ждем полной загрузки страницы
+    window.addEventListener('load', function() {
+        // Создаем кнопку если её нет
+        if (!document.querySelector('.theme-toggle')) {
+            const themeToggle = document.createElement('div');
+            themeToggle.className = 'theme-toggle';
+            themeToggle.innerHTML = `
+                <button class="theme-btn" onclick="toggleTheme()">
+                    <span id="themeIcon">${document.body.classList.contains('dark-theme') ? '☀️' : '🌙'}</span>
+                </button>
+            `;
+            document.body.appendChild(themeToggle);
+        }
+    });
+    
+    // Глобальная функция переключения темы
+    window.toggleTheme = function() {
+        const body = document.body;
+        const themeIcon = document.getElementById('themeIcon');
+        
+        body.classList.toggle('dark-theme');
+        
+        if (body.classList.contains('dark-theme')) {
+            if (themeIcon) themeIcon.textContent = '☀️';
+            localStorage.setItem('theme', 'dark');
+        } else {
+            if (themeIcon) themeIcon.textContent = '🌙';
+            localStorage.setItem('theme', 'light');
+        }
+    };
+})();
