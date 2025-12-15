@@ -85,23 +85,12 @@
                 
                 window.location.href = 'manager.html';
             } else {
-                // Показываем подсказку для первого входа
-                if (username.toLowerCase() === 'ivan') {
-                    errorDiv.innerHTML = 'Неверный пароль<br><small>Пароль: @Az27831501112</small>';
-                } else {
-                    errorDiv.textContent = 'Неверный логин или пароль';
-                }
+                errorDiv.textContent = 'Неверный логин или пароль';
                 errorDiv.style.display = 'block';
                 btn.disabled = false;
                 btn.textContent = 'Войти';
             }
         });
-        
-        // Авто-заполнение для теста (можно убрать)
-        setTimeout(() => {
-            document.getElementById('username').value = 'Ivan';
-            document.getElementById('password').value = '@Az27831501112';
-        }, 100);
     });
 </script>
     <style>
