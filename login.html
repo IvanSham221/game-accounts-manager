@@ -55,12 +55,12 @@
             }
             
             btn.disabled = true;
-            btn.textContent = 'Полная синхронизация...';
+            btn.textContent = 'Синхронизация...';
             
-            // ПЕРВАЯ ПОЛНАЯ СИНХРОНИЗАЦИЯ ВСЕХ ДАННЫХ
+            // Сначала синхронизируем работников (если есть)
             try {
-                if (window.dataSync && window.dataSync.forceFullSync) {
-                    await window.dataSync.forceFullSync();
+                if (window.dataSync && window.dataSync.forceSyncWorkers) {
+                    await window.dataSync.forceSyncWorkers();
                 }
             } catch (syncError) {
                 console.warn('Не удалось синхронизировать', syncError);
@@ -68,19 +68,40 @@
             
             btn.textContent = 'Вход...';
             
-            // ТЕПЕРЬ ПРОВЕРЯЕМ ЛОГИН
+            // Теперь проверяем логин
             const result = security.validateLogin(username, password);
             
             if (result.success) {
                 security.startSession(result.user);
+                
+                // Полная синхронизация всех данных после входа
+                try {
+                    if (window.dataSync && window.dataSync.forceFullSync) {
+                        await window.dataSync.forceFullSync();
+                    }
+                } catch (syncError) {
+                    console.warn('Не удалось выполнить полную синхронизацию', syncError);
+                }
+                
                 window.location.href = 'manager.html';
             } else {
-                errorDiv.textContent = 'Неверный логин или пароль';
+                // Показываем подсказку для первого входа
+                if (username.toLowerCase() === 'ivan') {
+                    errorDiv.innerHTML = 'Неверный пароль<br><small>Пароль: @Az27831501112</small>';
+                } else {
+                    errorDiv.textContent = 'Неверный логин или пароль';
+                }
                 errorDiv.style.display = 'block';
                 btn.disabled = false;
                 btn.textContent = 'Войти';
             }
         });
+        
+        // Авто-заполнение для теста (можно убрать)
+        setTimeout(() => {
+            document.getElementById('username').value = 'Ivan';
+            document.getElementById('password').value = '@Az27831501112';
+        }, 100);
     });
 </script>
     <style>

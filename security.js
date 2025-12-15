@@ -1,18 +1,20 @@
 // security.js
 const SecurityManager = {
     validateLogin: function(username, password) {
-        if (username === 'admin' && password === 'admin123') {
+        // Единственный администратор Ivan
+        if (username === 'Ivan' && password === '@Az27831501112') {
             return {
                 success: true,
                 user: {
-                    username: 'admin',
-                    name: 'Администратор',
+                    username: 'Ivan',
+                    name: 'Иван',
                     role: 'admin'
                 }
             };
         }
         
         try {
+            // Проверяем работников из хранилища
             const workers = JSON.parse(localStorage.getItem('workers') || '[]');
             const worker = workers.find(w => 
                 w.username === username && 
@@ -26,11 +28,13 @@ const SecurityManager = {
                     user: {
                         username: worker.username,
                         name: worker.name,
-                        role: 'worker'
+                        role: worker.role || 'worker'
                     }
                 };
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('Ошибка при проверке работников:', e);
+        }
         
         return {
             success: false,
@@ -91,20 +95,11 @@ const SecurityManager = {
     },
     
     init: function() {
-        const workers = JSON.parse(localStorage.getItem('workers') || '[]');
-        const hasAdmin = workers.find(w => w.username === 'admin');
-        
-        if (!hasAdmin) {
-            workers.push({
-                name: 'Администратор',
-                username: 'admin',
-                password: 'admin123',
-                active: true,
-                created: new Date().toISOString(),
-                role: 'admin'
-            });
-            localStorage.setItem('workers', JSON.stringify(workers));
-        }
+        // Не создаем дефолтного админа, только Ivan
+        console.log('✅ SecurityManager инициализирован');
+        console.log('👤 Доступные логины:');
+        console.log('   - Ivan (администратор)');
+        console.log('   - Пароль: @Az27831501112');
     }
 };
 
