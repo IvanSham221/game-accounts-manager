@@ -101,22 +101,21 @@
         }
         
         // Загрузка работников
-        // ОБНОВЛЕННАЯ функция загрузки работников
-async function loadWorkers() {
-    try {
-        // Используем dataSync для загрузки
-        const workers = await dataSync.loadWorkers();
-        displayWorkers(workers);
-    } catch (error) {
-        console.error('Ошибка загрузки работников:', error);
-        document.getElementById('workersList').innerHTML = `
-            <div class="empty">
-                <div style="color: #f72585; margin-bottom: 10px;">❌ Ошибка загрузки</div>
-                <button onclick="loadWorkers()" class="btn btn-small">Повторить</button>
-            </div>
-        `;
-    }
-}
+        async function loadWorkers() {
+            try {
+                // Используем dataSync для загрузки
+                const workers = await dataSync.forceSyncWorkers();
+                displayWorkers(workers);
+            } catch (error) {
+                console.error('Ошибка загрузки работников:', error);
+                document.getElementById('workersList').innerHTML = `
+                    <div class="empty">
+                        <div style="color: #f72585; margin-bottom: 10px;">❌ Ошибка загрузки</div>
+                        <button onclick="loadWorkers()" class="btn btn-small">Повторить</button>
+                    </div>
+                `;
+            }
+        }
         
         // Отображение работников
         function displayWorkers(workers) {
@@ -172,78 +171,81 @@ async function loadWorkers() {
         }
         
         // Добавить работника
-        // ОБНОВЛЕННАЯ функция добавления работника
-async function addWorker() {
-    const name = document.getElementById('workerName').value.trim();
-    const username = document.getElementById('workerLogin').value.trim();
-    const password = document.getElementById('workerPassword').value;
-    const confirmPassword = document.getElementById('workerConfirmPassword').value;
-    const active = document.getElementById('workerActive').checked;
-    
-    // Валидация
-    if (!name || !username || !password) {
-        alert('Заполните все поля');
-        return;
-    }
-    
-    if (password !== confirmPassword) {
-        alert('Пароли не совпадают');
-        return;
-    }
-    
-    if (password.length < 4) {
-        alert('Пароль должен быть минимум 4 символа');
-        return;
-    }
-    
-    if (username === 'admin') {
-        alert('Логин "admin" зарезервирован');
-        return;
-    }
-    
-    // Загружаем существующих работников через dataSync
-    let workers = await dataSync.loadWorkers();
-    
-    // Проверяем уникальность логина
-    if (workers.find(w => w.username === username)) {
-        alert('Такой логин уже существует');
-        return;
-    }
-    
-    // Добавляем нового работника
-    workers.push({
-        name: name,
-        username: username,
-        password: password,
-        active: active,
-        created: new Date().toLocaleString('ru-RU'),
-        role: 'worker',
-        createdBy: JSON.parse(localStorage.getItem('currentUser')).username
-    });
-    
-    // Сохраняем через dataSync (он сам синхронизирует с Firebase)
-    const result = await dataSync.saveWorkers(workers);
-    
-    if (result.success) {
-        // Очищаем форму
-        document.getElementById('workerName').value = '';
-        document.getElementById('workerLogin').value = '';
-        document.getElementById('workerPassword').value = '';
-        document.getElementById('workerConfirmPassword').value = '';
-        
-        // Обновляем список
-        loadWorkers();
-        
-        // Показываем уведомление
-        alert(`Работник "${name}" добавлен! ${result.synced ? 'Синхронизировано с облаком.' : 'Сохранено локально.'}`);
-    } else {
-        alert('Ошибка сохранения');
-    }
-}
+        async function addWorker() {
+            const name = document.getElementById('workerName').value.trim();
+            const username = document.getElementById('workerLogin').value.trim();
+            const password = document.getElementById('workerPassword').value;
+            const confirmPassword = document.getElementById('workerConfirmPassword').value;
+            const active = document.getElementById('workerActive').checked;
+            
+            // Валидация
+            if (!name || !username || !password) {
+                alert('Заполните все поля');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                alert('Пароли не совпадают');
+                return;
+            }
+            
+            if (password.length < 4) {
+                alert('Пароль должен быть минимум 4 символа');
+                return;
+            }
+            
+            if (username === 'admin') {
+                alert('Логин "admin" зарезервирован');
+                return;
+            }
+            
+            // Загружаем существующих работников через dataSync
+            let workers = await dataSync.forceSyncWorkers();
+            
+            // Проверяем уникальность логина
+            if (workers.find(w => w.username === username)) {
+                alert('Такой логин уже существует');
+                return;
+            }
+            
+            // Добавляем нового работника
+            workers.push({
+                name: name,
+                username: username,
+                password: password,
+                active: active,
+                created: new Date().toLocaleString('ru-RU'),
+                role: 'worker',
+                createdBy: JSON.parse(localStorage.getItem('currentUser')).username
+            });
+            
+            // Сохраняем через dataSync (он сам синхронизирует с Firebase)
+            const result = await dataSync.saveWorkers(workers);
+            
+            if (result.success) {
+                // Очищаем форму
+                document.getElementById('workerName').value = '';
+                document.getElementById('workerLogin').value = '';
+                document.getElementById('workerPassword').value = '';
+                document.getElementById('workerConfirmPassword').value = '';
+                
+                // Обновляем список
+                loadWorkers();
+                
+                // Показываем уведомление
+                alert(`Работник "${name}" добавлен! ${result.synced ? 'Синхронизировано с облаком.' : 'Сохранено локально.'}`);
+            } else {
+                alert('Ошибка сохранения');
+            }
+        }
         
         // Изменить статус работника
-        function toggleWorker(username, active) {
-            let workers = JSON.parse(localStorage.getItem('workers')) || [];
+        async function toggleWorker(username, active) {
+            if (!confirm(`${active ? 'Активировать' : 'Деактивировать'} работника?`)) {
+                return;
+            }
+            
+            let workers = await dataSync.forceSyncWorkers();
             const workerIndex = workers.findIndex(w => w.username === username);
             
             if (workerIndex === -1) {
@@ -252,27 +254,33 @@ async function addWorker() {
             }
             
             workers[workerIndex].active = active;
-            localStorage.setItem('workers', JSON.stringify(workers));
-            loadWorkers();
+            const result = await dataSync.saveWorkers(workers);
             
-            security.logEvent('Изменен статус работника', { 
-                username: username, 
-                active: active 
-            });
+            if (result.success) {
+                loadWorkers();
+                alert(`Статус работника изменен! ${result.synced ? 'Синхронизировано с облаком.' : 'Сохранено локально.'}`);
+            } else {
+                alert('Ошибка сохранения');
+            }
         }
         
         // Удалить работника
-        function deleteWorker(username) {
+        async function deleteWorker(username) {
             if (!confirm('Удалить этого работника?')) {
                 return;
             }
             
-            let workers = JSON.parse(localStorage.getItem('workers')) || [];
+            let workers = await dataSync.forceSyncWorkers();
             workers = workers.filter(w => w.username !== username);
-            localStorage.setItem('workers', JSON.stringify(workers));
-            loadWorkers();
             
-            security.logEvent('Удален работник', { username: username });
+            const result = await dataSync.saveWorkers(workers);
+            
+            if (result.success) {
+                loadWorkers();
+                alert(`Работник удален! ${result.synced ? 'Синхронизировано с облаком.' : 'Сохранено локально.'}`);
+            } else {
+                alert('Ошибка удаления');
+            }
         }
         
         // Стили

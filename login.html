@@ -11,29 +11,20 @@
         <div class="login-form">
             <h1>🔐 Вход в систему</h1>
             
-            <div style="text-align: center; margin: 30px 0;">
-                <div style="font-size: 50px; margin-bottom: 15px;">🎮</div>
-                <h2>Менеджер игровых аккаунтов</h2>
-            </div>
-            
             <form id="loginForm">
                 <div class="input-group">
                     <label for="username">Логин:</label>
-                    <input type="text" id="username" required class="input" 
-                           placeholder="Логин" autocomplete="username">
+                    <input type="text" id="username" required class="input" placeholder="Логин">
                 </div>
                 
                 <div class="input-group">
                     <label for="password">Пароль:</label>
-                    <input type="password" id="password" required class="input" 
-                           placeholder="Пароль" autocomplete="current-password">
+                    <input type="password" id="password" required class="input" placeholder="Пароль">
                 </div>
                 
                 <div id="loginError" class="error-message" style="display: none;"></div>
                 
-                <button type="submit" class="btn btn-primary btn-block">
-                    Войти
-                </button>
+                <button type="submit" class="btn btn-primary btn-block">Войти</button>
             </form>
         </div>
     </div>
@@ -44,14 +35,12 @@
     <script src="security.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Проверяем активную сессию
             if (security.isSessionValid()) {
                 window.location.href = 'manager.html';
                 return;
             }
             
-            // Обработка формы
-            document.getElementById('loginForm').addEventListener('submit', function(e) {
+            document.getElementById('loginForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
                 const username = document.getElementById('username').value.trim();
@@ -59,7 +48,6 @@
                 const errorDiv = document.getElementById('loginError');
                 const btn = this.querySelector('button[type="submit"]');
                 
-                // Проверка заполненности
                 if (!username || !password) {
                     errorDiv.textContent = 'Заполните все поля';
                     errorDiv.style.display = 'block';
@@ -67,16 +55,24 @@
                 }
                 
                 btn.disabled = true;
+                btn.textContent = 'Синхронизация...';
+                
+                // Сначала синхронизируем работников
+                try {
+                    if (window.dataSync && window.dataSync.forceSyncWorkers) {
+                        await window.dataSync.forceSyncWorkers();
+                    }
+                } catch (syncError) {
+                    console.warn('Не удалось синхронизировать', syncError);
+                }
+                
                 btn.textContent = 'Вход...';
                 
-                // Проверяем учетные данные
+                // Теперь проверяем логин
                 const result = security.validateLogin(username, password);
                 
                 if (result.success) {
-                    // Создаем сессию
                     security.startSession(result.user);
-                    
-                    // Переходим на главную
                     window.location.href = 'manager.html';
                 } else {
                     errorDiv.textContent = 'Неверный логин или пароль';
@@ -86,17 +82,6 @@
                 }
             });
         });
-
-        setTimeout(async () => {
-    if (window.dataSync) {
-        try {
-            const workers = await dataSync.loadWorkers();
-            console.log('👥 Работники загружены при входе:', workers.length);
-        } catch (error) {
-            console.log('⚠️ Не удалось загрузить работников:', error);
-        }
-    }
-}, 1000);
     </script>
     
     <style>
@@ -107,9 +92,7 @@
             border-radius: 5px;
             margin: 10px 0;
             text-align: center;
-            font-weight: 500;
         }
-        
         .login-container {
             display: flex;
             justify-content: center;
@@ -118,7 +101,6 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
         }
-        
         .login-form {
             background: white;
             padding: 40px;
