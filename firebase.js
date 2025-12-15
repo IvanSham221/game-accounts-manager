@@ -1,130 +1,132 @@
-// firebase.js - ТОЛЬКО ДЛЯ ХРАНЕНИЯ ДАННЫХ (без авторизации)
+// firebase.js - КРОСС-БРАУЗЕРНАЯ ВЕРСИЯ
+
+// Проверяем, загружен ли Firebase
+if (typeof firebase === 'undefined') {
+    // Если Firebase не загружен, добавляем скрипт
+    const firebaseScript = document.createElement('script');
+    firebaseScript.src = 'https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js';
+    firebaseScript.onload = function() {
+        const authScript = document.createElement('script');
+        authScript.src = 'https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js';
+        document.head.appendChild(authScript);
+    };
+    document.head.appendChild(firebaseScript);
+    
+    console.log('🔥 Загружаем Firebase...');
+}
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCYTyHQ6B6WovINxyI1R8Qnn7JXS8WnnE8",
-  authDomain: "crm-pshub.firebaseapp.com",
-  databaseURL: "https://crm-pshub-default-rtdb.europe-west1.firebasedatabase.app/",
-  projectId: "crm-pshub",
-  storageBucket: "crm-pshub.firebasestorage.app",
-  messagingSenderId: "720773477998",
-  appId: "1:720773477998:web:3d3c61747c42833f7f987f"
+    apiKey: "AIzaSyCYTyHQ6B6WovINxyI1R8Qnn7JXS8WnnE8",
+    authDomain: "crm-pshub.firebaseapp.com",
+    databaseURL: "https://crm-pshub-default-rtdb.europe-west1.firebasedatabase.app/",
+    projectId: "crm-pshub",
+    storageBucket: "crm-pshub.firebasestorage.app",
+    messagingSenderId: "720773477998",
+    appId: "1:720773477998:web:3d3c61747c42833f7f987f"
 };
 
-// Firebase только для данных, авторизация локальная
+// Простой DataSync без сложных импортов
 class DataSync {
     constructor() {
-        this.userId = null;
+        this.initialized = false;
         this.init();
     }
     
     init() {
-        // Получаем ID пользователя из localStorage
-        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-        if (currentUser) {
-            this.userId = currentUser.username; // Используем логин как ID
+        // Ждем загрузки Firebase
+        if (typeof firebase === 'undefined') {
+            setTimeout(() => this.init(), 500);
+            return;
         }
         
-        console.log('📡 Firebase синхронизация инициализирована');
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            this.db = firebase.database();
+            this.initialized = true;
+            console.log('✅ Firebase инициализирован');
+        } catch (error) {
+            console.error('❌ Ошибка инициализации Firebase:', error);
+        }
     }
     
-    // Сохранить данные
     async saveData(dataType, data) {
-        try {
-            // Сначала сохраняем локально
-            localStorage.setItem(dataType, JSON.stringify(data));
-            
-            // Потом пытаемся сохранить в Firebase (если есть userId)
-            if (this.userId && window.firebase) {
-                // Используем window.firebase для обратной совместимости
-                const database = window.firebase.database();
-                await database.ref(`users/${this.userId}/${dataType}`).set(data);
-                console.log(`✅ ${dataType} сохранены в Firebase`);
-                return { success: true, synced: true };
-            }
-            
-            return { success: true, local: true };
-        } catch (error) {
-            console.error(`❌ Ошибка сохранения ${dataType}:`, error);
-            // Все равно сохраняем локально
-            localStorage.setItem(dataType, JSON.stringify(data));
-            return { success: true, local: true };
-        }
-    }
-    
-    // Загрузить данные
-    async loadData(dataType) {
-        try {
-            // Сначала пробуем Firebase
-            if (this.userId && window.firebase) {
-                const database = window.firebase.database();
-                const snapshot = await database.ref(`users/${this.userId}/${dataType}`).once('value');
-                
-                if (snapshot.exists()) {
-                    const data = snapshot.val();
-                    localStorage.setItem(dataType, JSON.stringify(data));
-                    console.log(`✅ ${dataType} загружены из Firebase`);
-                    return data;
+        // Сначала всегда сохраняем локально
+        localStorage.setItem(dataType, JSON.stringify(data));
+        
+        // Потом пробуем в Firebase
+        if (this.initialized && this.db) {
+            try {
+                const user = JSON.parse(localStorage.getItem('currentUser'));
+                if (user) {
+                    await this.db.ref(`users/${user.username}/${dataType}`).set(data);
+                    console.log(`✅ ${dataType} синхронизированы`);
                 }
+            } catch (error) {
+                console.log(`⚠️ ${dataType} сохранены только локально`);
             }
-            
-            // Если нет в Firebase, берем локальные
-            const localData = localStorage.getItem(dataType);
-            return localData ? JSON.parse(localData) : [];
-            
-        } catch (error) {
-            console.error(`❌ Ошибка загрузки ${dataType}:`, error);
-            const localData = localStorage.getItem(dataType);
-            return localData ? JSON.parse(localData) : [];
         }
+        
+        return { success: true };
     }
     
-    // Загрузить всех работников
+    async loadData(dataType) {
+        // Сначала пробуем Firebase
+        if (this.initialized && this.db) {
+            try {
+                const user = JSON.parse(localStorage.getItem('currentUser'));
+                if (user) {
+                    const snapshot = await this.db.ref(`users/${user.username}/${dataType}`).once('value');
+                    if (snapshot.exists()) {
+                        const data = snapshot.val();
+                        localStorage.setItem(dataType, JSON.stringify(data));
+                        return data;
+                    }
+                }
+            } catch (error) {
+                console.log('⚠️ Загружаем из localStorage');
+            }
+        }
+        
+        // Если Firebase не сработал, берем из localStorage
+        const localData = localStorage.getItem(dataType);
+        return localData ? JSON.parse(localData) : [];
+    }
+    
     async loadWorkers() {
-        try {
-            if (window.firebase) {
-                const database = window.firebase.database();
-                const snapshot = await database.ref('workers').once('value');
-                
+        if (this.initialized && this.db) {
+            try {
+                const snapshot = await this.db.ref('workers').once('value');
                 if (snapshot.exists()) {
                     const workers = snapshot.val();
                     localStorage.setItem('workers', JSON.stringify(workers));
                     return workers;
                 }
+            } catch (error) {
+                console.log('⚠️ Workers из localStorage');
             }
-            
-            const localWorkers = localStorage.getItem('workers');
-            return localWorkers ? JSON.parse(localWorkers) : [];
-            
-        } catch (error) {
-            console.error('❌ Ошибка загрузки работников:', error);
-            const localWorkers = localStorage.getItem('workers');
-            return localWorkers ? JSON.parse(localWorkers) : [];
         }
+        
+        const workers = localStorage.getItem('workers');
+        return workers ? JSON.parse(workers) : [];
     }
     
-    // Сохранить работников
     async saveWorkers(workers) {
-        try {
-            // Локально
-            localStorage.setItem('workers', JSON.stringify(workers));
-            
-            // В Firebase
-            if (window.firebase) {
-                const database = window.firebase.database();
-                await database.ref('workers').set(workers);
-                console.log('✅ Работники сохранены в Firebase');
-                return { success: true, synced: true };
+        localStorage.setItem('workers', JSON.stringify(workers));
+        
+        if (this.initialized && this.db) {
+            try {
+                await this.db.ref('workers').set(workers);
+                console.log('✅ Workers синхронизированы');
+            } catch (error) {
+                // Игнорируем ошибку Firebase
             }
-            
-            return { success: true, local: true };
-        } catch (error) {
-            console.error('❌ Ошибка сохранения работников:', error);
-            localStorage.setItem('workers', JSON.stringify(workers));
-            return { success: true, local: true };
         }
+        
+        return { success: true };
     }
 }
 
-// Создаем экземпляр
-const dataSync = new DataSync();
-window.dataSync = dataSync;
+// Создаем глобальный экземпляр
+window.dataSync = new DataSync();
