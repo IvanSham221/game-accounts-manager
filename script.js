@@ -1,19 +1,17 @@
-// script.js - ПОЛНАЯ ВЕРСИЯ с Firebase
+// script.js - ПОЛНАЯ ВЕРСИЯ с Firebase и синхронизацией
 
 // ============================================
 // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И НАСТРОЙКИ
 // ============================================
 
-let games = JSON.parse(localStorage.getItem('games')) || [];
-let accounts = JSON.parse(localStorage.getItem('accounts')) || [];
-let sales = JSON.parse(localStorage.getItem('sales')) || [];
+let games = [];
+let accounts = [];
+let sales = [];
 let currentUser = null;
 
 // ============================================
 // СИСТЕМА АВТОРИЗАЦИИ И НАВИГАЦИИ
 // ============================================
-
-// script.js - ДОБАВЬТЕ В НАЧАЛО ФАЙЛА
 
 // Проверка авторизации
 function checkAuth() {
@@ -116,6 +114,68 @@ function updateNavigation() {
     `;
     
     nav.innerHTML = navButtons;
+    
+    // Добавляем кнопку синхронизации
+    setTimeout(addSyncButton, 100);
+}
+
+// КНОПКА ПРИНУДИТЕЛЬНОЙ СИНХРОНИЗАЦИИ
+function addSyncButton() {
+    const nav = document.querySelector('.nav-buttons');
+    if (nav && !document.querySelector('#syncButton')) {
+        const syncBtn = document.createElement('button');
+        syncBtn.id = 'syncButton';
+        syncBtn.className = 'btn btn-success';
+        syncBtn.innerHTML = '🔄 Синхронизировать';
+        syncBtn.onclick = async function() {
+            syncBtn.disabled = true;
+            syncBtn.innerHTML = '🔄 Синхронизация...';
+            
+            if (window.dataSync && window.dataSync.forceFullSync) {
+                const result = await dataSync.forceFullSync();
+                
+                if (result.success) {
+                    // Обновляем глобальные переменные
+                    games = JSON.parse(localStorage.getItem('games')) || [];
+                    accounts = JSON.parse(localStorage.getItem('accounts')) || [];
+                    sales = JSON.parse(localStorage.getItem('sales')) || [];
+                    
+                    // Обновляем текущую страницу
+                    const currentPage = window.location.pathname.split('/').pop();
+                    if (currentPage === 'accounts.html') {
+                        displayAccounts();
+                        loadGamesForFilter();
+                    } else if (currentPage === 'games.html') {
+                        displayGames();
+                    } else if (currentPage === 'manager.html') {
+                        loadGamesForManager();
+                    } else if (currentPage === 'free-accounts.html') {
+                        displayFreeAccounts();
+                    } else if (currentPage === 'reports.html') {
+                        // Если на странице отчетов, обновляем отчет
+                        if (typeof generateFullReport === 'function') {
+                            generateFullReport();
+                        }
+                    }
+                    
+                    showNotification('Все данные синхронизированы! ✅', 'success');
+                } else {
+                    showNotification('Ошибка синхронизации ❌', 'error');
+                }
+            }
+            
+            syncBtn.disabled = false;
+            syncBtn.innerHTML = '🔄 Синхронизировать';
+        };
+        
+        // Добавляем кнопку перед кнопкой выхода
+        const userInfo = nav.querySelector('.user-info');
+        if (userInfo) {
+            nav.insertBefore(syncBtn, userInfo);
+        } else {
+            nav.appendChild(syncBtn);
+        }
+    }
 }
 
 const originalSaveToStorage = saveToStorage;
@@ -276,6 +336,33 @@ document.addEventListener('DOMContentLoaded', function() {
     initApp();
 });
 
+// ФУНКЦИЯ ДЛЯ ЗАГРУЗКИ ВСЕХ ДАННЫХ С СИНХРОНИЗАЦИЕЙ
+async function loadAllDataWithSync() {
+    try {
+        console.log('🔄 Загружаем данные с синхронизацией...');
+        
+        // Используем forceFullSync для первоначальной загрузки
+        if (window.dataSync && window.dataSync.forceFullSync) {
+            await dataSync.forceFullSync();
+        }
+        
+        // Обновляем глобальные переменные из localStorage
+        games = JSON.parse(localStorage.getItem('games')) || [];
+        accounts = JSON.parse(localStorage.getItem('accounts')) || [];
+        sales = JSON.parse(localStorage.getItem('sales')) || [];
+        
+        console.log(`📊 Данные загружены: ${games.length} игр, ${accounts.length} аккаунтов, ${sales.length} продаж`);
+        
+    } catch (error) {
+        console.error('❌ Ошибка при загрузке данных:', error);
+        
+        // Загружаем из localStorage как запасной вариант
+        games = JSON.parse(localStorage.getItem('games')) || [];
+        accounts = JSON.parse(localStorage.getItem('accounts')) || [];
+        sales = JSON.parse(localStorage.getItem('sales')) || [];
+    }
+}
+
 function initApp() {
     const currentPage = window.location.pathname.split('/').pop();
     const user = security.getCurrentUser();
@@ -288,29 +375,41 @@ function initApp() {
             updateNavigation();
         }
         
-        // Инициализация страниц
-        if (currentPage === 'add-account.html' && typeof loadGamesForSelect === 'function') {
-            loadGamesForSelect();
-        } else if (currentPage === 'accounts.html' && typeof loadGamesForFilter === 'function') {
-            loadGamesForFilter();
-            displayAccounts();
-        } else if (currentPage === 'games.html' && typeof displayGames === 'function') {
-            displayGames();
-        } else if (currentPage === 'manager.html' && typeof loadGamesForManager === 'function') {
-            loadGamesForManager();
-        } else if (currentPage === 'free-accounts.html' && typeof displayFreeAccounts === 'function') {
-            displayFreeAccounts();
-        } else if (currentPage === 'reports.html') {
-            const endDate = new Date();
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - 30);
-            const startInput = document.getElementById('startDate');
-            const endInput = document.getElementById('endDate');
-            if (startInput && endInput) {
-                startInput.value = startDate.toISOString().split('T')[0];
-                endInput.value = endDate.toISOString().split('T')[0];
+        // Загружаем данные с синхронизацией
+        loadAllDataWithSync().then(() => {
+            console.log('✅ Все данные загружены и синхронизированы');
+            
+            // Инициализация страниц
+            if (currentPage === 'add-account.html' && typeof loadGamesForSelect === 'function') {
+                loadGamesForSelect();
+            } else if (currentPage === 'accounts.html' && typeof loadGamesForFilter === 'function') {
+                loadGamesForFilter();
+                displayAccounts();
+            } else if (currentPage === 'games.html' && typeof displayGames === 'function') {
+                displayGames();
+            } else if (currentPage === 'manager.html' && typeof loadGamesForManager === 'function') {
+                loadGamesForManager();
+            } else if (currentPage === 'free-accounts.html' && typeof displayFreeAccounts === 'function') {
+                displayFreeAccounts();
+            } else if (currentPage === 'reports.html') {
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 30);
+                const startInput = document.getElementById('startDate');
+                const endInput = document.getElementById('endDate');
+                if (startInput && endInput) {
+                    startInput.value = startDate.toISOString().split('T')[0];
+                    endInput.value = endDate.toISOString().split('T')[0];
+                }
             }
-        }
+            
+            // Инициализация UI улучшений
+            initMobileMenu();
+            initUIEnhancements();
+            
+        }).catch(error => {
+            console.error('❌ Ошибка загрузки данных:', error);
+        });
         
         // Показываем уведомление
         if (typeof showNotification === 'function') {
@@ -320,10 +419,97 @@ function initApp() {
 }
 
 // ============================================
+// СИСТЕМА СОХРАНЕНИЯ И СИНХРОНИЗАЦИИ
+// ============================================
+
+// Функция сохранения данных с синхронизацией
+async function saveToStorage(dataType, data) {
+    console.log(`💾 Сохранение ${dataType}...`);
+    
+    // Сохраняем в локальное хранилище для быстрого доступа
+    localStorage.setItem(dataType, JSON.stringify(data));
+    
+    // Обновляем глобальные переменные
+    switch(dataType) {
+        case 'games': games = data; break;
+        case 'accounts': accounts = data; break;
+        case 'sales': sales = data; break;
+    }
+    
+    // Синхронизируем с Firebase
+    if (window.dataSync && window.dataSync.saveData) {
+        const result = await dataSync.saveData(dataType, data);
+        
+        if (result.synced) {
+            console.log(`✅ ${dataType} синхронизированы с Firebase`);
+            if (typeof showNotification === 'function') {
+                showNotification(`${dataType} сохранены и синхронизированы`, 'success', 1500);
+            }
+        } else if (result.local) {
+            console.log(`⚠️ ${dataType} сохранены локально (Firebase недоступен)`);
+        }
+        
+        return result;
+    }
+    
+    return { success: true, local: true };
+}
+
+// Совместимость со старым кодом
+async function saveToFirebase() {
+    const results = [];
+    
+    results.push(await saveToStorage('games', games));
+    results.push(await saveToStorage('accounts', accounts));
+    results.push(await saveToStorage('sales', sales));
+    
+    return results;
+}
+
+// ФУНКЦИЯ ДЛЯ ЗАГРУЗКИ ДАННЫХ ПРИ РЕДАКТИРОВАНИИ
+async function refreshData(dataType) {
+    try {
+        if (window.dataSync && window.dataSync.loadData) {
+            const freshData = await dataSync.loadData(dataType);
+            
+            switch(dataType) {
+                case 'games':
+                    games = freshData;
+                    localStorage.setItem('games', JSON.stringify(games));
+                    if (typeof displayGames === 'function') displayGames();
+                    if (typeof loadGamesForSelect === 'function') loadGamesForSelect();
+                    if (typeof loadGamesForFilter === 'function') loadGamesForFilter();
+                    if (typeof loadGamesForManager === 'function') loadGamesForManager();
+                    break;
+                    
+                case 'accounts':
+                    accounts = freshData;
+                    localStorage.setItem('accounts', JSON.stringify(accounts));
+                    if (typeof displayAccounts === 'function') displayAccounts();
+                    if (typeof displayFreeAccounts === 'function') displayFreeAccounts();
+                    break;
+                    
+                case 'sales':
+                    sales = freshData;
+                    localStorage.setItem('sales', JSON.stringify(sales));
+                    break;
+            }
+            
+            console.log(`✅ Данные "${dataType}" обновлены`);
+            return freshData;
+        }
+    } catch (error) {
+        console.error(`❌ Ошибка обновления данных "${dataType}":`, error);
+    }
+    
+    return null;
+}
+
+// ============================================
 // ФУНКЦИИ ДЛЯ ИГР
 // ============================================
 
-function addGame() {
+async function addGame() {
     const gameName = document.getElementById('gameName').value.trim();
     if (!gameName) {
         showNotification('Введите название игры', 'warning');
@@ -342,7 +528,7 @@ function addGame() {
     };
     
     games.push(newGame);
-    saveToStorage('games', games);
+    const result = await saveToStorage('games', games);
     
     document.getElementById('gameName').value = '';
     
@@ -373,7 +559,7 @@ function displayGames() {
     `).join('');
 }
 
-function deleteGame(gameId) {
+async function deleteGame(gameId) {
     const accountsWithThisGame = accounts.filter(acc => acc.gameId === gameId);
     const game = games.find(g => g.id === gameId);
     
@@ -388,7 +574,7 @@ function deleteGame(gameId) {
     }
     
     games = games.filter(game => game.id !== gameId);
-    saveToStorage('games', games);
+    await saveToStorage('games', games);
     displayGames();
     loadGamesForSelect();
     loadGamesForFilter();
@@ -400,7 +586,7 @@ function deleteGame(gameId) {
 // ФУНКЦИИ ДЛЯ АККАУНТОВ
 // ============================================
 
-function addAccount() {
+async function addAccount() {
     const formData = getAccountFormData();
     if (!formData) {
         return;
@@ -413,14 +599,11 @@ function addAccount() {
         timestamp: new Date().toISOString()
     };
 
-    // Очищаем ввод
-    const psnLogin = sanitizeInput(document.getElementById('psnLogin').value.trim());
-    
     accounts.push(newAccount);
-    saveToStorage('accounts', accounts);
+    await saveToStorage('accounts', accounts);
     clearAccountForm();
     
-    showNotification('Аккаунт успешно добавлен! 🎮', 'success');
+    showNotification('Аккаунт успешно добавлен и синхронизирован! 🎮', 'success');
 }
 
 function getAccountFormData() {
@@ -685,7 +868,7 @@ function editAccount(accountId) {
     document.getElementById('editModal').style.display = 'block';
 }
 
-function saveAccountChanges() {
+async function saveAccountChanges() {
     const accountId = parseInt(document.getElementById('editAccountId').value);
     const accountIndex = accounts.findIndex(acc => acc.id === accountId);
     
@@ -727,19 +910,19 @@ function saveAccountChanges() {
         }
     };
     
-    saveToStorage('accounts', accounts);
+    await saveToStorage('accounts', accounts);
     closeModal();
     displayAccounts();
-    showNotification('Изменения сохранены! ✅', 'success');
+    showNotification('Изменения сохранены и синхронизированы! ✅', 'success');
 }
 
-function deleteAccount(accountId) {
+async function deleteAccount(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return;
     
     if (confirm(`Удалить аккаунт "${account.psnLogin}"? Это действие нельзя отменить.`)) {
         accounts = accounts.filter(acc => acc.id !== accountId);
-        saveToStorage('accounts', accounts);
+        await saveToStorage('accounts', accounts);
         displayAccounts();
         showNotification(`Аккаунт "${account.psnLogin}" удален`, 'info');
     }
@@ -774,7 +957,7 @@ function attachGameToAccount(accountId) {
     document.getElementById('editFreeModal').style.display = 'block';
 }
 
-function saveFreeAccountChanges() {
+async function saveFreeAccountChanges() {
     const accountId = parseInt(document.getElementById('editFreeAccountId').value);
     const accountIndex = accounts.findIndex(acc => acc.id === accountId);
     
@@ -798,7 +981,7 @@ function saveFreeAccountChanges() {
         purchaseAmount: purchaseAmount
     };
     
-    saveToStorage('accounts', accounts);
+    await saveToStorage('accounts', accounts);
     closeFreeModal();
     
     if (window.location.pathname.includes('free-accounts.html')) {
@@ -1134,7 +1317,7 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
     document.getElementById('saleModal').style.display = 'block';
 }
 
-function confirmSaleAndShowData() {
+async function confirmSaleAndShowData() {
     const salePrice = document.getElementById('salePrice').value;
     const saleDate = document.getElementById('saleDate').value;
     const saleTime = document.getElementById('saleTime').value;
@@ -1170,7 +1353,7 @@ function confirmSaleAndShowData() {
     };
     
     sales.push(newSale);
-    saveToStorage('sales', sales);
+    await saveToStorage('sales', sales);
     
     showAccountDataAfterSale(window.currentSaleAccount);
 }
@@ -1309,7 +1492,7 @@ function showSaleDetails(sale) {
     document.getElementById('saleModal').style.display = 'block';
 }
 
-function updateSaleDetails(saleId) {
+async function updateSaleDetails(saleId) {
     const salePrice = document.getElementById('editSalePrice').value;
     const saleDate = document.getElementById('editSaleDate').value;
     const saleTime = document.getElementById('editSaleTime').value;
@@ -1333,7 +1516,7 @@ function updateSaleDetails(saleId) {
             notes: saleNotes
         };
         
-        saveToStorage('sales', sales);
+        await saveToStorage('sales', sales);
         closeSaleModal();
         
         const gameSelect = document.getElementById('managerGame');
@@ -1346,14 +1529,14 @@ function updateSaleDetails(saleId) {
             }
         }
         
-        showNotification('Данные продажи обновлены! 💾', 'success');
+        showNotification('Данные продажи обновлены и синхронизированы! 💾', 'success');
     }
 }
 
-function deleteSale(saleId) {
+async function deleteSale(saleId) {
     if (confirm('Удалить запись о продаже? Это действие нельзя отменить.')) {
         sales = sales.filter(sale => sale.id !== saleId);
-        saveToStorage('sales', sales);
+        await saveToStorage('sales', sales);
         closeSaleModal();
         
         const gameSelect = document.getElementById('managerGame');
@@ -1671,28 +1854,6 @@ function loadGamesForFilter() {
     }
 }
 
-// Функция сохранения данных
-async function saveToStorage(dataType, data) {
-    // Сохраняем локально
-    localStorage.setItem(dataType, JSON.stringify(data));
-    
-    // Пытаемся сохранить в Firebase
-    if (window.dataSync) {
-        try {
-            await dataSync.saveData(dataType, data);
-        } catch (error) {
-            console.error('Ошибка синхронизации с Firebase:', error);
-        }
-    }
-}
-
-// Совместимость со старым кодом
-async function saveToFirebase() {
-    await saveToStorage('games', games);
-    await saveToStorage('accounts', accounts);
-    await saveToStorage('sales', sales);
-}
-
 // Экспорт данных
 function exportToCSV() {
     if (accounts.length === 0) {
@@ -1763,5 +1924,12 @@ document.addEventListener('keydown', function(e) {
         if (document.getElementById('editAccountId')) {
             saveAccountChanges();
         }
+    }
+    
+    // F5 - синхронизировать
+    if (e.key === 'F5') {
+        e.preventDefault();
+        const syncBtn = document.getElementById('syncButton');
+        if (syncBtn) syncBtn.click();
     }
 });
