@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление работниками</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1><span>👑</span><span>Управление работниками</span></h1>
+        
+        <div class="nav-buttons"></div>
+
+        <!-- Проверка доступа -->
+        <div id="accessCheck">
+            <div class="section">
+                <div style="text-align: center; padding: 40px;">
+                    <div class="loading">⏳</div>
+                    <p>Проверка прав доступа...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Контент для администратора (скрыт по умолчанию) -->
+        <div id="adminContent" style="display: none;">
+            <!-- Форма добавления работника -->
+            <div class="section">
+                <h2>➕ Добавить работника</h2>
+                <div class="form-grid">
+                    <input type="text" id="workerName" placeholder="Имя работника" class="input" required>
+                    <input type="text" id="workerLogin" placeholder="Логин" class="input" required>
+                    <input type="password" id="workerPassword" placeholder="Пароль" class="input" required>
+                    <input type="password" id="workerConfirmPassword" placeholder="Подтвердите пароль" class="input" required>
+                    
+                    <div style="grid-column: 1 / -1; padding: 10px;">
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="workerActive" checked>
+                            <span>Аккаунт активен</span>
+                        </label>
+                    </div>
+                    
+                    <button onclick="addWorker()" class="btn btn-success" style="grid-column: 1 / -1;">
+                        Добавить работника
+                    </button>
+                </div>
+            </div>
+
+            <!-- Список работников -->
+            <div class="section">
+                <h2>📋 Список работников</h2>
+                <div id="workersList" class="list">
+                    <div class="empty">Загрузка...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="security.js"></script>
+    <script src="script.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAdminAccess();
+        });
+        
+        // Проверка прав администратора
+        function checkAdminAccess() {
+            const user = security.getCurrentUser();
+            
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            if (user.role !== 'admin') {
+                document.getElementById('accessCheck').innerHTML = `
+                    <div class="section">
+                        <div style="text-align: center; padding: 40px;">
+                            <div style="font-size: 60px; margin-bottom: 20px;">🚫</div>
+                            <h2>Доступ запрещен</h2>
+                            <p style="margin: 15px 0;">Только администратор может управлять работниками</p>
+                            <button onclick="location.href='manager.html'" class="btn btn-primary">
+                                Вернуться на панель
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Показываем админ-панель
+            document.getElementById('accessCheck').style.display = 'none';
+            document.getElementById('adminContent').style.display = 'block';
+            
+            // Загружаем работников
+            loadWorkers();
+        }
+        
+        // Загрузка работников
+        function loadWorkers() {
+            try {
+                const workers = JSON.parse(localStorage.getItem('workers')) || [];
+                displayWorkers(workers);
+            } catch (e) {
+                console.error('Ошибка загрузки работников:', e);
+                document.getElementById('workersList').innerHTML = `
+                    <div class="empty">
+                        <div style="color: #f72585; margin-bottom: 10px;">❌ Ошибка загрузки</div>
+                        <button onclick="loadWorkers()" class="btn btn-small">Повторить</button>
+                    </div>
+                `;
+            }
+        }
+        
+        // Отображение работников
+        function displayWorkers(workers) {
+            const workersList = document.getElementById('workersList');
+            const user = security.getCurrentUser();
+            
+            if (workers.length === 0) {
+                workersList.innerHTML = `
+                    <div class="empty">
+                        <div style="font-size: 50px; margin-bottom: 15px;">👥</div>
+                        <h3>Нет работников</h3>
+                        <p>Добавьте первого работника</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            workersList.innerHTML = workers.map(worker => `
+                <div class="item" style="margin-bottom: 15px; padding: 20px; border-radius: 10px; background: rgba(255,255,255,0.8); border: 1px solid #eee;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <strong>${worker.name}</strong>
+                            <div style="color: #666; font-size: 0.9em; margin-top: 5px;">
+                                Логин: ${worker.username} | 
+                                Добавлен: ${worker.created || 'Не указано'}
+                            </div>
+                        </div>
+                        <div>
+                            <span style="padding: 4px 10px; border-radius: 20px; font-size: 0.85em; background: ${worker.active ? '#e8f5e9' : '#ffebee'}; color: ${worker.active ? '#2e7d32' : '#c62828'};">
+                                ${worker.active ? '✅ Активен' : '❌ Неактивен'}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    ${worker.username !== 'admin' && worker.username !== user.username ? `
+                        <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                            <button class="btn btn-small ${worker.active ? 'btn-warning' : 'btn-success'}" 
+                                    onclick="toggleWorker('${worker.username}', ${!worker.active})">
+                                ${worker.active ? 'Деактивировать' : 'Активировать'}
+                            </button>
+                            <button class="btn btn-danger btn-small" 
+                                    onclick="deleteWorker('${worker.username}')">
+                                Удалить
+                            </button>
+                        </div>
+                    ` : worker.username === user.username ? `
+                        <div style="margin-top: 10px; color: #4361ee; font-weight: 500;">
+                            👤 Это вы
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+        
+        // Добавить работника
+        function addWorker() {
+            const name = document.getElementById('workerName').value.trim();
+            const username = document.getElementById('workerLogin').value.trim();
+            const password = document.getElementById('workerPassword').value;
+            const confirmPassword = document.getElementById('workerConfirmPassword').value;
+            const active = document.getElementById('workerActive').checked;
+            
+            // Валидация
+            if (!name || !username || !password) {
+                alert('Заполните все поля');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                alert('Пароли не совпадают');
+                return;
+            }
+            
+            if (password.length < 4) {
+                alert('Пароль должен быть минимум 4 символа');
+                return;
+            }
+            
+            if (username === 'admin') {
+                alert('Логин "admin" зарезервирован');
+                return;
+            }
+            
+            // Загружаем существующих работников
+            let workers = JSON.parse(localStorage.getItem('workers')) || [];
+            
+            // Проверяем уникальность логина
+            if (workers.find(w => w.username === username)) {
+                alert('Такой логин уже существует');
+                return;
+            }
+            
+            // Добавляем нового работника
+            workers.push({
+                name: name,
+                username: username,
+                password: password,
+                active: active,
+                created: new Date().toLocaleDateString('ru-RU'),
+                role: 'worker'
+            });
+            
+            // Сохраняем
+            localStorage.setItem('workers', JSON.stringify(workers));
+            
+            // Очищаем форму
+            document.getElementById('workerName').value = '';
+            document.getElementById('workerLogin').value = '';
+            document.getElementById('workerPassword').value = '';
+            document.getElementById('workerConfirmPassword').value = '';
+            
+            // Обновляем список
+            loadWorkers();
+            
+            // Логируем
+            security.logEvent('Создан новый работник', { username: username });
+            
+            alert(`Работник "${name}" добавлен!`);
+        }
+        
+        // Изменить статус работника
+        function toggleWorker(username, active) {
+            let workers = JSON.parse(localStorage.getItem('workers')) || [];
+            const workerIndex = workers.findIndex(w => w.username === username);
+            
+            if (workerIndex === -1) {
+                alert('Работник не найден');
+                return;
+            }
+            
+            workers[workerIndex].active = active;
+            localStorage.setItem('workers', JSON.stringify(workers));
+            loadWorkers();
+            
+            security.logEvent('Изменен статус работника', { 
+                username: username, 
+                active: active 
+            });
+        }
+        
+        // Удалить работника
+        function deleteWorker(username) {
+            if (!confirm('Удалить этого работника?')) {
+                return;
+            }
+            
+            let workers = JSON.parse(localStorage.getItem('workers')) || [];
+            workers = workers.filter(w => w.username !== username);
+            localStorage.setItem('workers', JSON.stringify(workers));
+            loadWorkers();
+            
+            security.logEvent('Удален работник', { username: username });
+        }
+        
+        // Стили
+        const style = document.createElement('style');
+        style.textContent = `
+            .loading {
+                font-size: 40px;
+                animation: spin 1s linear infinite;
+            }
+            
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            
+            .btn-warning {
+                background: #ff9800;
+                color: white;
+            }
+            
+            .empty {
+                text-align: center;
+                padding: 40px 20px;
+                color: #666;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
