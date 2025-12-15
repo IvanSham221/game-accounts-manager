@@ -231,3 +231,107 @@ window.dataSync = {
         return await window.dataSync.loadData('workers');
     }
 };
+
+// firebase.js - ДОБАВЬТЕ эту функцию в конец файла после window.dataSync
+
+// Функция для обновления UI при изменении данных
+function setupDataListeners() {
+    if (!firebaseSync) return;
+    
+    // Слушатель для игр с обновлением UI
+    firebaseSync.db.ref('games').on('value', (snapshot) => {
+        if (snapshot.exists()) {
+            const gamesObj = snapshot.val();
+            const gamesArray = Object.values(gamesObj || {});
+            localStorage.setItem('games', JSON.stringify(gamesArray));
+            
+            // Обновляем глобальную переменную
+            if (typeof window.games !== 'undefined') {
+                window.games = gamesArray;
+            }
+            
+            console.log('🔄 Игры синхронизированы:', gamesArray.length);
+            
+            // Если мы на странице игр - обновляем интерфейс
+            if (window.location.pathname.includes('games.html')) {
+                setTimeout(() => {
+                    if (typeof displayGames === 'function') {
+                        displayGames();
+                    }
+                }, 100);
+            }
+            
+            // Обновляем все селекты с играми
+            setTimeout(() => {
+                if (typeof loadGamesForSelect === 'function') {
+                    loadGamesForSelect();
+                }
+                if (typeof loadGamesForFilter === 'function') {
+                    loadGamesForFilter();
+                }
+                if (typeof loadGamesForManager === 'function') {
+                    loadGamesForManager();
+                }
+            }, 200);
+        }
+    });
+    
+    // Слушатель для аккаунтов с обновлением UI
+    firebaseSync.db.ref('accounts').on('value', (snapshot) => {
+        if (snapshot.exists()) {
+            const accountsObj = snapshot.val();
+            const accountsArray = Object.values(accountsObj || {});
+            localStorage.setItem('accounts', JSON.stringify(accountsArray));
+            
+            // Обновляем глобальную переменную
+            if (typeof window.accounts !== 'undefined') {
+                window.accounts = accountsArray;
+            }
+            
+            console.log('🔄 Аккаунты синхронизированы:', accountsArray.length);
+            
+            // Обновляем интерфейс если на соответствующих страницах
+            setTimeout(() => {
+                if (window.location.pathname.includes('accounts.html') && typeof displayAccounts === 'function') {
+                    displayAccounts();
+                }
+                if (window.location.pathname.includes('free-accounts.html') && typeof displayFreeAccounts === 'function') {
+                    displayFreeAccounts();
+                }
+                if (window.location.pathname.includes('manager.html') && typeof displaySearchResults === 'function') {
+                    // Обновляем результаты поиска если они есть
+                    const gameSelect = document.getElementById('managerGame');
+                    if (gameSelect && gameSelect.value) {
+                        const gameId = parseInt(gameSelect.value);
+                        const gameAccounts = accountsArray.filter(acc => acc.gameId === gameId);
+                        const game = gamesArray ? gamesArray.find(g => g.id === gameId) : null;
+                        if (game) {
+                            displaySearchResults(gameAccounts, game.name);
+                        }
+                    }
+                }
+            }, 100);
+        }
+    });
+    
+    // Слушатель для продаж с обновлением UI
+    firebaseSync.db.ref('sales').on('value', (snapshot) => {
+        if (snapshot.exists()) {
+            const salesObj = snapshot.val();
+            const salesArray = Object.values(salesObj || {});
+            localStorage.setItem('sales', JSON.stringify(salesArray));
+            
+            // Обновляем глобальную переменную
+            if (typeof window.sales !== 'undefined') {
+                window.sales = salesArray;
+            }
+            
+            console.log('🔄 Продажи синхронизированы:', salesArray.length);
+        }
+    });
+}
+
+// Запускаем слушатели после инициализации
+if (firebaseSync) {
+    setTimeout(setupDataListeners, 1000);
+}

@@ -407,6 +407,9 @@ function initApp() {
             initMobileMenu();
             initUIEnhancements();
             
+            // Запускаем проверку обновлений
+            startSyncChecker();
+            
         }).catch(error => {
             console.error('❌ Ошибка загрузки данных:', error);
         });
@@ -516,15 +519,20 @@ async function addGame() {
         return;
     }
     
+    // Проверяем на дубликаты среди уже загруженных игр
     if (games.find(game => game.name.toLowerCase() === gameName.toLowerCase())) {
         showNotification('Игра с таким названием уже существует', 'error');
         return;
     }
     
+    // Сначала показываем уведомление о начале сохранения
+    showNotification(`Добавляем игру "${gameName}"...`, 'info', 1000);
+    
     const newGame = {
         id: Date.now(),
         name: gameName,
-        created: new Date().toLocaleDateString('ru-RU')
+        created: new Date().toLocaleDateString('ru-RU'),
+        addedBy: security.getCurrentUser()?.name || 'Неизвестно'
     };
     
     games.push(newGame);
@@ -532,13 +540,21 @@ async function addGame() {
     
     document.getElementById('gameName').value = '';
     
-    if (window.location.pathname.includes('games.html')) {
-        displayGames();
+    // Принудительно обновляем все страницы
+    if (result.synced) {
+        showNotification(`Игра "${gameName}" успешно добавлена и синхронизирована! 🎮`, 'success');
+        
+        // Запускаем принудительную синхронизацию на всех устройствах
+        if (window.dataSync && window.dataSync.forceFullSync) {
+            setTimeout(() => {
+                dataSync.forceFullSync().then(() => {
+                    console.log('✅ Принудительная синхронизация запущена');
+                });
+            }, 1000);
+        }
     } else {
-        loadGamesForSelect();
+        showNotification(`Игра "${gameName}" добавлена локально 🎮`, 'warning');
     }
-    
-    showNotification(`Игра "${gameName}" успешно добавлена! 🎮`, 'success');
 }
 
 function displayGames() {
@@ -785,6 +801,67 @@ function displayFreeAccounts() {
             </div>
         </div>
     `).join('');
+}
+
+function refreshGamesPage() {
+    if (!window.location.pathname.includes('games.html')) return;
+    
+    const freshGames = JSON.parse(localStorage.getItem('games')) || [];
+    if (JSON.stringify(freshGames) !== JSON.stringify(games)) {
+        games = freshGames;
+        if (typeof displayGames === 'function') {
+            displayGames();
+            console.log('🔄 UI игр обновлен');
+        }
+    }
+}
+
+// Функция для обновления страницы аккаунтов
+function refreshAccountsPage() {
+    const freshAccounts = JSON.parse(localStorage.getItem('accounts')) || [];
+    if (JSON.stringify(freshAccounts) !== JSON.stringify(accounts)) {
+        accounts = freshAccounts;
+        
+        if (window.location.pathname.includes('accounts.html') && typeof displayAccounts === 'function') {
+            displayAccounts();
+            console.log('🔄 UI аккаунтов обновлен');
+        }
+        
+        if (window.location.pathname.includes('free-accounts.html') && typeof displayFreeAccounts === 'function') {
+            displayFreeAccounts();
+            console.log('🔄 UI свободных аккаунтов обновлен');
+        }
+    }
+}
+
+// Функция для обновления всех селектов с играми
+function refreshAllGameSelects() {
+    const freshGames = JSON.parse(localStorage.getItem('games')) || [];
+    if (JSON.stringify(freshGames) !== JSON.stringify(games)) {
+        games = freshGames;
+        
+        setTimeout(() => {
+            if (typeof loadGamesForSelect === 'function') {
+                loadGamesForSelect();
+            }
+            if (typeof loadGamesForFilter === 'function') {
+                loadGamesForFilter();
+            }
+            if (typeof loadGamesForManager === 'function') {
+                loadGamesForManager();
+            }
+            console.log('🔄 Все селекты с играми обновлены');
+        }, 100);
+    }
+}
+
+// Проверка обновлений каждые 3 секунды
+function startSyncChecker() {
+    setInterval(() => {
+        refreshGamesPage();
+        refreshAccountsPage();
+        refreshAllGameSelects();
+    }, 3000);
 }
 
 // ============================================
