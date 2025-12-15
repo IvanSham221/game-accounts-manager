@@ -33,6 +33,90 @@ function checkAuth() {
     return true;
 }
 
+// ============================================
+// ИНСТРУКЦИИ ДЛЯ РАЗНЫХ ТИПОВ ПОЗИЦИЙ
+// ============================================
+
+const POSITION_INSTRUCTIONS = {
+    'p2_ps4': `🔐 Инструкция по активации П2 PS4:
+
+1️⃣ Добавьте нового пользователя На консоли выберите значок «плюс» — Добавить пользователя
+2️⃣ Нажмите «ВХОД В РУЧНУЮ»
+3️⃣ Примите лицензионное соглашение → нажмите «ПОДТВЕРДИТЬ»
+4️⃣ Выберите вход вручную и введите выданные данные
+5️⃣ Код прописан в данных или запрашиваем у нас (30 секундный код)
+6️⃣ В окне «Сбор данных» выберите «Только ограниченные данные»
+7️⃣ После входа: Перейдите в БИБЛИОТЕКА → Ваша коллекция → загрузить игру
+8️⃣ Зайдите в: [НАСТРОЙКИ] → [УПРАВЛЕНИЕ УЧЕТНОЙ ЗАПИСЬЮ] → [АКТИВИРОВАТЬ КАК ОСНОВНУЮ PLAYSTATION 4] Выберите: «ДЕАКТИВИРОВАТЬ»
+✅ Готово! Игра будет доступна после установки
+
+💬 Если появятся вопросы или сложности — пишите, мы всегда на связи и быстро поможем!
+📩 Как только всё получится — пожалуйста, подтвердите выполнение заказа!
+⭐ Мы будем благодарны за ваш отзыв — он поможет нам в развитии!`,
+
+    'p3_ps4': `🔐 Инструкция по активации П3 PS4:
+
+1️⃣ Добавьте нового пользователя
+На консоли выберите значок «плюс» — Добавить пользователя
+2️⃣ Нажмите «ВХОД В РУЧНУЮ»
+3️⃣ Лицензионное соглашение – «Принять»
+4️⃣ Введите логин и пароль, которые мы вам предоставим
+5️⃣ Вводим код для входа или запрашиваем у нас (30-секундный код)
+6️⃣ Информационный экран — выбираем ОК
+7️⃣ Включите общий доступ к консоли:
+[НАСТРОЙКИ] → [УПРАВЛЕНИЕ УЧЕТНОЙ ЗАПИСЬЮ] → [АКТИВИРОВАТЬ КАК ОСНОВНУЮ PLAYSTATION 4] Выберите: «АКТИВИРОВАТЬ»
+8️⃣ На рабочем столе зайдите в Библиотека → Приобретено и начните загрузку игры
+9️⃣ После этого вернитесь на свой основной аккаунт
+"Настройки" → "Питание" → "Сменить пользователя"
+✅ Готово! Игра будет доступна после установки
+
+💬 Если появятся вопросы или сложности — пишите, мы всегда на связи и быстро поможем!
+📩 Как только всё получится — пожалуйста, подтвердите выполнение заказа!
+⭐ Мы будем благодарны за ваш отзыв — он поможет нам в развитии!`,
+
+    'p2_ps5': `🔐 Инструкция по активации П2 PS5:
+
+1️⃣ Добавьте нового пользователя На консоли выберите значок «плюс» — Добавить пользователя
+2️⃣ Нажмите «ВХОД В РУЧНУЮ»
+3️⃣ Примите лицензионное соглашение → нажмите «ПОДТВЕРДИТЬ»
+4️⃣ Выберите вход вручную и введите выданные данные
+5️⃣ Код прописан в данных или запрашиваем у нас (30 секундный код)
+6️⃣ В окне «Сбор данных» выберите «Только ограниченные данные»
+7️⃣ После входа: На рабочем столе перейдите в БИБЛИОТЕКА → Ваша коллекция → загрузить игру
+8️⃣ Зайдите в: [НАСТРОЙКИ] → [ПОЛЬЗОВАТЕЛИ И УЧЕТНЫЕ ЗАПИСИ] → [ДРУГОЕ] → [ОБЩИЙ ДОСТУП К КОНСОЛИ И АВТОНОМНАЯ ИГРА] Выберите: «НЕ ВКЛЮЧАТЬ» или «ОТКЛЮЧИТЬ
+✅ Готово! Игра будет доступна после установки
+
+💬 Если появятся вопросы или сложности — пишите, мы всегда на связи и быстро поможем!
+📩 Как только всё получится — пожалуйста, подтвердите выполнение заказа!
+⭐ Мы будем благодарны за ваш отзыв — он поможет нам в развитии!`,
+
+    'p3_ps5': `🔐 Инструкция по активации П3 PS5:
+
+1️⃣ Добавьте нового пользователя
+На консоли выберите значок «плюс» — Добавить пользователя
+2️⃣ Нажмите «ВХОД В РУЧНУЮ»
+3️⃣ Лицензионное соглашение – «Принять»
+4️⃣ Введите логин и пароль, которые мы вам предоставим
+5️⃣ Вводим код для входа или запрашиваем у нас (30-секундный код)
+6️⃣ Информационный экран — выбираем ОК
+7️⃣ Включите общий доступ к консоли:
+(НАСТРОЙКИ) - [ПОЛЬЗОВАТЕЛИ И УЧЕТНЫЕ ЗАПИСИ] - [ДРУГОЕ] - [ОБЩИЙ ДОСТУП К КОНСОЛИ И АВТОНОМНАЯ ИГРА]. В данном меню выбрать «ВКЛЮЧИТЬ»
+8️⃣ На рабочем столе зайдите в Библиотека → Приобретено и начните загрузку игры
+9️⃣ После этого вернитесь на свой основной аккаунт
+Нажимаете на аватарку → сменить пользователя → переходите на Вашего личного пользователя
+✅ Готово! Игра будет доступна после установки
+
+💬 Если появятся вопросы или сложности — пишите, мы всегда на связи и быстро поможем!
+📩 Как только всё получится — пожалуйста, подтвердите выполнение заказа!
+⭐ Мы будем благодарны за ваш отзыв — он поможет нам в развитии!`
+};
+
+// Функция для получения инструкции по типу позиции
+function getInstructionForPosition(positionType) {
+    return POSITION_INSTRUCTIONS[positionType] || 
+           '⚠️ Инструкция для данного типа позиции не найдена.';
+}
+
 // ==================== УНИВЕРСАЛЬНЫЕ ФУНКЦИИ МОДАЛЬНЫХ ОКОН ====================
 
 function openModal(modalId) {
@@ -147,6 +231,14 @@ function updateNavigation() {
             <span>📊</span>
             <span class="nav-text">Отчеты</span>
         </button>
+        <button onclick="security.updateSession(); location.href='workers-stats.html'" class="btn ${location.pathname.includes('workers-stats.html') ? 'btn-primary' : 'btn-secondary'}">
+        <span>📈</span>
+        <span class="nav-text">Статистика работников</span>
+    </button>
+    <button onclick="security.updateSession(); location.href='charts.html'" class="btn ${location.pathname.includes('charts.html') ? 'btn-primary' : 'btn-secondary'}">
+        <span>📈</span>
+        <span class="nav-text">Графики</span>
+    </button>
     `;
     
     // Только администратор видит кнопку "Работники"
@@ -529,6 +621,15 @@ function initApp() {
         if (typeof showNotification === 'function') {
             showNotification(`Добро пожаловать, ${user.name}! 👋`, 'info', 2000);
         }
+
+        if (currentPage === 'manager.html') {
+    loadGamesForManager();
+    
+    // Загружаем менеджеров для фильтра с задержкой
+    setTimeout(() => {
+        loadManagersForFilter();
+    }, 1000);
+}
     }
 }
 
@@ -1440,109 +1541,31 @@ function displaySearchResults(accountsList, gameName) {
             </div>
             
             <div class="platforms-container">
-                <!-- PS4 -->
-                <div class="platform-section">
-                    <div class="platform-title">PS4</div>
-                    <div class="positions-container">
-                        <!-- П2 PS4 -->
-                        ${account.positions.p2_ps4 > 0 ? `
-                            <div class="position-group">
-                                <div class="position-label">П2:</div>
-                                <div class="position-buttons">
-                                    ${Array(account.positions.p2_ps4).fill().map((_, index) => {
-                                        const saleInfo = getPositionSaleInfo(account.id, 'p2_ps4', index + 1);
-                                        const isSold = !!saleInfo;
-                                        const displayDate = saleInfo ? (saleInfo.datetime || saleInfo.date || '') : '';
-                                        return `
-                                            <div class="position-single ${isSold ? 'sold' : ''}" 
-                                                 onclick="handlePositionClick(${account.id}, 'p2_ps4', 'П2 PS4', ${index + 1})">
-                                                ${index + 1}
-                                                ${isSold ? `<div class="position-sale-date">${displayDate}</div>` : ''}
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
-                        
-                        <!-- П3 PS4 -->
-                        ${account.positions.p3_ps4 > 0 ? `
-                            <div class="position-group">
-                                <div class="position-label">П3:</div>
-                                <div class="position-buttons">
-                                    ${Array(account.positions.p3_ps4).fill().map((_, index) => {
-                                        const saleInfo = getPositionSaleInfo(account.id, 'p3_ps4', index + 1);
-                                        const isSold = !!saleInfo;
-                                        const displayDate = saleInfo ? (saleInfo.datetime || saleInfo.date || '') : '';
-                                        return `
-                                            <div class="position-single ${isSold ? 'sold' : ''}" 
-                                                 onclick="handlePositionClick(${account.id}, 'p3_ps4', 'П3 PS4', ${index + 1})">
-                                                ${index + 1}
-                                                ${isSold ? `<div class="position-sale-date">${displayDate}</div>` : ''}
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
-                        
-                        ${account.positions.p2_ps4 === 0 && account.positions.p3_ps4 === 0 ? 
-                            '<div class="position-empty">Нет позиций</div>' : ''
-                        }
-                    </div>
-                </div>
                 
-                <!-- PS5 -->
-                <div class="platform-section">
-                    <div class="platform-title">PS5</div>
-                    <div class="positions-container">
-                        <!-- П2 PS5 -->
-                        ${account.positions.p2_ps5 > 0 ? `
-                            <div class="position-group">
-                                <div class="position-label">П2:</div>
-                                <div class="position-buttons">
-                                    ${Array(account.positions.p2_ps5).fill().map((_, index) => {
-                                        const saleInfo = getPositionSaleInfo(account.id, 'p2_ps5', index + 1);
-                                        const isSold = !!saleInfo;
-                                        const displayDate = saleInfo ? (saleInfo.datetime || saleInfo.date || '') : '';
-                                        return `
-                                            <div class="position-single ${isSold ? 'sold' : ''}" 
-                                                 onclick="handlePositionClick(${account.id}, 'p2_ps5', 'П2 PS5', ${index + 1})">
-                                                ${index + 1}
-                                                ${isSold ? `<div class="position-sale-date">${displayDate}</div>` : ''}
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
-                        
-                        <!-- П3 PS5 -->
-                        ${account.positions.p3_ps5 > 0 ? `
-                            <div class="position-group">
-                                <div class="position-label">П3:</div>
-                                <div class="position-buttons">
-                                    ${Array(account.positions.p3_ps5).fill().map((_, index) => {
-                                        const saleInfo = getPositionSaleInfo(account.id, 'p3_ps5', index + 1);
-                                        const isSold = !!saleInfo;
-                                        const displayDate = saleInfo ? (saleInfo.datetime || saleInfo.date || '') : '';
-                                        return `
-                                            <div class="position-single ${isSold ? 'sold' : ''}" 
-                                                 onclick="handlePositionClick(${account.id}, 'p3_ps5', 'П3 PS5', ${index + 1})">
-                                                ${index + 1}
-                                                ${isSold ? `<div class="position-sale-date">${displayDate}</div>` : ''}
-                                            </div>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
-                        
-                        ${account.positions.p2_ps5 === 0 && account.positions.p3_ps5 === 0 ? 
-                            '<div class="position-empty">Нет позиций</div>' : ''
-                        }
-                    </div>
-                </div>
+                <!-- PS4 -->
+<div class="platform-section">
+    <div class="platform-title">PS4</div>
+    <div class="positions-container">
+        ${generatePositionsHTML(account, 'p2_ps4', 'П2 PS4', 'П2')}
+        ${generatePositionsHTML(account, 'p3_ps4', 'П3 PS4', 'П3')}
+        ${account.positions.p2_ps4 === 0 && account.positions.p3_ps4 === 0 ? 
+            '<div class="position-empty">Нет позиций</div>' : ''
+        }
+    </div>
+</div>
+
+<!-- PS5 -->
+<div class="platform-section">
+    <div class="platform-title">PS5</div>
+    <div class="positions-container">
+        ${generatePositionsHTML(account, 'p2_ps5', 'П2 PS5', 'П2')}
+        ${generatePositionsHTML(account, 'p3_ps5', 'П3 PS5', 'П3')}
+        ${account.positions.p2_ps5 === 0 && account.positions.p3_ps5 === 0 ? 
+            '<div class="position-empty">Нет позиций</div>' : ''
+        }
+    </div>
+</div>
+                
             </div>
         </div>
     `).join('');
@@ -1688,6 +1711,9 @@ async function confirmSaleAndShowData() {
     
     const positionId = `${window.currentSaleAccount}_${window.currentSalePosition}_${window.currentSalePositionIndex}`;
     
+    // Получаем текущего пользователя
+    const currentUser = security.getCurrentUser();
+    
     const newSale = {
         id: positionId,
         accountId: window.currentSaleAccount,
@@ -1702,7 +1728,11 @@ async function confirmSaleAndShowData() {
         notes: saleNotes,
         timestamp: new Date().toISOString(),
         sold: true,
-        positionIndex: window.currentSalePositionIndex
+        positionIndex: window.currentSalePositionIndex,
+        // ДОБАВЛЯЕМ ИНФОРМАЦИЮ О МЕНЕДЖЕРЕ
+        soldBy: currentUser ? currentUser.username : 'unknown',
+        soldByName: currentUser ? currentUser.name : 'Неизвестно',
+        managerRole: currentUser ? currentUser.role : 'unknown'
     };
     
     sales.push(newSale);
@@ -1739,42 +1769,195 @@ function showAccountDataAfterSale(accountId) {
         }
     }
 
+    // Получаем инструкцию для проданной позиции
+    const instruction = getInstructionForPosition(window.currentSalePosition);
+    
     const modalContent = document.getElementById('saleModalContent');
     modalContent.innerHTML = `
-        <h2>✅ Продажа оформлена!</h2>
+        <h2 style="text-align: center; margin-bottom: 25px;">
+            <span style="display: inline-block; margin-right: 10px;">✅</span>
+            Продажа оформлена!
+        </h2>
         
-        <div class="order-info">
-            <h3>Данные для клиента:</h3>
-            <div class="order-data">
-                <pre>Игра: ${account.gameName}
+        <div class="sale-success-section" style="
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid #bbf7d0;
+            margin-bottom: 25px;
+        ">
+            <h3 style="color: #16a34a; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                <span>📋</span>
+                Данные для клиента:
+            </h3>
+            
+            <div class="order-data" style="
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                border: 1px solid #e2e8f0;
+                font-family: 'Courier New', monospace;
+                font-size: 14px;
+                line-height: 1.6;
+                margin-bottom: 20px;
+                white-space: pre-wrap;
+                word-break: break-word;
+            ">
+Игра: ${account.gameName}
 Логин PSN: ${account.psnLogin}
 Пароль PSN: ${account.psnPassword || 'Не указан'}
-Код аутентификации PSN: ${currentCode}</pre>
+Код аутентификации PSN: ${currentCode}
             </div>
             
-            ${psnCodesArray.length > 0 ? `
-                <div class="remaining-codes">
-                    <h4>📋 Оставшиеся коды (${psnCodesArray.length}):</h4>
-                    <div class="codes-list">
-                        ${psnCodesArray.map(code => `
-                            <div class="code-item">${code}</div>
-                        `).join('')}
-                </div>
-            ` : ''}
+            <div class="copy-buttons" style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-success btn-small" onclick="copyAccountData()" style="flex: 1;">
+                    <span style="margin-right: 8px;">📋</span>
+                    Скопировать данные
+                </button>
+                <button class="btn btn-primary btn-small" onclick="copyInstruction()" style="flex: 1;">
+                    <span style="margin-right: 8px;">📝</span>
+                    Скопировать инструкцию
+                </button>
+            </div>
         </div>
         
-        <div class="order-buttons">
-            <button class="btn btn-success" onclick="copyAccountData()">📋 Скопировать данные</button>
-            <button class="btn btn-primary" onclick="closeSaleModalAndRefresh()">Готово</button>
+        <div class="instruction-section" style="
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid #bfdbfe;
+            margin-bottom: 25px;
+        ">
+            <h3 style="color: #2563eb; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                <span>📖</span>
+                Инструкция для ${getPositionName(window.currentSalePosition)}:
+            </h3>
+            
+            <div style="
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                border: 1px solid #e2e8f0;
+                max-height: 300px;
+                overflow-y: auto;
+                font-size: 13.5px;
+                line-height: 1.5;
+                color: #4b5563;
+            ">
+                ${instruction.replace(/\n/g, '<br>')}
+            </div>
+            
+            <div style="margin-top: 15px; text-align: center;">
+                <small style="color: #6b7280;">
+                    ⭐ Инструкция скопирована в буфер обмена при нажатии кнопки выше
+                </small>
+            </div>
+        </div>
+        
+        ${psnCodesArray.length > 0 ? `
+            <div class="remaining-codes" style="
+                background: #f8fafc;
+                padding: 20px;
+                border-radius: 15px;
+                border: 1px solid #e2e8f0;
+                margin-bottom: 25px;
+            ">
+                <h4 style="color: #475569; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <span>🔑</span>
+                    Оставшиеся коды (${psnCodesArray.length}):
+                </h4>
+                <div class="codes-list" style="
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                    gap: 10px;
+                ">
+                    ${psnCodesArray.map(code => `
+                        <div style="
+                            background: white;
+                            padding: 10px 15px;
+                            border-radius: 8px;
+                            border: 1px solid #e2e8f0;
+                            font-family: 'Courier New', monospace;
+                            font-size: 12px;
+                            text-align: center;
+                            word-break: break-all;
+                        ">${code}</div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : ''}
+        
+        <div class="order-buttons" style="
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        ">
+            <button class="btn btn-success" onclick="copyAllData()" style="padding: 12px 24px;">
+                <span style="margin-right: 8px;">📄</span>
+                Скопировать ВСЁ (данные + инструкция)
+            </button>
+            <button class="btn btn-primary" onclick="closeSaleModalAndRefresh()" style="padding: 12px 24px;">
+                <span style="margin-right: 8px;">✅</span>
+                Готово
+            </button>
         </div>
     `;
     
+    // Сохраняем данные для копирования
     window.currentOrderData = `Игра: ${account.gameName}
 Логин PSN: ${account.psnLogin}
 Пароль PSN: ${account.psnPassword || 'Не указан'}
 Код аутентификации PSN: ${currentCode}`;
+    
+    // Сохраняем инструкцию
+    window.currentInstruction = instruction;
 }
 
+// Функция для копирования инструкции
+function copyInstruction() {
+    if (!window.currentInstruction) {
+        showNotification('Инструкция не найдена', 'error');
+        return;
+    }
+    
+    navigator.clipboard.writeText(window.currentInstruction).then(() => {
+        showNotification('Инструкция скопирована в буфер обмена! 📝', 'success');
+    }).catch(err => {
+        const textArea = document.createElement('textarea');
+        textArea.value = window.currentInstruction;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showNotification('Инструкция скопирована в буфер обмена! 📝', 'success');
+    });
+}
+
+// Функция для копирования ВСЕГО (данные + инструкция)
+function copyAllData() {
+    if (!window.currentOrderData || !window.currentInstruction) {
+        showNotification('Данные не найдены', 'error');
+        return;
+    }
+    
+    const allData = `${window.currentOrderData}\n\n${window.currentInstruction}`;
+    
+    navigator.clipboard.writeText(allData).then(() => {
+        showNotification('Все данные скопированы! 📄', 'success');
+    }).catch(err => {
+        const textArea = document.createElement('textarea');
+        textArea.value = allData;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showNotification('Все данные скопированы! 📄', 'success');
+    });
+}
+
+// Обновим функцию copyAccountData() чтобы она тоже была доступна
 function copyAccountData() {
     if (!window.currentOrderData) return;
     
@@ -1815,13 +1998,41 @@ function showSaleDetails(sale) {
         <h2>💰 Информация о продаже</h2>
         
         <div class="sale-info">
-            <div class="sale-info-item"><strong>Аккаунт:</strong><span>${sale.accountLogin}</span></div>
-            <div class="sale-info-item"><strong>Игра:</strong><span>${sale.gameName}</span></div>
-            <div class="sale-info-item"><strong>Позиция:</strong><span>${sale.positionName}</span></div>
+            <div class="sale-info-item">
+                <strong>Аккаунт:</strong>
+                <span>${sale.accountLogin}</span>
+            </div>
+            <div class="sale-info-item">
+                <strong>Игра:</strong>
+                <span>${sale.gameName}</span>
+            </div>
+            <div class="sale-info-item">
+                <strong>Позиция:</strong>
+                <span>${sale.positionName}</span>
+            </div>
+            <!-- ДОБАВЛЯЕМ СТРОКУ С МЕНЕДЖЕРОМ -->
+            ${sale.soldByName ? `
+                <div class="sale-info-item">
+                    <strong>Оформил:</strong>
+                    <span style="
+                        background: ${sale.managerRole === 'admin' ? 'linear-gradient(135deg, #f72585 0%, #e63946 100%)' : 'linear-gradient(135deg, #4361ee 0%, #3a56d4 100%)'};
+                        color: white;
+                        padding: 4px 10px;
+                        border-radius: 20px;
+                        font-size: 0.9em;
+                        display: inline-block;
+                    ">
+                        ${sale.soldByName} ${sale.managerRole === 'admin' ? '👑' : '👷'}
+                    </span>
+                </div>
+            ` : ''}
         </div>
         
         <div class="sale-form">
-            <div><label for="editSalePrice">Цена продажи (₽):</label><input type="number" id="editSalePrice" class="sale-input" value="${sale.price}" required></div>
+            <div>
+                <label for="editSalePrice">Цена продажи (₽):</label>
+                <input type="number" id="editSalePrice" class="sale-input" value="${sale.price}" required>
+            </div>
             <div class="datetime-group">
                 <div>
                     <label for="editSaleDate">Дата продажи:</label>
@@ -1832,7 +2043,10 @@ function showSaleDetails(sale) {
                     <input type="time" id="editSaleTime" class="sale-input" value="${saleTime}">
                 </div>
             </div>
-            <div><label for="editSaleNotes">Примечания:</label><input type="text" id="editSaleNotes" class="sale-input" value="${sale.notes || ''}" placeholder="Дополнительная информация"></div>
+            <div>
+                <label for="editSaleNotes">Примечания:</label>
+                <input type="text" id="editSaleNotes" class="sale-input" value="${sale.notes || ''}" placeholder="Дополнительная информация">
+            </div>
         </div>
         
         <div class="sale-buttons">
@@ -1842,7 +2056,93 @@ function showSaleDetails(sale) {
         </div>
     `;
     
-    document.getElementById('saleModal').style.display = 'block';
+    openModal('saleModal');
+}
+
+function displayWorkersStats(periodSales) {
+    const container = document.getElementById('workersStats');
+    if (!container) return;
+    
+    // Собираем статистику по менеджерам
+    const managersStats = {};
+    
+    periodSales.forEach(sale => {
+        const managerName = sale.soldByName || 'Неизвестно';
+        const managerUsername = sale.soldBy || 'unknown';
+        
+        if (!managersStats[managerUsername]) {
+            managersStats[managerUsername] = {
+                name: managerName,
+                username: managerUsername,
+                role: sale.managerRole || 'worker',
+                revenue: 0,
+                sales: 0,
+                avgCheck: 0,
+                profit: 0
+            };
+        }
+        
+        managersStats[managerUsername].revenue += sale.price;
+        managersStats[managerUsername].sales += 1;
+        managersStats[managerUsername].profit += (sale.profit || 0);
+    });
+    
+    // Рассчитываем средний чек
+    Object.keys(managersStats).forEach(username => {
+        const stats = managersStats[username];
+        stats.avgCheck = stats.sales > 0 ? stats.revenue / stats.sales : 0;
+    });
+    
+    // Сортируем по выручке
+    const sortedManagers = Object.values(managersStats)
+        .sort((a, b) => b.revenue - a.revenue);
+    
+    if (sortedManagers.length === 0) {
+        container.innerHTML = '<div class="empty">Нет данных по менеджерам</div>';
+        return;
+    }
+    
+    const tableHTML = sortedManagers.map(manager => {
+        return `
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-weight: 600;">${manager.name}</span>
+                        ${manager.role === 'admin' ? 
+                            '<span style="background: #f72585; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em;">👑 Админ</span>' : 
+                            '<span style="background: #4361ee; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em;">👷 Работник</span>'
+                        }
+                    </div>
+                </td>
+                <td>${manager.sales}</td>
+                <td>${manager.revenue.toLocaleString('ru-RU')} ₽</td>
+                <td>${manager.profit.toLocaleString('ru-RU')} ₽</td>
+                <td>${manager.avgCheck.toLocaleString('ru-RU')} ₽</td>
+            </tr>
+        `;
+    }).join('');
+    
+    container.innerHTML = `
+        <h3>👷 Статистика по менеджерам</h3>
+        <div style="margin: 20px 0; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+            <div style="font-weight: 600; margin-bottom: 5px;">Всего менеджеров: ${sortedManagers.length}</div>
+            <div>Лучший по выручке: <strong>${sortedManagers[0].name}</strong> (${sortedManagers[0].revenue.toLocaleString('ru-RU')} ₽)</div>
+        </div>
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Менеджер</th>
+                    <th>Продажи</th>
+                    <th>Выручка</th>
+                    <th>Прибыль</th>
+                    <th>Средний чек</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tableHTML}
+            </tbody>
+        </table>
+    `;
 }
 
 async function updateSaleDetails(saleId) {
@@ -1860,13 +2160,19 @@ async function updateSaleDetails(saleId) {
     
     const saleIndex = sales.findIndex(s => s.id === saleId);
     if (saleIndex !== -1) {
+        const currentUser = security.getCurrentUser();
+        
+        // Добавляем информацию о том, кто изменил продажу
         sales[saleIndex] = {
             ...sales[saleIndex],
             price: parseFloat(salePrice),
             date: saleDate,
             time: saleTime,
             datetime: saleDateTime,
-            notes: saleNotes
+            notes: saleNotes,
+            lastModifiedBy: currentUser ? currentUser.username : 'unknown',
+            lastModifiedByName: currentUser ? currentUser.name : 'Неизвестно',
+            lastModifiedAt: new Date().toISOString()
         };
         
         await saveToStorage('sales', sales);
@@ -1882,8 +2188,226 @@ async function updateSaleDetails(saleId) {
             }
         }
         
-        showNotification('Данные продажи обновлены и синхронизированы! 💾', 'success');
+        showNotification('Данные продажи обновлены! 💾', 'success');
     }
+}
+
+// ============================================
+// ФИЛЬТРАЦИЯ ПО МЕНЕДЖЕРУ
+// ============================================
+
+// Загрузка списка менеджеров для фильтра
+function loadManagersForFilter() {
+    const select = document.getElementById('filterManager');
+    if (!select) return;
+    
+    const managersMap = new Map(); // Используем Map для уникальности
+    
+    // 1. Собираем менеджеров из продаж
+    sales.forEach(sale => {
+        if (sale.soldByName && sale.soldBy) {
+            const key = sale.soldBy; // Используем username как ключ
+            if (!managersMap.has(key)) {
+                managersMap.set(key, {
+                    name: sale.soldByName,
+                    username: sale.soldBy,
+                    role: sale.managerRole || 'worker'
+                });
+            }
+        }
+    });
+    
+    // 2. Добавляем текущих работников из базы
+    const workers = JSON.parse(localStorage.getItem('workers')) || [];
+    workers.forEach(worker => {
+        if (worker.active !== false && worker.username) {
+            const key = worker.username;
+            if (!managersMap.has(key)) {
+                managersMap.set(key, {
+                    name: worker.name || worker.username,
+                    username: worker.username,
+                    role: worker.role || 'worker'
+                });
+            }
+        }
+    });
+    
+    // 3. Добавляем администратора (если есть продажи от админа)
+    const currentUser = security.getCurrentUser();
+    if (currentUser && currentUser.role === 'admin' && !managersMap.has(currentUser.username)) {
+        managersMap.set(currentUser.username, {
+            name: currentUser.name,
+            username: currentUser.username,
+            role: 'admin'
+        });
+    }
+    
+    // Сортируем по имени и формируем опции
+    const sortedManagers = Array.from(managersMap.values())
+        .sort((a, b) => a.name.localeCompare(b.name));
+    
+    select.innerHTML = '<option value="">Все менеджеры</option>';
+    sortedManagers.forEach(manager => {
+        const displayName = `${manager.name} (${manager.role === 'admin' ? '👑' : '👷'})`;
+        select.innerHTML += `<option value="${manager.username}">${displayName}</option>`;
+    });
+    
+    console.log('Загружено менеджеров для фильтра:', sortedManagers.length);
+}
+
+// Функция фильтрации по менеджеру
+function filterByManager() {
+    const managerFilter = document.getElementById('filterManager').value;
+    const gameSelect = document.getElementById('managerGame');
+    const gameId = gameSelect ? parseInt(gameSelect.value) : 0;
+    
+    if (!gameId) {
+        // Если игра не выбрана, показываем все аккаунты с продажами этого менеджера
+        if (!managerFilter) {
+            showNotification('Выберите менеджера для фильтрации', 'warning');
+            return;
+        }
+        
+        // Находим все аккаунты, где есть продажи от выбранного менеджера
+        const salesByManager = sales.filter(sale => 
+            sale.soldBy === managerFilter
+        );
+        
+        const accountIds = [...new Set(salesByManager.map(sale => sale.accountId))];
+        const filteredAccounts = accounts.filter(acc => accountIds.includes(acc.id));
+        
+        if (filteredAccounts.length === 0) {
+            document.getElementById('searchResults').innerHTML = `
+                <div class="empty">
+                    <h3>У выбранного менеджера нет продаж</h3>
+                </div>
+            `;
+            document.getElementById('statsSection').style.display = 'none';
+            showNotification('У этого менеджера нет продаж', 'info');
+            return;
+        }
+        
+        // Группируем по играм для статистики
+        const gamesMap = {};
+        filteredAccounts.forEach(acc => {
+            if (!gamesMap[acc.gameName]) {
+                gamesMap[acc.gameName] = [];
+            }
+            gamesMap[acc.gameName].push(acc);
+        });
+        
+        // Показываем статистику
+        const statsSection = document.getElementById('statsSection');
+        statsSection.style.display = 'block';
+        
+        const managerInfo = salesByManager[0] ? 
+            `${salesByManager[0].soldByName} (${salesByManager[0].soldBy})` : 
+            'Выбранный менеджер';
+        
+        statsSection.innerHTML = `
+            <div class="stats-header">
+                <h3>👷 Продажи менеджера: ${managerInfo}</h3>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">${salesByManager.length}</div>
+                    <div class="stat-label">Всего продаж</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${salesByManager.reduce((sum, sale) => sum + sale.price, 0).toLocaleString('ru-RU')} ₽</div>
+                    <div class="stat-label">Общая выручка</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${Object.keys(gamesMap).length}</div>
+                    <div class="stat-label">Игр</div>
+                </div>
+            </div>
+        `;
+        
+        displaySearchResults(filteredAccounts, 'по менеджеру');
+        return;
+    }
+    
+    // Если выбрана игра, фильтруем по игре + менеджеру
+    const game = games.find(g => g.id === gameId);
+    if (!game) {
+        showNotification('Игра не найдена', 'error');
+        return;
+    }
+    
+    const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
+    
+    if (managerFilter) {
+        // Фильтруем продажи по менеджеру
+        const salesByManager = sales.filter(sale => 
+            sale.soldBy === managerFilter && 
+            sale.accountId && 
+            gameAccounts.some(acc => acc.id === sale.accountId)
+        );
+        
+        const accountIds = [...new Set(salesByManager.map(sale => sale.accountId))];
+        const filteredAccounts = gameAccounts.filter(acc => accountIds.includes(acc.id));
+        
+        if (filteredAccounts.length === 0) {
+            document.getElementById('searchResults').innerHTML = `
+                <div class="empty">
+                    <h3>У менеджера нет продаж по игре "${game.name}"</h3>
+                </div>
+            `;
+            
+            const statsSection = document.getElementById('statsSection');
+            statsSection.style.display = 'block';
+            statsSection.innerHTML = `
+                <div class="stats-header">
+                    <h3>🎮 ${game.name} - нет продаж у выбранного менеджера</h3>
+                </div>
+            `;
+            
+            showNotification(`У менеджера нет продаж по игре "${game.name}"`, 'info');
+            return;
+        }
+        
+        // Показываем статистику
+        const managerName = salesByManager[0]?.soldByName || 'Выбранный менеджер';
+        const statsSection = document.getElementById('statsSection');
+        statsSection.style.display = 'block';
+        statsSection.innerHTML = `
+            <div class="stats-header">
+                <h3>👷 ${managerName} - ${game.name}</h3>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">${salesByManager.length}</div>
+                    <div class="stat-label">Продаж в игре</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${salesByManager.reduce((sum, sale) => sum + sale.price, 0).toLocaleString('ru-RU')} ₽</div>
+                    <div class="stat-label">Выручка в игре</div>
+                </div>
+            </div>
+        `;
+        
+        displaySearchResults(filteredAccounts, game.name);
+    } else {
+        // Если менеджер не выбран, показываем все продажи по игре
+        searchByGame();
+    }
+}
+
+// Обновим функцию clearManagerSearch чтобы очищала и фильтр менеджера
+function clearManagerSearch() {
+    document.getElementById('managerGame').selectedIndex = 0;
+    document.getElementById('managerLogin').value = '';
+    
+    // Очищаем фильтр менеджера
+    const filterManager = document.getElementById('filterManager');
+    if (filterManager) {
+        filterManager.selectedIndex = 0;
+    }
+    
+    document.getElementById('statsSection').style.display = 'none';
+    document.getElementById('searchResults').innerHTML = '';
+    showNotification('Поиск очищен', 'info');
 }
 
 async function deleteSale(saleId) {
@@ -1985,17 +2509,23 @@ function displayReportResults(salesData, startDate, endDate) {
             return { ...sale, cost: 0, profit: sale.price, profitMargin: 100 };
         }
         
-        const totalPositions = account.positions.p2_ps4 + account.positions.p3_ps4 + 
-                              account.positions.p2_ps5 + account.positions.p3_ps5;
+        // ВАЖНО: Делим закуп аккаунта на ЕГО позиции, не на все позиции в системе!
+        const totalPositionsForThisAccount = 
+            account.positions.p2_ps4 + 
+            account.positions.p3_ps4 + 
+            account.positions.p2_ps5 + 
+            account.positions.p3_ps5;
         
-        const costPerPosition = totalPositions > 0 ? (account.purchaseAmount || 0) / totalPositions : 0;
-        const cost = costPerPosition;
-        const profit = sale.price - cost;
+        const costPerPosition = totalPositionsForThisAccount > 0 
+            ? (account.purchaseAmount || 0) / totalPositionsForThisAccount 
+            : 0;
+        
+        const profit = sale.price - costPerPosition;
         const profitMargin = sale.price > 0 ? (profit / sale.price) * 100 : 0;
         
         return {
             ...sale,
-            cost: cost,
+            cost: costPerPosition,
             profit: profit,
             profitMargin: profitMargin
         };
@@ -2009,7 +2539,134 @@ function displayReportResults(salesData, startDate, endDate) {
     const avgProfit = totalProfit / totalSales;
     const totalProfitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
     
+    // Исправленная верстка с нормальными отступами
+    reportResults.innerHTML = `
+        <!-- Секция статистики с правильным классом -->
+        <div class="report-stats-section">
+            <h2 style="margin-bottom: 30px; color: white !important; text-align: center;">
+                📊 Отчет за период: ${startDate} - ${endDate}
+            </h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">${formatNumber(totalRevenue)} ₽</div>
+                    <div class="stat-label">Общая выручка</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${formatNumber(totalCost)} ₽</div>
+                    <div class="stat-label">Себестоимость</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="color: ${totalProfit >= 0 ? '#4ade80' : '#f87171'}">
+                        ${formatNumber(totalProfit)} ₽
+                    </div>
+                    <div class="stat-label">Чистая прибыль</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalProfitMargin.toFixed(1)}%</div>
+                    <div class="stat-label">Рентабельность</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalSales}</div>
+                    <div class="stat-label">Всего продаж</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${formatNumber(avgSale)} ₽</div>
+                    <div class="stat-label">Средний чек</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Остальная часть отчёта -->
+        <div class="section">
+            <h3 style="margin-bottom: 25px;">🎮 Статистика по играм</h3>
+            ${getGamesStatsHTML(salesWithProfit)}
+        </div>
+        
+        <div class="section">
+            <h3 style="margin-bottom: 25px;">💰 Все продажи</h3>
+            ${getSalesListHTML(salesWithProfit)}
+        </div>
+    `;
+}
+
+function formatNumber(num) {
+    return num.toLocaleString('ru-RU', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+}
+
+function generatePositionsHTML(account, positionType, positionName, positionLabel) {
+    const positionCount = account.positions[positionType] || 0;
+    
+    // Если позиций нет - возвращаем пустую строку
+    if (positionCount === 0) return '';
+    
+    // Генерируем массив позиций
+    const positionsHTML = Array(positionCount).fill().map((_, index) => {
+        const positionNumber = index + 1;
+        const saleInfo = getPositionSaleInfo(account.id, positionType, positionNumber);
+        const isSold = !!saleInfo;
+        
+        // Форматируем дату продажи
+        let displayDate = '';
+        if (saleInfo) {
+            if (saleInfo.datetime) {
+                displayDate = saleInfo.datetime;
+            } else if (saleInfo.date) {
+                displayDate = saleInfo.date + (saleInfo.time ? ` ${saleInfo.time}` : '');
+            } else if (saleInfo.timestamp) {
+                const date = new Date(saleInfo.timestamp);
+                displayDate = date.toLocaleDateString('ru-RU') + ' ' + date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            }
+        }
+        
+        // Информация о менеджере
+        let managerHTML = '';
+        if (saleInfo && saleInfo.soldByName) {
+            const managerIcon = saleInfo.managerRole === 'admin' ? '👑' : '👷';
+            managerHTML = `
+                <div class="position-sale-manager ${saleInfo.managerRole === 'admin' ? 'admin' : 'worker'}">
+                    ${saleInfo.soldByName} ${managerIcon}
+                </div>
+            `;
+        }
+        
+        // Определяем дополнительные классы
+        const soldClass = isSold ? 'sold' : '';
+        const adminClass = (saleInfo && saleInfo.managerRole === 'admin') ? 'admin-sold' : '';
+        
+        return `
+            <div class="position-single ${soldClass} ${adminClass}" 
+                 onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${positionNumber})"
+                 title="${isSold ? `Продано: ${displayDate}${saleInfo.soldByName ? '\nМенеджер: ' + saleInfo.soldByName : ''}` : 'Свободно'}">
+                ${positionNumber}
+                ${isSold ? `
+                    <div class="position-sale-info">
+                        <div class="position-sale-date">${displayDate}</div>
+                        ${managerHTML}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+    
+    // Возвращаем полную структуру группы позиций
+    return `
+        <div class="position-group">
+            <div class="position-label">${positionLabel}:</div>
+            <div class="position-buttons">
+                ${positionsHTML}
+            </div>
+        </div>
+    `;
+}
+
+// Новая функция для отображения статистики по играм
+function getGamesStatsHTML(salesWithProfit) {
     const gamesStats = {};
+    
     salesWithProfit.forEach(sale => {
         if (!gamesStats[sale.gameName]) {
             gamesStats[sale.gameName] = {
@@ -2025,180 +2682,167 @@ function displayReportResults(salesData, startDate, endDate) {
         gamesStats[sale.gameName].sales += 1;
     });
     
-    const dailyStats = {};
-    salesWithProfit.forEach(sale => {
-        const saleDate = sale.date || new Date(sale.timestamp).toISOString().split('T')[0];
-        if (!dailyStats[saleDate]) {
-            dailyStats[saleDate] = {
-                revenue: 0,
-                cost: 0,
-                profit: 0,
-                sales: 0
-            };
-        }
-        dailyStats[saleDate].revenue += sale.price;
-        dailyStats[saleDate].cost += sale.cost;
-        dailyStats[saleDate].profit += sale.profit;
-        dailyStats[saleDate].sales += 1;
-    });
-    
     const sortedGames = Object.entries(gamesStats)
         .sort(([,a], [,b]) => b.profit - a.profit);
     
-    const sortedDays = Object.entries(dailyStats)
-        .sort(([a], [b]) => new Date(b) - new Date(a));
+    if (sortedGames.length === 0) {
+        return '<div class="empty">Нет данных по играм</div>';
+    }
     
-    reportResults.innerHTML = `
-        <div class="section">
-            <h2>📊 Отчет за период: ${startDate} - ${endDate}</h2>
-            
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value">${totalRevenue.toFixed(0)} ₽</div>
-                    <div class="stat-label">Общая выручка</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${totalCost.toFixed(0)} ₽</div>
-                    <div class="stat-label">Себестоимость</div>
-                </div>
-                <div class="stat-card ${totalProfit >= 0 ? 'profit-positive' : 'profit-negative'}">
-                    <div class="stat-value">${totalProfit.toFixed(0)} ₽</div>
-                    <div class="stat-label">Чистая прибыль</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${totalProfitMargin.toFixed(1)}%</div>
-                    <div class="stat-label">Рентабельность</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${totalSales}</div>
-                    <div class="stat-label">Всего продаж</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${avgSale.toFixed(0)} ₽</div>
-                    <div class="stat-label">Средний чек</div>
-                </div>
-                <div class="stat-card ${avgProfit >= 0 ? 'profit-positive' : 'profit-negative'}">
-                    <div class="stat-value">${avgProfit.toFixed(0)} ₽</div>
-                    <div class="stat-label">Средняя прибыль</div>
-                </div>
-            </div>
-        </div>
+    return sortedGames.map(([gameName, stats]) => {
+        const gameProfitMargin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : 0;
         
-        <div class="section">
-            <h3>🎮 Статистика по играм</h3>
-            <div class="games-report">
-                ${sortedGames.map(([gameName, stats]) => {
-                    const gameProfitMargin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : 0;
-                    return `
-                    <div class="game-report-card">
-                        <div class="game-report-header">
-                            <div class="game-name">${gameName}</div>
-                            <div class="game-revenue ${stats.profit >= 0 ? 'profit-positive' : 'profit-negative'}">${stats.profit.toFixed(0)} ₽</div>
-                        </div>
-                        <div class="game-report-details">
-                            <div class="game-stat">
-                                <span class="stat-label">Выручка:</span>
-                                <span class="stat-value">${stats.revenue.toFixed(0)} ₽</span>
-                            </div>
-                            <div class="game-stat">
-                                <span class="stat-label">Себестоимость:</span>
-                                <span class="stat-value">${stats.cost.toFixed(0)} ₽</span>
-                            </div>
-                            <div class="game-stat">
-                                <span class="stat-label">Прибыль:</span>
-                                <span class="stat-value ${stats.profit >= 0 ? 'profit-positive' : 'profit-negative'}">${stats.profit.toFixed(0)} ₽</span>
-                            </div>
-                            <div class="game-stat">
-                                <span class="stat-label">Рентабельность:</span>
-                                <span class="stat-value">${gameProfitMargin.toFixed(1)}%</span>
-                            </div>
-                            <div class="game-stat">
-                                <span class="stat-label">Продажи:</span>
-                                <span class="stat-value">${stats.sales}</span>
-                            </div>
+        return `
+            <div class="game-stat-card" style="
+                background: white;
+                padding: 25px;
+                border-radius: 12px;
+                margin-bottom: 20px;
+                border: 1px solid #e2e8f0;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            ">
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                    padding-bottom: 15px;
+                    border-bottom: 1px solid #f1f5f9;
+                ">
+                    <h4 style="margin: 0; font-size: 1.3em; color: #2d3748;">${gameName}</h4>
+                    <span style="
+                        font-weight: 700;
+                        font-size: 1.2em;
+                        color: ${stats.profit >= 0 ? '#10b981' : '#ef4444'};
+                    ">
+                        ${stats.profit.toFixed(0)} ₽ прибыли
+                    </span>
+                </div>
+                
+                <div style="
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 15px;
+                ">
+                    <div style="
+                        background: #f8fafc;
+                        padding: 15px;
+                        border-radius: 8px;
+                        border: 1px solid #e2e8f0;
+                    ">
+                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Выручка</div>
+                        <div style="font-weight: 700; font-size: 1.2em; color: #1e293b;">
+                            ${stats.revenue.toFixed(0)} ₽
                         </div>
                     </div>
-                    `;
-                }).join('')}
-            </div>
-        </div>
-        
-        <div class="section">
-            <h3>📅 Ежедневная статистика</h3>
-            <div class="daily-report">
-                ${sortedDays.map(([date, stats]) => {
-                    const dailyProfitMargin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : 0;
-                    return `
-                    <div class="daily-report-card">
-                        <div class="daily-date">${date}</div>
-                        <div class="daily-stats">
-                            <div class="daily-stat">
-                                <span>Выручка:</span>
-                                <strong>${stats.revenue.toFixed(0)} ₽</strong>
-                            </div>
-                            <div class="daily-stat">
-                                <span>Себестоимость:</span>
-                                <strong>${stats.cost.toFixed(0)} ₽</strong>
-                            </div>
-                            <div class="daily-stat ${stats.profit >= 0 ? 'profit-positive' : 'profit-negative'}">
-                                <span>Прибыль:</span>
-                                <strong>${stats.profit.toFixed(0)} ₽</strong>
-                            </div>
-                            <div class="daily-stat">
-                                <span>Рентабельность:</span>
-                                <strong>${dailyProfitMargin.toFixed(1)}%</strong>
-                            </div>
-                            <div class="daily-stat">
-                                <span>Продажи:</span>
-                                <strong>${stats.sales}</strong>
-                            </div>
+                    
+                    <div style="
+                        background: #f8fafc;
+                        padding: 15px;
+                        border-radius: 8px;
+                        border: 1px solid #e2e8f0;
+                    ">
+                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Себестоимость</div>
+                        <div style="font-weight: 700; font-size: 1.2em; color: #1e293b;">
+                            ${stats.cost.toFixed(0)} ₽
                         </div>
                     </div>
-                    `;
-                }).join('')}
-            </div>
-        </div>
-        
-        <div class="section">
-            <h3>💰 Все продажи</h3>
-            <div class="sales-list">
-                ${salesWithProfit.map(sale => `
-                    <div class="sale-item ${sale.profit >= 0 ? 'profit-positive' : 'profit-negative'}">
-                        <div class="sale-header">
-                            <div class="sale-game">${sale.gameName} - ${sale.positionName}</div>
-                            <div class="sale-price">${sale.price} ₽</div>
-                        </div>
-                        <div class="sale-details">
-                            <div class="sale-info">
-                                <span class="info-label">Аккаунт:</span>
-                                <span class="info-value">${sale.accountLogin}</span>
-                            </div>
-                            <div class="sale-info">
-                                <span class="info-label">Себестоимость:</span>
-                                <span class="info-value">${sale.cost.toFixed(0)} ₽</span>
-                            </div>
-                            <div class="sale-info ${sale.profit >= 0 ? 'profit-positive' : 'profit-negative'}">
-                                <span class="info-label">Прибыль:</span>
-                                <span class="info-value">${sale.profit.toFixed(0)} ₽ (${sale.profitMargin.toFixed(1)}%)</span>
-                            </div>
-                            <div class="sale-info">
-                                <span class="info-label">Дата:</span>
-                                <span class="info-value">${sale.datetime || sale.date || ''}</span>
-                            </div>
-                            ${sale.notes ? `
-                                <div class="sale-info">
-                                    <span class="info-label">Примечания:</span>
-                                    <span class="info-value">${sale.notes}</span>
-                                </div>
-                            ` : ''}
+                    
+                    <div style="
+                        background: ${stats.profit >= 0 ? '#f0fdf4' : '#fef2f2'};
+                        padding: 15px;
+                        border-radius: 8px;
+                        border: 1px solid ${stats.profit >= 0 ? '#d1fae5' : '#fecaca'};
+                    ">
+                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Прибыль</div>
+                        <div style="font-weight: 700; font-size: 1.2em; color: ${stats.profit >= 0 ? '#10b981' : '#ef4444'};">
+                            ${stats.profit.toFixed(0)} ₽
                         </div>
                     </div>
-                `).join('')}
+                    
+                    <div style="
+                        background: #f8fafc;
+                        padding: 15px;
+                        border-radius: 8px;
+                        border: 1px solid #e2e8f0;
+                    ">
+                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Рентабельность</div>
+                        <div style="font-weight: 700; font-size: 1.2em; color: #1e293b;">
+                            ${gameProfitMargin.toFixed(1)}%
+                        </div>
+                    </div>
+                    
+                    <div style="
+                        background: #f8fafc;
+                        padding: 15px;
+                        border-radius: 8px;
+                        border: 1px solid #e2e8f0;
+                    ">
+                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Продажи</div>
+                        <div style="font-weight: 700; font-size: 1.2em; color: #1e293b;">
+                            ${stats.sales}
+                        </div>
+                    </div>
+                </div>
             </div>
+        `;
+    }).join('');
+}
+
+// Новая функция для отображения списка продаж
+function getSalesListHTML(salesWithProfit) {
+    if (salesWithProfit.length === 0) {
+        return '<div class="empty">Нет продаж</div>';
+    }
+    
+    return `
+        <div style="
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px;
+        ">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="
+                        background: #f1f5f9;
+                        position: sticky;
+                        top: 0;
+                        z-index: 10;
+                    ">
+                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Игра</th>
+                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Позиция</th>
+                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Аккаунт</th>
+                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Цена</th>
+                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Прибыль</th>
+                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Дата</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${salesWithProfit.map(sale => `
+                        <tr style="
+                            border-bottom: 1px solid #e2e8f0;
+                            transition: background 0.2s;
+                        ">
+                            <td style="padding: 12px 15px;">${sale.gameName}</td>
+                            <td style="padding: 12px 15px;">${sale.positionName}</td>
+                            <td style="padding: 12px 15px;">${sale.accountLogin}</td>
+                            <td style="padding: 12px 15px; font-weight: 600;">${sale.price} ₽</td>
+                            <td style="
+                                padding: 12px 15px; 
+                                font-weight: 600;
+                                color: ${sale.profit >= 0 ? '#10b981' : '#ef4444'};
+                            ">
+                                ${sale.profit.toFixed(0)} ₽
+                            </td>
+                            <td style="padding: 12px 15px; color: #64748b;">${sale.datetime || sale.date || ''}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
         </div>
     `;
-    
-    showNotification(`Отчет за ${startDate} - ${endDate} сгенерирован 📊`, 'success');
 }
 
 // ============================================
@@ -2341,3 +2985,555 @@ document.addEventListener('keydown', function(e) {
         }
     };
 })();
+
+// ============================================
+// СТАТИСТИКА ПО РАБОЧИМ (РАБОТНИКАМ)
+// ============================================
+
+function generateWorkersStats() {
+    const startDate = document.getElementById('statsStartDate').value;
+    const endDate = document.getElementById('statsEndDate').value;
+    
+    if (!startDate || !endDate) {
+        showNotification('Выберите начальную и конечную дату', 'warning');
+        return;
+    }
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    
+    if (start > end) {
+        showNotification('Начальная дата не может быть больше конечной', 'error');
+        return;
+    }
+    
+    // Фильтруем продажи по периоду
+    const periodSales = sales.filter(sale => {
+        const saleDate = new Date(sale.timestamp);
+        return saleDate >= start && saleDate <= end;
+    });
+    
+    displayWorkersStatsPage(periodSales, startDate, endDate);
+}
+
+function showAllTimeStats() {
+    // Сбрасываем даты на все время
+    document.getElementById('statsStartDate').value = '';
+    document.getElementById('statsEndDate').value = '';
+    
+    // Показываем статистику за все время
+    displayWorkersStatsPage(sales, 'все время', 'все время');
+}
+
+function displayWorkersStatsPage(periodSales, startDate, endDate) {
+    const container = document.getElementById('workersStatsContainer');
+    
+    if (periodSales.length === 0) {
+        container.innerHTML = `
+            <div class="section">
+                <h2>📊 Статистика работников: ${startDate} - ${endDate}</h2>
+                <div class="empty">Нет продаж за выбранный период</div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Получаем список всех работников
+    const workers = JSON.parse(localStorage.getItem('workers')) || [];
+    
+    // Добавляем администратора, если он делал продажи
+    const currentUser = security.getCurrentUser();
+    if (currentUser && currentUser.role === 'admin') {
+        const adminExists = workers.find(w => w.username === currentUser.username);
+        if (!adminExists) {
+            workers.push({
+                username: currentUser.username,
+                name: currentUser.name,
+                role: 'admin',
+                active: true
+            });
+        }
+    }
+    
+    // Рассчитываем статистику для каждого работника
+    const workersStats = calculateWorkersStatistics(workers, periodSales);
+    
+    // Сортируем по выручке (сначала лучшие)
+    const sortedStats = workersStats.sort((a, b) => b.revenue - a.revenue);
+    
+    // Рассчитываем общую статистику
+    const totalStats = calculateTotalStatistics(sortedStats);
+    
+    container.innerHTML = `
+        <div class="section report-stats-section">
+            <h2 style="color: white !important; text-align: center; margin-bottom: 30px;">
+                📈 Статистика работников: ${startDate} - ${endDate}
+            </h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">${sortedStats.length}</div>
+                    <div class="stat-label">Всего работников</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalStats.activeWorkers}</div>
+                    <div class="stat-label">Активных</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalStats.totalRevenue.toLocaleString('ru-RU')} ₽</div>
+                    <div class="stat-label">Общая выручка</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalStats.totalSales}</div>
+                    <div class="stat-label">Всего продаж</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalStats.avgCheck.toLocaleString('ru-RU')} ₽</div>
+                    <div class="stat-label">Средний чек</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalStats.bestWorkerName || 'Нет данных'}</div>
+                    <div class="stat-label">Лучший работник</div>
+                    ${totalStats.bestWorkerRevenue ? `
+                        <div class="stat-sub">${totalStats.bestWorkerRevenue.toLocaleString('ru-RU')} ₽</div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>🏆 Рейтинг работников</h3>
+            <div class="workers-ranking">
+                ${generateWorkersRankingHTML(sortedStats)}
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>📊 Подробная статистика по каждому работнику</h3>
+            <div class="workers-detailed-stats">
+                ${generateWorkersDetailedStatsHTML(sortedStats)}
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>📅 Продажи по дням (график)</h3>
+            <div class="workers-daily-stats">
+                ${generateWorkersDailyStatsHTML(periodSales)}
+            </div>
+        </div>
+    `;
+}
+
+function calculateWorkersStatistics(workers, periodSales) {
+    return workers.map(worker => {
+        // Находим все продажи этого работника
+        const workerSales = periodSales.filter(sale => 
+            sale.soldBy === worker.username || 
+            (worker.role === 'admin' && sale.soldBy === 'Ivan') // Для совместимости
+        );
+        
+        const revenue = workerSales.reduce((sum, sale) => sum + sale.price, 0);
+        const salesCount = workerSales.length;
+        const avgCheck = salesCount > 0 ? revenue / salesCount : 0;
+        
+        // Рассчитываем прибыль для этих продаж
+        let profit = 0;
+        workerSales.forEach(sale => {
+            const account = accounts.find(acc => acc.id === sale.accountId);
+            if (account) {
+                const totalPositions = account.positions.p2_ps4 + account.positions.p3_ps4 + 
+                                      account.positions.p2_ps5 + account.positions.p3_ps5;
+                const costPerPosition = totalPositions > 0 ? (account.purchaseAmount || 0) / totalPositions : 0;
+                profit += sale.price - costPerPosition;
+            }
+        });
+        
+        const profitMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
+        
+        // Группируем продажи по играм
+        const gamesStats = {};
+        workerSales.forEach(sale => {
+            if (!gamesStats[sale.gameName]) {
+                gamesStats[sale.gameName] = {
+                    sales: 0,
+                    revenue: 0
+                };
+            }
+            gamesStats[sale.gameName].sales += 1;
+            gamesStats[sale.gameName].revenue += sale.price;
+        });
+        
+        // Находим лучшую игру
+        const bestGame = Object.entries(gamesStats).sort((a, b) => b[1].revenue - a[1].revenue)[0];
+        
+        return {
+            ...worker,
+            revenue,
+            sales: salesCount,
+            avgCheck,
+            profit,
+            profitMargin,
+            gamesStats,
+            bestGame: bestGame ? {
+                name: bestGame[0],
+                revenue: bestGame[1].revenue,
+                sales: bestGame[1].sales
+            } : null,
+            lastSale: workerSales.length > 0 ? 
+                workerSales.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0] : null
+        };
+    });
+}
+
+function calculateTotalStatistics(workersStats) {
+    const activeWorkers = workersStats.filter(w => w.active !== false).length;
+    const totalRevenue = workersStats.reduce((sum, w) => sum + w.revenue, 0);
+    const totalSales = workersStats.reduce((sum, w) => sum + w.sales, 0);
+    const avgCheck = totalSales > 0 ? totalRevenue / totalSales : 0;
+    
+    // Находим лучшего работника
+    const bestWorker = workersStats.length > 0 ? 
+        workersStats.sort((a, b) => b.revenue - a.revenue)[0] : null;
+    
+    return {
+        activeWorkers,
+        totalRevenue,
+        totalSales,
+        avgCheck,
+        bestWorkerName: bestWorker ? bestWorker.name : null,
+        bestWorkerRevenue: bestWorker ? bestWorker.revenue : 0
+    };
+}
+
+function generateWorkersRankingHTML(workersStats) {
+    // Фильтруем только тех, у кого есть продажи
+    const workersWithSales = workersStats.filter(w => w.sales > 0);
+    
+    if (workersWithSales.length === 0) {
+        return '<div class="empty">Нет данных о продажах работников</div>';
+    }
+    
+    return `
+        <div class="ranking-container">
+            ${workersWithSales.map((worker, index) => {
+                const rank = index + 1;
+                const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+                const rankIcon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+                
+                return `
+                    <div class="ranking-item ${rankClass}" style="
+                        display: flex;
+                        align-items: center;
+                        padding: 15px 20px;
+                        margin-bottom: 10px;
+                        background: white;
+                        border-radius: 10px;
+                        border: 1px solid #e2e8f0;
+                        ${rankClass ? 'border-left: 4px solid;' : ''}
+                        ${rankClass === 'gold' ? 'border-left-color: #ffd700;' : ''}
+                        ${rankClass === 'silver' ? 'border-left-color: #c0c0c0;' : ''}
+                        ${rankClass === 'bronze' ? 'border-left-color: #cd7f32;' : ''}
+                    ">
+                        <div style="
+                            font-size: 1.5em;
+                            font-weight: 700;
+                            min-width: 50px;
+                            text-align: center;
+                            ${rankClass === 'gold' ? 'color: #ffd700;' : ''}
+                            ${rankClass === 'silver' ? 'color: #c0c0c0;' : ''}
+                            ${rankClass === 'bronze' ? 'color: #cd7f32;' : ''}
+                        ">
+                            ${rankIcon}
+                        </div>
+                        
+                        <div style="flex: 1; padding: 0 20px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                                <strong style="font-size: 1.1em;">${worker.name}</strong>
+                                <span style="
+                                    padding: 2px 8px;
+                                    border-radius: 10px;
+                                    font-size: 0.8em;
+                                    font-weight: 600;
+                                    background: ${worker.role === 'admin' ? 
+                                        'linear-gradient(135deg, #f72585 0%, #e63946 100%)' : 
+                                        'linear-gradient(135deg, #4361ee 0%, #3a56d4 100%)'};
+                                    color: white;
+                                ">
+                                    ${worker.role === 'admin' ? '👑 Админ' : '👷 Работник'}
+                                </span>
+                                ${worker.active === false ? 
+                                    '<span style="color: #ef4444; font-size: 0.9em;">❌ Неактивен</span>' : ''}
+                            </div>
+                            <div style="color: #64748b; font-size: 0.9em;">
+                                ${worker.sales} продаж • ${worker.revenue.toLocaleString('ru-RU')} ₽ • 
+                                Средний чек: ${worker.avgCheck.toLocaleString('ru-RU')} ₽
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: right;">
+                            <div style="font-size: 1.4em; font-weight: 700; color: #10b981;">
+                                ${worker.revenue.toLocaleString('ru-RU')} ₽
+                            </div>
+                            <div style="color: #64748b; font-size: 0.9em;">
+                                Прибыль: ${worker.profit.toLocaleString('ru-RU')} ₽
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+        
+        ${workersStats.length > workersWithSales.length ? `
+            <div style="margin-top: 20px; padding: 15px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+                <h4 style="margin: 0 0 10px 0; color: #64748b;">👥 Без продаж:</h4>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    ${workersStats
+                        .filter(w => w.sales === 0)
+                        .map(w => `
+                            <span style="
+                                padding: 5px 12px;
+                                background: ${w.active === false ? '#fef2f2' : '#f1f5f9'};
+                                border-radius: 20px;
+                                font-size: 0.9em;
+                                color: ${w.active === false ? '#ef4444' : '#64748b'};
+                                border: 1px solid ${w.active === false ? '#fecaca' : '#e2e8f0'};
+                            ">
+                                ${w.name} ${w.active === false ? '(неактивен)' : ''}
+                            </span>
+                        `).join('')}
+                </div>
+            </div>
+        ` : ''}
+    `;
+}
+
+function generateWorkersDetailedStatsHTML(workersStats) {
+    return `
+        <div class="detailed-stats-grid">
+            ${workersStats.map(worker => `
+                <div class="worker-detailed-card" style="
+                    background: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    border: 1px solid #e2e8f0;
+                    margin-bottom: 15px;
+                ">
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 15px;
+                        padding-bottom: 15px;
+                        border-bottom: 1px solid #f1f5f9;
+                    ">
+                        <div>
+                            <h4 style="margin: 0; color: #2d3748;">${worker.name}</h4>
+                            <div style="color: #64748b; font-size: 0.9em; margin-top: 5px;">
+                                ${worker.role === 'admin' ? '👑 Администратор' : '👷 Работник'} • 
+                                ${worker.active === false ? '❌ Неактивен' : '✅ Активен'}
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 1.3em; font-weight: 700; color: #10b981;">
+                                ${worker.revenue.toLocaleString('ru-RU')} ₽
+                            </div>
+                            <div style="color: #64748b; font-size: 0.9em;">
+                                ${worker.sales} продаж
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        <div style="
+                            background: #f8fafc;
+                            padding: 12px;
+                            border-radius: 8px;
+                            border: 1px solid #e2e8f0;
+                        ">
+                            <div style="color: #64748b; font-size: 0.85em; margin-bottom: 5px;">Средний чек</div>
+                            <div style="font-weight: 700; color: #1e293b;">
+                                ${worker.avgCheck.toLocaleString('ru-RU')} ₽
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: #f0fdf4;
+                            padding: 12px;
+                            border-radius: 8px;
+                            border: 1px solid #d1fae5;
+                        ">
+                            <div style="color: #64748b; font-size: 0.85em; margin-bottom: 5px;">Прибыль</div>
+                            <div style="font-weight: 700; color: #10b981;">
+                                ${worker.profit.toLocaleString('ru-RU')} ₽
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: #f8fafc;
+                            padding: 12px;
+                            border-radius: 8px;
+                            border: 1px solid #e2e8f0;
+                        ">
+                            <div style="color: #64748b; font-size: 0.85em; margin-bottom: 5px;">Рентабельность</div>
+                            <div style="font-weight: 700; color: ${worker.profitMargin >= 0 ? '#10b981' : '#ef4444'};">
+                                ${worker.profitMargin.toFixed(1)}%
+                            </div>
+                        </div>
+                        
+                        ${worker.bestGame ? `
+                            <div style="
+                                background: #eff6ff;
+                                padding: 12px;
+                                border-radius: 8px;
+                                border: 1px solid #dbeafe;
+                            ">
+                                <div style="color: #64748b; font-size: 0.85em; margin-bottom: 5px;">Лучшая игра</div>
+                                <div style="font-weight: 700; color: #1e293b;">
+                                    ${worker.bestGame.name}
+                                </div>
+                                <div style="color: #64748b; font-size: 0.8em;">
+                                    ${worker.bestGame.revenue.toLocaleString('ru-RU')} ₽
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    ${worker.lastSale ? `
+                        <div style="
+                            margin-top: 15px;
+                            padding-top: 15px;
+                            border-top: 1px solid #f1f5f9;
+                            font-size: 0.9em;
+                            color: #64748b;
+                        ">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Последняя продажа:</span>
+                                <span style="font-weight: 600;">${worker.lastSale.gameName}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                                <span>Дата:</span>
+                                <span>${worker.lastSale.datetime || worker.lastSale.date || ''}</span>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function generateWorkersDailyStatsHTML(periodSales) {
+    // Группируем продажи по дням и менеджерам
+    const dailyStats = {};
+    
+    periodSales.forEach(sale => {
+        const date = sale.date || new Date(sale.timestamp).toISOString().split('T')[0];
+        const manager = sale.soldByName || 'Неизвестно';
+        
+        if (!dailyStats[date]) {
+            dailyStats[date] = {};
+        }
+        
+        if (!dailyStats[date][manager]) {
+            dailyStats[date][manager] = {
+                sales: 0,
+                revenue: 0
+            };
+        }
+        
+        dailyStats[date][manager].sales += 1;
+        dailyStats[date][manager].revenue += sale.price;
+    });
+    
+    // Сортируем даты
+    const sortedDates = Object.keys(dailyStats).sort((a, b) => b.localeCompare(a));
+    
+    if (sortedDates.length === 0) {
+        return '<div class="empty">Нет данных о продажах по дням</div>';
+    }
+    
+    // Получаем список всех менеджеров за период
+    const allManagers = new Set();
+    Object.values(dailyStats).forEach(day => {
+        Object.keys(day).forEach(manager => allManagers.add(manager));
+    });
+    const managersList = Array.from(allManagers);
+    
+    return `
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
+                <thead>
+                    <tr style="background: #f1f5f9;">
+                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">Дата</th>
+                        ${managersList.map(manager => `
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #cbd5e1;">${manager}</th>
+                        `).join('')}
+                        <th style="padding: 12px; text-align: right; border-bottom: 2px solid #cbd5e1;">Итого за день</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${sortedDates.map(date => {
+                        const dayStats = dailyStats[date];
+                        const dayTotal = Object.values(dayStats).reduce((sum, stat) => sum + stat.revenue, 0);
+                        
+                        return `
+                            <tr style="border-bottom: 1px solid #e2e8f0;">
+                                <td style="padding: 12px; font-weight: 600; color: #2d3748;">${date}</td>
+                                ${managersList.map(manager => {
+                                    const managerStats = dayStats[manager];
+                                    if (!managerStats) {
+                                        return '<td style="padding: 12px; text-align: center; color: #94a3b8;">-</td>';
+                                    }
+                                    
+                                    return `
+                                        <td style="padding: 12px; text-align: center;">
+                                            <div style="font-weight: 700; color: #1e293b;">${managerStats.revenue.toLocaleString('ru-RU')} ₽</div>
+                                            <div style="font-size: 0.8em; color: #64748b;">${managerStats.sales} продаж</div>
+                                        </td>
+                                    `;
+                                }).join('')}
+                                <td style="padding: 12px; text-align: right; font-weight: 700; color: #10b981;">
+                                    ${dayTotal.toLocaleString('ru-RU')} ₽
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        ">
+            <h4 style="margin: 0 0 10px 0; color: #2d3748;">📊 Итоги по менеджерам:</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                ${managersList.map(manager => {
+                    const managerSales = periodSales.filter(s => 
+                        s.soldByName === manager || (manager === 'Неизвестно' && !s.soldByName)
+                    );
+                    const managerRevenue = managerSales.reduce((sum, s) => sum + s.price, 0);
+                    
+                    return `
+                        <div style="
+                            background: white;
+                            padding: 12px;
+                            border-radius: 8px;
+                            border: 1px solid #e2e8f0;
+                        ">
+                            <div style="font-weight: 600; color: #2d3748; margin-bottom: 5px;">${manager}</div>
+                            <div style="color: #64748b; font-size: 0.9em;">
+                                ${managerSales.length} продаж • ${managerRevenue.toLocaleString('ru-RU')} ₽
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+

@@ -29,6 +29,14 @@
                     <button onclick="searchByLogin()" class="btn btn-primary">Найти по логину</button>
                 </div>
                 
+                <!-- В manager.html после существующего поиска -->
+<div class="search-group">
+    <label>Фильтр по менеджеру:</label>
+    <select id="filterManager" class="input" onchange="filterByManager()">
+        <option value="">Все менеджеры</option>
+    </select>
+</div>
+
                 <button onclick="clearManagerSearch()" class="btn btn-secondary">Очистить поиск</button>
             </div>
         </div>

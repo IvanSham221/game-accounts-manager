@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статистика работников - Менеджер игровых аккаунтов</title>
+    <link rel="stylesheet" href="style.css?v=20250115">
+</head>
+<body>
+    <div class="container">
+        <h1><span>📈</span><span>Статистика работников</span></h1>
+        
+        <div class="nav-buttons"></div>
+
+        <div class="section">
+            <h2>📅 Период статистики</h2>
+            <div class="period-selector">
+                <div class="period-group">
+                    <label for="statsStartDate">С:</label>
+                    <input type="date" id="statsStartDate" class="input">
+                </div>
+                <div class="period-group">
+                    <label for="statsEndDate">По:</label>
+                    <input type="date" id="statsEndDate" class="input">
+                </div>
+                <button onclick="generateWorkersStats()" class="btn btn-primary">Показать статистику</button>
+                <button onclick="showAllTimeStats()" class="btn btn-secondary">За все время</button>
+            </div>
+        </div>
+
+        <div id="workersStatsContainer">
+            <!-- Здесь будет загружаться статистика -->
+            <div class="section">
+                <div style="text-align: center; padding: 40px;">
+                    <div class="loading">⏳</div>
+                    <p>Выберите период для отображения статистики</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="firebase.js"></script>
+    <script src="security.js"></script>
+    <script src="script.js?v=20250115"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Устанавливаем даты по умолчанию (последние 30 дней)
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+            
+            document.getElementById('statsStartDate').value = startDate.toISOString().split('T')[0];
+            document.getElementById('statsEndDate').value = endDate.toISOString().split('T')[0];
+            
+            // Загружаем статистику за последние 30 дней
+            setTimeout(() => {
+                generateWorkersStats();
+            }, 500);
+        });
+    </script>
+</body>
+</html>
