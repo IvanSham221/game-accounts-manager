@@ -12,11 +12,46 @@
         
         <div class="nav-buttons"></div>
 
+        <!-- ОБНОВЛЕННАЯ СЕКЦИЯ -->
         <div class="section">
             <h2>➕ Добавить игру</h2>
-            <div class="form-container">
-                <input type="text" id="gameName" placeholder="Название игры" class="input">
-                <button onclick="addGame()" class="btn btn-primary">Добавить игру</button>
+            <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                <div>
+                    <label for="gameName" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                        Название игры:
+                    </label>
+                    <input type="text" id="gameName" placeholder="Название игры" class="input" required>
+                </div>
+                
+                <div>
+                    <label for="gameUrlTR" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                        🇹🇷 Ссылка на турецкий PS Store:
+                    </label>
+                    <input type="text" id="gameUrlTR" 
+                           placeholder="https://store.playstation.com/tr-tr/product/..." 
+                           class="input">
+                    <div style="font-size: 0.85em; color: #64748b; margin-top: 5px;">
+                        Пример: https://store.playstation.com/tr-tr/product/EP0001-CUSA12345_00-GAMENAME
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="gameUrlUA" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                        🇺🇦 Ссылка на украинский PS Store:
+                    </label>
+                    <input type="text" id="gameUrlUA" 
+                           placeholder="https://store.playstation.com/uk-ua/product/..." 
+                           class="input">
+                    <div style="font-size: 0.85em; color: #64748b; margin-top: 5px;">
+                        Пример: https://store.playstation.com/uk-ua/product/EP0001-CUSA12345_00-GAMENAME
+                    </div>
+                </div>
+                
+                <div style="grid-column: 1 / -1;">
+                    <button onclick="addGame()" class="btn btn-primary" style="width: 100%; padding: 16px;">
+                        🎮 Добавить игру
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -36,8 +71,30 @@
     <script src="firebase.js"></script>
     <script src="security.js"></script>
     <script src="script.js?v=20250115"></script>
+
+    <!-- Модальное окно редактирования игры -->
+<div id="editGameModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <span class="close" onclick="closeGameModal()">&times;</span>
+        <h2>✏️ Редактировать игру</h2>
+        <div id="editGameForm" class="form-grid"></div>
+    </div>
+</div>
     
     <script>
+
+        // Функции для модального окна
+function closeGameModal() {
+    document.getElementById('editGameModal').style.display = 'none';
+}
+
+// Закрытие по клику вне окна
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('editGameModal');
+    if (event.target === modal) {
+        closeGameModal();
+    }
+});
         // Дополнительный скрипт для страницы игр
         document.addEventListener('DOMContentLoaded', function() {
             // Показываем индикатор при обновлении

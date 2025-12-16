@@ -9,6 +9,38 @@ let accounts = [];
 let sales = [];
 let currentUser = null;
 
+function extractProductId(url) {
+    if (!url || typeof url !== 'string') return '';
+    
+    // Убираем возможные параметры запроса
+    const cleanUrl = url.split('?')[0];
+    
+    // Ищем product/ в ссылке
+    const productMatch = cleanUrl.match(/product\/([A-Z0-9_-]+)/i);
+    if (productMatch) return productMatch[1];
+    
+    // Альтернативный формат
+    const idMatch = cleanUrl.match(/([A-Z]{2}\d{4}-[A-Z]{3}\d{5}_\d{2}-[A-Z0-9]+)/i);
+    if (idMatch) return idMatch[1];
+    
+    return '';
+}
+
+// Функция для проверки ссылки PS Store
+function isValidPSStoreUrl(url, region = 'TR') {
+    if (!url) return false;
+    
+    if (region === 'TR') {
+        return url.includes('store.playstation.com') && 
+               (url.includes('/tr-tr/') || url.includes('/tr/'));
+    } else if (region === 'UA') {
+        return url.includes('store.playstation.com') && 
+               (url.includes('/uk-ua/') || url.includes('/ua/'));
+    }
+    
+    return false;
+}
+
 // ============================================
 // СИСТЕМА АВТОРИЗАЦИИ И НАВИГАЦИИ
 // ============================================
@@ -238,6 +270,10 @@ function updateNavigation() {
     <button onclick="security.updateSession(); location.href='charts.html'" class="btn ${location.pathname.includes('charts.html') ? 'btn-primary' : 'btn-secondary'}">
         <span>📈</span>
         <span class="nav-text">Графики</span>
+    </button>
+    <button onclick="security.updateSession(); location.href='discounts.html'" class="btn ${location.pathname.includes('discounts.html') ? 'btn-primary' : 'btn-secondary'}">
+        <span>🔥</span>
+        <span class="nav-text">Акции PS Store</span>
     </button>
     `;
     
@@ -724,8 +760,15 @@ async function refreshData(dataType) {
 // ФУНКЦИИ ДЛЯ ИГР
 // ============================================
 
+// ============================================
+// ФУНКЦИИ ДЛЯ ИГР
+// ============================================
+
 async function addGame() {
     const gameName = document.getElementById('gameName').value.trim();
+    const urlTR = document.getElementById('gameUrlTR').value.trim();
+    const urlUA = document.getElementById('gameUrlUA').value.trim();
+    
     if (!gameName) {
         showNotification('Введите название игры', 'warning');
         return;
@@ -737,20 +780,43 @@ async function addGame() {
         return;
     }
     
+    // Валидация ссылок (если указаны)
+    if (urlTR && !isValidPSStoreUrl(urlTR, 'TR')) {
+        showNotification('Некорректная ссылка на турецкий PS Store', 'warning');
+        return;
+    }
+    
+    if (urlUA && !isValidPSStoreUrl(urlUA, 'UA')) {
+        showNotification('Некорректная ссылка на украинский PS Store', 'warning');
+        return;
+    }
+    
     // Сначала показываем уведомление о начале сохранения
     showNotification(`Добавляем игру "${gameName}"...`, 'info', 1000);
     
     const newGame = {
         id: Date.now(),
         name: gameName,
+        storeLinks: {
+            TR: urlTR || '',
+            UA: urlUA || ''
+        },
+        productIds: {
+            TR: extractProductId(urlTR) || '',
+            UA: extractProductId(urlUA) || ''
+        },
         created: new Date().toLocaleDateString('ru-RU'),
-        addedBy: security.getCurrentUser()?.name || 'Неизвестно'
+        addedBy: security.getCurrentUser()?.name || 'Неизвестно',
+        lastUpdated: new Date().toISOString()
     };
     
     games.push(newGame);
     const result = await saveToStorage('games', games);
     
+    // Очищаем форму
     document.getElementById('gameName').value = '';
+    document.getElementById('gameUrlTR').value = '';
+    document.getElementById('gameUrlUA').value = '';
     
     // Принудительно обновляем все страницы
     if (result.synced) {
@@ -767,6 +833,157 @@ async function addGame() {
     } else {
         showNotification(`Игра "${gameName}" добавлена локально 🎮`, 'warning');
     }
+    
+    // Обновляем отображение списка
+    displayGames();
+}
+
+// Функция редактирования игры
+function editGame(gameId) {
+    const game = games.find(g => g.id === gameId);
+    if (!game) {
+        showNotification('Игра не найдена', 'error');
+        return;
+    }
+    
+    // Заполняем форму редактирования
+    const editForm = document.getElementById('editGameForm');
+    editForm.innerHTML = `
+        <input type="hidden" id="editGameId" value="${game.id}">
+        
+        <div>
+            <label for="editGameName" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                Название игры:
+            </label>
+            <input type="text" id="editGameName" value="${game.name}" 
+                   class="input" placeholder="Название игры" required>
+        </div>
+        
+        <div>
+            <label for="editGameUrlTR" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                🇹🇷 Ссылка (Турция):
+            </label>
+            <input type="text" id="editGameUrlTR" value="${game.storeLinks?.TR || ''}" 
+                   class="input" placeholder="https://store.playstation.com/tr-tr/product/...">
+        </div>
+        
+        <div>
+            <label for="editGameUrlUA" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                🇺🇦 Ссылка (Украина):
+            </label>
+            <input type="text" id="editGameUrlUA" value="${game.storeLinks?.UA || ''}" 
+                   class="input" placeholder="https://store.playstation.com/uk-ua/product/...">
+        </div>
+        
+        ${game.imageUrl ? `
+            <div style="text-align: center; margin: 15px 0; grid-column: 1 / -1;">
+                <div style="font-size: 0.9em; color: #64748b; margin-bottom: 8px;">Текущее изображение:</div>
+                <img src="${game.imageUrl}" 
+                     style="max-width: 200px; max-height: 150px; border-radius: 10px; border: 2px solid #e2e8f0;">
+                <div style="margin-top: 10px;">
+                    <button onclick="removeGameImage(${game.id})" 
+                            class="btn btn-small btn-danger">
+                        ❌ Удалить изображение
+                    </button>
+                </div>
+            </div>
+        ` : ''}
+        
+        <div class="modal-buttons" style="grid-column: 1 / -1; display: flex; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <button class="btn btn-secondary" onclick="closeGameModal()" style="flex: 1;">
+                Отмена
+            </button>
+            <button class="btn btn-success" onclick="saveGameChanges()" style="flex: 2;">
+                💾 Сохранить изменения
+            </button>
+        </div>
+    `;
+    
+    // Открываем модальное окно
+    document.getElementById('editGameModal').style.display = 'block';
+    
+    // Автофокус на первом поле
+    setTimeout(() => {
+        const firstInput = document.getElementById('editGameName');
+        if (firstInput) firstInput.focus();
+    }, 100);
+}
+
+// Функция сохранения изменений игры
+async function saveGameChanges() {
+    const gameId = parseInt(document.getElementById('editGameId').value);
+    const gameIndex = games.findIndex(g => g.id === gameId);
+    
+    if (gameIndex === -1) {
+        showNotification('Игра не найдена', 'error');
+        return;
+    }
+    
+    const gameName = document.getElementById('editGameName').value.trim();
+    const urlTR = document.getElementById('editGameUrlTR').value.trim();
+    const urlUA = document.getElementById('editGameUrlUA').value.trim();
+    
+    if (!gameName) {
+        showNotification('Введите название игры', 'warning');
+        return;
+    }
+    
+    // Проверяем уникальность названия (кроме текущей игры)
+    const duplicate = games.find((g, index) => 
+        index !== gameIndex && g.name.toLowerCase() === gameName.toLowerCase()
+    );
+    
+    if (duplicate) {
+        showNotification('Игра с таким названием уже существует', 'error');
+        return;
+    }
+    
+    // Обновляем игру
+    games[gameIndex] = {
+        ...games[gameIndex],
+        name: gameName,
+        storeLinks: {
+            TR: urlTR,
+            UA: urlUA
+        },
+        productIds: {
+            TR: extractProductId(urlTR),
+            UA: extractProductId(urlUA)
+        },
+        lastUpdated: new Date().toISOString()
+    };
+    
+    await saveToStorage('games', games);
+    closeGameModal();
+    displayGames();
+    showNotification('Игра обновлена! ✅', 'success');
+}
+
+// Функция удаления изображения игры
+async function removeGameImage(gameId) {
+    const gameIndex = games.findIndex(g => g.id === gameId);
+    
+    if (gameIndex === -1) return;
+    
+    if (confirm('Удалить изображение игры?')) {
+        games[gameIndex] = {
+            ...games[gameIndex],
+            imageUrl: null,
+            lastUpdated: new Date().toISOString()
+        };
+        
+        await saveToStorage('games', games);
+        
+        // Обновляем форму редактирования
+        editGame(gameId);
+        
+        showNotification('Изображение удалено', 'info');
+    }
+}
+
+// Функция закрытия модального окна редактирования игры
+function closeGameModal() {
+    document.getElementById('editGameModal').style.display = 'none';
 }
 
 function displayGames() {
@@ -777,15 +994,75 @@ function displayGames() {
     }
     
     list.innerHTML = games.map(game => `
-        <div class="item">
-            <div class="account-info">
-                <strong>${game.name}</strong>
-                <div><small>Добавлена: ${game.created}</small></div>
+        <div class="item" style="display: flex; justify-content: space-between; align-items: center; 
+              padding: 20px; margin-bottom: 15px; background: white; border-radius: 12px; 
+              border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+            
+            <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <strong style="font-size: 1.2em; color: #2d3748;">${game.name}</strong>
+                    ${game.imageUrl ? `<img src="${game.imageUrl}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;">` : ''}
+                </div>
+                
+                <div style="font-size: 0.9em; color: #64748b;">
+                    <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px;">
+                        ${game.storeLinks?.TR ? `
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span>🇹🇷</span>
+                                <a href="${game.storeLinks.TR}" target="_blank" 
+                                   style="color: #4361ee; text-decoration: none;">
+                                    Турция
+                                </a>
+                                ${game.productIds?.TR ? `
+                                    <span style="background: #f1f5f9; padding: 2px 8px; 
+                                          border-radius: 10px; font-size: 0.8em;">
+                                        ${game.productIds.TR.substring(0, 10)}...
+                                    </span>
+                                ` : ''}
+                            </div>
+                        ` : '<div style="color: #94a3b8;">🇹🇷 Нет ссылки</div>'}
+                        
+                        ${game.storeLinks?.UA ? `
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span>🇺🇦</span>
+                                <a href="${game.storeLinks.UA}" target="_blank" 
+                                   style="color: #4361ee; text-decoration: none;">
+                                    Украина
+                                </a>
+                                ${game.productIds?.UA ? `
+                                    <span style="background: #f1f5f9; padding: 2px 8px; 
+                                          border-radius: 10px; font-size: 0.8em;">
+                                        ${game.productIds.UA.substring(0, 10)}...
+                                    </span>
+                                ` : ''}
+                            </div>
+                        ` : '<div style="color: #94a3b8;">🇺🇦 Нет ссылки</div>'}
+                    </div>
+                    
+                    <div style="margin-top: 10px; color: #94a3b8; font-size: 0.85em;">
+                        Добавлена: ${game.created} • ${game.addedBy}
+                        ${game.lastUpdated ? `<br>Обновлена: ${new Date(game.lastUpdated).toLocaleDateString('ru-RU')}` : ''}
+                    </div>
+                </div>
             </div>
-            <button class="btn btn-danger btn-small" onclick="deleteGame(${game.id})">🗑️ Удалить</button>
+            
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-primary btn-small" onclick="editGame(${game.id})">
+                    ✏️ Редактировать
+                </button>
+                <button class="btn btn-danger btn-small" onclick="deleteGame(${game.id})">
+                    🗑️ Удалить
+                </button>
+            </div>
         </div>
     `).join('');
 }
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeGameModal();
+    }
+});
 
 async function deleteGame(gameId) {
     const accountsWithThisGame = accounts.filter(acc => acc.gameId === gameId);

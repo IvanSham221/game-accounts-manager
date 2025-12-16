@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Акции PS Store - Менеджер аккаунтов</title>
+    <link rel="stylesheet" href="style.css?v=20250115">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Дополнительные стили для страницы скидок */
+        .discounts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .discount-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .discount-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .discount-card.high-discount {
+            border-top: 4px solid #ef4444;
+        }
+        
+        .discount-card.no-discount {
+            opacity: 0.7;
+        }
+        
+        .discount-percent {
+            font-size: 1.8em;
+            font-weight: 800;
+            color: #ef4444;
+            text-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+        }
+        
+        .region-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-right: 5px;
+        }
+        
+        .region-tr {
+            background: linear-gradient(135deg, #e63946 0%, #a4161a 100%);
+            color: white;
+        }
+        
+        .region-ua {
+            background: linear-gradient(135deg, #0057b7 0%, #ffd700 100%);
+            color: white;
+        }
+        
+        .price-old {
+            text-decoration: line-through;
+            color: #94a3b8;
+            font-size: 0.9em;
+        }
+        
+        .price-new {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        
+        .discount-meta {
+            display: flex;
+            justify-content: space-between;
+            color: #64748b;
+            font-size: 0.85em;
+            margin-top: 10px;
+        }
+        
+        .no-discounts {
+            text-align: center;
+            padding: 50px 20px;
+            color: #64748b;
+        }
+        
+        .no-discounts i {
+            font-size: 3em;
+            margin-bottom: 20px;
+            color: #cbd5e1;
+        }
+        
+        .discounts-controls {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+        
+        .game-image {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-right: 15px;
+        }
+        
+        .game-info {
+            flex: 1;
+        }
+        
+        .discount-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .status-on-sale {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-no-discount {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+        
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .checking-progress {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #bfdbfe;
+        }
+        
+        @media (max-width: 768px) {
+            .discounts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .discount-card {
+                padding: 15px;
+            }
+            
+            .game-image {
+                width: 80px;
+                height: 80px;
+                margin-right: 10px;
+            }
+        }
+        
+        /* Анимации */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .new-discount {
+            animation: pulse 2s infinite;
+            position: relative;
+        }
+        
+        .new-discount::after {
+            content: "NEW";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #f72585;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><span>🎮</span><span>Акции PS Store</span></h1>
+        
+        <div class="nav-buttons"></div>
+
+        <div class="section">
+            <h2><i class="fas fa-fire"></i> Скидки на наши игры</h2>
+            
+            <!-- Статистика -->
+            <div id="discountsStats" class="stats-grid" style="margin: 20px 0; display: none;"></div>
+            
+            <!-- Панель управления -->
+            <div class="discounts-controls">
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label for="searchDiscounts" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                            <i class="fas fa-search"></i> Поиск игры:
+                        </label>
+                        <input type="text" id="searchDiscounts" placeholder="Введите название игры..." class="input" 
+                               onkeyup="searchDiscounts()">
+                    </div>
+                    
+                    <div style="flex: 1; min-width: 200px;">
+                        <label for="filterRegion" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                            <i class="fas fa-globe"></i> Регион:
+                        </label>
+                        <select id="filterRegion" class="input" onchange="filterDiscounts()">
+                            <option value="all">Все регионы</option>
+                            <option value="TR">🇹🇷 Турция</option>
+                            <option value="UA">🇺🇦 Украина</option>
+                        </select>
+                    </div>
+                    
+                    <div style="flex: 1; min-width: 200px;">
+                        <label for="filterDiscount" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                            <i class="fas fa-percentage"></i> Минимальная скидка:
+                        </label>
+                        <select id="filterDiscount" class="input" onchange="filterDiscounts()">
+                            <option value="0">Любая скидка</option>
+                            <option value="30">От 30%</option>
+                            <option value="50">От 50%</option>
+                            <option value="60">От 60%</option>
+                            <option value="70">От 70%</option>
+                            <option value="80">От 80%</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <button onclick="updateDiscounts(true)" class="btn btn-success" style="flex: 1;">
+                        <i class="fas fa-sync-alt"></i> Проверить скидки сейчас
+                    </button>
+                    
+                    <button onclick="updateGameImages()" class="btn btn-primary" style="flex: 1;">
+                        <i class="fas fa-image"></i> Обновить изображения
+                    </button>
+                    
+                    <button onclick="clearDiscountsCache()" class="btn btn-warning" style="flex: 1;">
+                        <i class="fas fa-trash"></i> Очистить кэш
+                    </button>
+                </div>
+                
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                    <div style="display: flex; align-items: center; gap: 10px; color: #64748b;">
+                        <i class="fas fa-info-circle"></i>
+                        <small>Добавляйте ссылки на игры в разделе "Управление играми". Система автоматически проверяет скидки каждые 4 часа.</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Прогресс проверки -->
+            <div id="discountsProgress" class="checking-progress" style="display: none;"></div>
+            
+            <!-- Загрузка -->
+            <div id="discountsLoading" class="loading-container" style="text-align: center; padding: 40px; display: none;">
+                <div class="loading" style="display: inline-block; width: 40px; height: 40px;"></div>
+                <p style="margin-top: 15px; color: #64748b;">Загружаю список игр...</p>
+            </div>
+            
+            <!-- Сообщение "нет игр" -->
+            <div id="noGamesAlert" style="display: none; text-align: center; padding: 40px;">
+                <div style="font-size: 60px; color: #cbd5e1; margin-bottom: 20px;">🎮</div>
+                <h3>Нет игр для отслеживания</h3>
+                <p style="color: #64748b; margin: 15px 0;">Добавьте игры со ссылками на PS Store в разделе "Управление играми"</p>
+                <button onclick="location.href='games.html'" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Добавить игры
+                </button>
+            </div>
+            
+            <!-- Список скидок -->
+            <div id="discountsList" class="discounts-grid" style="display: none;"></div>
+            
+            <!-- Игры без скидок -->
+            <div id="noDiscountsSection" style="display: none; margin-top: 30px;">
+                <h3 style="color: #64748b;"><i class="fas fa-times-circle"></i> Игры без скидок</h3>
+                <div id="gamesWithoutDiscounts" class="discounts-grid" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+        
+        <!-- Настройки -->
+        <div class="section">
+            <h2><i class="fas fa-cog"></i> Настройки отслеживания</h2>
+            <div class="form-grid">
+                <div>
+                    <label for="checkInterval" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                        Проверять каждые:
+                    </label>
+                    <select id="checkInterval" class="input">
+                        <option value="1">1 час</option>
+                        <option value="2">2 часа</option>
+                        <option value="4" selected>4 часа</option>
+                        <option value="6">6 часов</option>
+                        <option value="12">12 часов</option>
+                        <option value="24">24 часа</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="minDiscountAlert" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                        Уведомлять от:
+                    </label>
+                    <select id="minDiscountAlert" class="input">
+                        <option value="30">30% скидки</option>
+                        <option value="50">50% скидки</option>
+                        <option value="60" selected>60% скидки</option>
+                        <option value="70">70% скидки</option>
+                        <option value="80">80% скидки</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="autoCheck" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                        Автопроверка:
+                    </label>
+                    <div style="margin-top: 10px;">
+                        <input type="checkbox" id="autoCheck" checked style="width: 18px; height: 18px;">
+                        <label for="autoCheck" style="margin-left: 8px; font-weight: 500; color: #4b5563;">
+                            Включить автоматическую проверку
+                        </label>
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="notifyBigDiscounts" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                        Уведомления:
+                    </label>
+                    <div style="margin-top: 10px;">
+                        <input type="checkbox" id="notifyBigDiscounts" checked style="width: 18px; height: 18px;">
+                        <label for="notifyBigDiscounts" style="margin-left: 8px; font-weight: 500; color: #4b5563;">
+                            Уведомлять о больших скидках
+                        </label>
+                    </div>
+                </div>
+                
+                <button onclick="saveDiscountSettings()" class="btn btn-primary" style="grid-column: 1 / -1;">
+                    <i class="fas fa-save"></i> Сохранить настройки
+                </button>
+            </div>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 600; color: #2d3748;">Последняя проверка:</div>
+                        <div id="lastCheckTime" style="color: #64748b;">Никогда</div>
+                    </div>
+                    <div>
+                        <div style="font-weight: 600; color: #2d3748;">Следующая проверка:</div>
+                        <div id="nextCheckTime" style="color: #64748b;">Не запланирована</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- История проверок -->
+        <div class="section">
+            <h2><i class="fas fa-history"></i> История проверок</h2>
+            <div id="checkHistory" style="max-height: 300px; overflow-y: auto; padding: 10px;">
+                <div class="empty">Проверок еще не было</div>
+            </div>
+        </div>
+        
+        <!-- Инструкция -->
+        <div class="section" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);">
+            <h2><i class="fas fa-question-circle"></i> Как это работает?</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+                <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #bfdbfe;">
+                    <div style="font-size: 2em; margin-bottom: 10px;">1️⃣</div>
+                    <h4 style="margin: 0 0 10px 0; color: #1e293b;">Добавьте игры</h4>
+                    <p style="color: #64748b; margin: 0;">В разделе "Управление играми" добавьте игры с ссылками на турецкий и украинский PS Store</p>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #bfdbfe;">
+                    <div style="font-size: 2em; margin-bottom: 10px;">2️⃣</div>
+                    <h4 style="margin: 0 0 10px 0; color: #1e293b;">Проверьте скидки</h4>
+                    <p style="color: #64748b; margin: 0;">Нажмите "Проверить скидки сейчас" или система сделает это автоматически</p>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #bfdbfe;">
+                    <div style="font-size: 2em; margin-bottom: 10px;">3️⃣</div>
+                    <h4 style="margin: 0 0 10px 0; color: #1e293b;">Получите уведомления</h4>
+                    <p style="color: #64748b; margin: 0;">Система уведомит вас о больших скидках (более 60%)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Подключаем скрипты -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="firebase.js"></script>
+    <script src="security.js"></script>
+    <script src="script.js?v=20250115"></script>
+    
+    <!-- API для PS Store -->
+    <script src="psstore-api.js"></script>
+    
+    <!-- Основной скрипт для скидок -->
+    <script src="discounts.js?v=20250115"></script>
+    
+    <script>
+        // Переменные
+        let discountsManager = null;
+        let currentDiscounts = [];
+        
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Страница скидок загружена');
+            
+            // Создаем менеджер скидок
+            discountsManager = new DiscountsManager();
+            
+            // Загружаем настройки
+            loadDiscountSettings();
+            
+            // Показываем время последней проверки
+            updateCheckTimes();
+            
+            // Загружаем историю проверок
+            updateCheckHistory();
+            
+            // Инициализируем страницу
+            setTimeout(() => {
+                initDiscountsPage();
+            }, 500);
+            
+            // Настраиваем автообновление
+            setupAutoRefresh();
+        });
+        
+        // Инициализация страницы скидок
+        function initDiscountsPage() {
+            const loadingEl = document.getElementById('discountsLoading');
+            const noGamesAlert = document.getElementById('noGamesAlert');
+            
+            // Проверяем есть ли игры в базе
+            const myGames = JSON.parse(localStorage.getItem('games')) || [];
+            
+            if (myGames.length === 0) {
+                loadingEl.style.display = 'none';
+                noGamesAlert.style.display = 'block';
+                return;
+            }
+            
+            // Загружаем кэшированные скидки
+            const cachedDiscounts = JSON.parse(localStorage.getItem('discountsResults')) || [];
+            
+            if (cachedDiscounts.length > 0) {
+                console.log('📦 Загружены кэшированные скидки:', cachedDiscounts.length);
+                displayDiscounts(cachedDiscounts);
+                loadingEl.style.display = 'none';
+            } else {
+                // Проверяем когда была последняя проверка
+                const lastCheck = localStorage.getItem('lastDiscountCheck');
+                const hoursSinceLastCheck = lastCheck ? 
+                    (Date.now() - new Date(lastCheck)) / (1000 * 60 * 60) : 24;
+                
+                // Если давно не проверяли, запускаем проверку
+                if (hoursSinceLastCheck > 4) {
+                    updateDiscounts(false);
+                } else {
+                    loadingEl.style.display = 'none';
+                    document.getElementById('discountsList').innerHTML = `
+                        <div class="no-discounts" style="grid-column: 1 / -1;">
+                            <i class="fas fa-search"></i>
+                            <h3>Нет данных о скидках</h3>
+                            <p>Нажмите "Проверить скидки сейчас" чтобы начать отслеживание</p>
+                        </div>
+                    `;
+                    document.getElementById('discountsList').style.display = 'block';
+                }
+            }
+        }
+        
+        // Проверка скидок
+        async function updateDiscounts(force = false) {
+            try {
+                // Показываем индикатор загрузки
+                document.getElementById('discountsLoading').style.display = 'block';
+                document.getElementById('discountsList').style.display = 'none';
+                document.getElementById('noDiscountsSection').style.display = 'none';
+                
+                // Запускаем проверку
+                const results = await discountsManager.checkDiscounts(force);
+                
+                // Обновляем отображение
+                displayDiscounts(results);
+                
+                // Обновляем время проверки
+                localStorage.setItem('lastDiscountCheck', new Date().toISOString());
+                updateCheckTimes();
+                
+                // Обновляем историю
+                updateCheckHistory();
+                
+                // Показываем уведомление
+                const bigDiscounts = results.filter(r => 
+                    r.discounts.TR?.discount >= 60 || r.discounts.UA?.discount >= 60
+                );
+                
+                if (bigDiscounts.length > 0) {
+                    showNotification(`🔥 Найдено ${bigDiscounts.length} больших скидок!`, 'success', 5000);
+                } else {
+                    showNotification(`✅ Проверено ${results.length} игр со скидками`, 'success');
+                }
+                
+            } catch (error) {
+                console.error('❌ Ошибка проверки скидок:', error);
+                showNotification('❌ Ошибка при проверке скидок', 'error');
+                
+                // Показываем кэшированные данные
+                const cached = JSON.parse(localStorage.getItem('discountsResults')) || [];
+                if (cached.length > 0) {
+                    displayDiscounts(cached);
+                }
+            } finally {
+                document.getElementById('discountsLoading').style.display = 'none';
+            }
+        }
+        
+        // Отображение скидок
+        function displayDiscounts(discountsData) {
+            currentDiscounts = discountsData;
+            const container = document.getElementById('discountsList');
+            const statsContainer = document.getElementById('discountsStats');
+            const noDiscountsSection = document.getElementById('noDiscountsSection');
+            const noDiscountsContainer = document.getElementById('gamesWithoutDiscounts');
+            
+            if (!container) return;
+            
+            // Фильтрация
+            let filteredDiscounts = [...discountsData];
+            const searchTerm = document.getElementById('searchDiscounts')?.value.toLowerCase() || '';
+            const regionFilter = document.getElementById('filterRegion')?.value || 'all';
+            const discountFilter = parseInt(document.getElementById('filterDiscount')?.value || '0');
+            
+            if (searchTerm) {
+                filteredDiscounts = filteredDiscounts.filter(item =>
+                    item.game.name.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            if (regionFilter !== 'all') {
+                filteredDiscounts = filteredDiscounts.filter(item => 
+                    item.discounts[regionFilter] !== null
+                );
+            }
+            
+            if (discountFilter > 0) {
+                filteredDiscounts = filteredDiscounts.filter(item => {
+                    const trDiscount = item.discounts.TR?.discount || 0;
+                    const uaDiscount = item.discounts.UA?.discount || 0;
+                    return trDiscount >= discountFilter || uaDiscount >= discountFilter;
+                });
+            }
+            
+            // Разделяем на игры со скидками и без
+            const gamesWithDiscounts = filteredDiscounts.filter(item => 
+                item.discounts.TR || item.discounts.UA
+            );
+            
+            const gamesWithoutDiscounts = filteredDiscounts.filter(item => 
+                !item.discounts.TR && !item.discounts.UA
+            );
+            
+            // Статистика
+            if (statsContainer && gamesWithDiscounts.length > 0) {
+                let totalDiscount = 0;
+                let discountCount = 0;
+                let trCount = 0;
+                let uaCount = 0;
+                
+                gamesWithDiscounts.forEach(item => {
+                    if (item.discounts.TR) {
+                        totalDiscount += item.discounts.TR.discount;
+                        discountCount++;
+                        trCount++;
+                    }
+                    if (item.discounts.UA) {
+                        totalDiscount += item.discounts.UA.discount;
+                        discountCount++;
+                        uaCount++;
+                    }
+                });
+                
+                const avgDiscount = discountCount > 0 ? Math.round(totalDiscount / discountCount) : 0;
+                
+                statsContainer.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-value">${gamesWithDiscounts.length}</div>
+                        <div class="stat-label">Игр со скидками</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${avgDiscount}%</div>
+                        <div class="stat-label">Средняя скидка</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${trCount}</div>
+                        <div class="stat-label">В Турции</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${uaCount}</div>
+                        <div class="stat-label">В Украине</div>
+                    </div>
+                `;
+                statsContainer.style.display = 'grid';
+            } else {
+                statsContainer.style.display = 'none';
+            }
+            
+            // Отображаем игры со скидками
+            if (gamesWithDiscounts.length === 0) {
+                container.innerHTML = `
+                    <div class="no-discounts" style="grid-column: 1 / -1;">
+                        <i class="fas fa-search"></i>
+                        <h3>${searchTerm ? 'Ничего не найдено' : 'Скидок не найдено'}</h3>
+                        <p>${searchTerm ? 'Попробуйте другой поисковый запрос' : 'Попробуйте изменить фильтры'}</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = gamesWithDiscounts.map(item => {
+                    const hasTR = item.discounts.TR;
+                    const hasUA = item.discounts.UA;
+                    const hasBigDiscount = (hasTR && item.discounts.TR.discount >= 70) || 
+                                         (hasUA && item.discounts.UA.discount >= 70);
+                    const isNew = (hasTR && item.discounts.TR.isNew) || 
+                                 (hasUA && item.discounts.UA.isNew);
+                    
+                    return `
+                        <div class="discount-card ${hasBigDiscount ? 'high-discount' : ''} ${isNew ? 'new-discount' : ''}">
+                            <div style="padding: 20px;">
+                                <!-- Заголовок -->
+                                <div style="display: flex; margin-bottom: 20px;">
+                                    ${item.game.imageUrl ? `
+                                        <img src="${item.game.imageUrl}" class="game-image">
+                                    ` : `
+                                        <div class="game-image" style="background: linear-gradient(135deg, #4361ee 0%, #3a56d4 100%); 
+                                            display: flex; align-items: center; justify-content: center; color: white; font-size: 2em;">
+                                            🎮
+                                        </div>
+                                    `}
+                                    <div class="game-info">
+                                        <h3 style="margin: 0 0 5px 0; color: #1e293b; font-size: 1.2em;">
+                                            ${item.game.name}
+                                        </h3>
+                                        <div style="color: #64748b; font-size: 0.9em;">
+                                            <div>Добавлена: ${item.game.created || 'неизвестно'}</div>
+                                            <div>Проверено: ${new Date(item.checkedAt).toLocaleString('ru-RU')}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Скидки -->
+                                ${hasTR ? renderDiscountBlock(item.discounts.TR, 'TR') : ''}
+                                ${hasUA ? renderDiscountBlock(item.discounts.UA, 'UA') : ''}
+                                
+                                <!-- Действия -->
+                                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                                    ${item.game.storeLinks?.TR ? `
+                                        <button onclick="openDiscountUrl('${item.game.storeLinks.TR}')" 
+                                                class="btn btn-small" style="flex: 1; background: #dc2626; color: white;">
+                                            🇹🇷 Турция
+                                        </button>
+                                    ` : ''}
+                                    ${item.game.storeLinks?.UA ? `
+                                        <button onclick="openDiscountUrl('${item.game.storeLinks.UA}')" 
+                                                class="btn btn-small" style="flex: 1; background: #2563eb; color: white;">
+                                            🇺🇦 Украина
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // Отображаем игры без скидок
+            if (gamesWithoutDiscounts.length > 0) {
+                noDiscountsContainer.innerHTML = gamesWithoutDiscounts.map(item => `
+                    <div class="discount-card no-discount">
+                        <div style="padding: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h4 style="margin: 0; color: #64748b;">${item.game.name}</h4>
+                                <span class="discount-status status-no-discount">
+                                    Нет скидок
+                                </span>
+                            </div>
+                            <div style="color: #94a3b8; font-size: 0.9em;">
+                                Последняя проверка: ${new Date(item.checkedAt).toLocaleString('ru-RU')}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                noDiscountsSection.style.display = 'block';
+            } else {
+                noDiscountsSection.style.display = 'none';
+            }
+            
+            // Показываем контейнеры
+            container.style.display = 'grid';
+        }
+        
+        // Рендер блока скидки
+        function renderDiscountBlock(discount, region) {
+            const daysLeft = discount.validUntil ? 
+                Math.ceil((new Date(discount.validUntil) - new Date()) / (1000 * 60 * 60 * 24)) : 0;
+            
+            return `
+                <div style="
+                    background: ${region === 'TR' ? '#fff5f5' : '#eff6ff'};
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin-bottom: 10px;
+                    border: 1px solid ${region === 'TR' ? '#fecaca' : '#bfdbfe'};
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span class="region-badge region-${region.toLowerCase()}">
+                            ${region === 'TR' ? '🇹🇷 Турция' : '🇺🇦 Украина'}
+                        </span>
+                        <div class="discount-percent">
+                            -${discount.discount}%
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            ${discount.oldPrice?.amount ? `
+                                <div class="price-old">
+                                    ${discount.oldPrice.formatted}
+                                </div>
+                            ` : ''}
+                            <div class="price-new">
+                                ${discount.price?.formatted || 'Цена не найдена'}
+                            </div>
+                        </div>
+                        ${discount.oldPrice?.amount && discount.price?.amount ? `
+                            <div style="text-align: right;">
+                                <div style="font-size: 0.9em; color: #64748b;">
+                                    Экономия: ${Math.round(discount.oldPrice.amount - discount.price.amount)} ${discount.currency}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="discount-meta">
+                        <div>
+                            <i class="far fa-clock"></i>
+                            ${daysLeft > 0 ? `${daysLeft} дн.` : 'Скоро закончится'}
+                        </div>
+                        <div>
+                            <i class="far fa-calendar"></i>
+                            ${new Date(discount.checkedAt).toLocaleDateString('ru-RU')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Поиск скидок
+        function searchDiscounts() {
+            if (!currentDiscounts || currentDiscounts.length === 0) return;
+            displayDiscounts(currentDiscounts);
+        }
+        
+        // Фильтрация скидок
+        function filterDiscounts() {
+            if (!currentDiscounts || currentDiscounts.length === 0) return;
+            displayDiscounts(currentDiscounts);
+        }
+        
+        // Обновление изображений игр
+        async function updateGameImages() {
+            try {
+                showNotification('🔄 Обновляю изображения игр...', 'info');
+                const updatedGames = await discountsManager.fetchGameImages();
+                
+                // Обновляем отображение если на странице игр
+                if (typeof displayGames === 'function') {
+                    displayGames();
+                }
+                
+                showNotification(`✅ Обновлено ${updatedGames.filter(g => g.imageUrl).length} изображений`, 'success');
+            } catch (error) {
+                console.error('Ошибка обновления изображений:', error);
+                showNotification('❌ Ошибка обновления изображений', 'error');
+            }
+        }
+        
+        // Очистка кэша
+        function clearDiscountsCache() {
+            if (confirm('Очистить весь кэш скидок? Это удалит все сохраненные данные о ценах.')) {
+                localStorage.removeItem('discountsResults');
+                localStorage.removeItem('discountsHistory');
+                localStorage.removeItem('lastDiscountCheck');
+                
+                // Очищаем все кэшированные данные
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('discount_') || key.startsWith('cache_')) {
+                        localStorage.removeItem(key);
+                    }
+                });
+                
+                showNotification('✅ Кэш скидок очищен', 'success');
+                
+                // Обновляем отображение
+                document.getElementById('discountsList').innerHTML = `
+                    <div class="no-discounts" style="grid-column: 1 / -1;">
+                        <i class="fas fa-trash"></i>
+                        <h3>Кэш очищен</h3>
+                        <p>Нажмите "Проверить скидки сейчас" для получения новых данных</p>
+                    </div>
+                `;
+                document.getElementById('discountsList').style.display = 'grid';
+                document.getElementById('noDiscountsSection').style.display = 'none';
+                document.getElementById('discountsStats').style.display = 'none';
+            }
+        }
+        
+        // Сохранение настроек
+        function saveDiscountSettings() {
+            const settings = {
+                checkInterval: document.getElementById('checkInterval').value,
+                minDiscountAlert: document.getElementById('minDiscountAlert').value,
+                autoCheck: document.getElementById('autoCheck').checked,
+                notifyBigDiscounts: document.getElementById('notifyBigDiscounts').checked,
+                lastSave: new Date().toISOString()
+            };
+            
+            localStorage.setItem('discountSettings', JSON.stringify(settings));
+            showNotification('✅ Настройки сохранены', 'success');
+            
+            // Перезапускаем автообновление
+            setupAutoRefresh();
+        }
+        
+        // Загрузка настроек
+        function loadDiscountSettings() {
+            const settings = JSON.parse(localStorage.getItem('discountSettings')) || {
+                checkInterval: '4',
+                minDiscountAlert: '60',
+                autoCheck: true,
+                notifyBigDiscounts: true
+            };
+            
+            document.getElementById('checkInterval').value = settings.checkInterval;
+            document.getElementById('minDiscountAlert').value = settings.minDiscountAlert;
+            document.getElementById('autoCheck').checked = settings.autoCheck;
+            document.getElementById('notifyBigDiscounts').checked = settings.notifyBigDiscounts;
+        }
+        
+        // Настройка автообновления
+        function setupAutoRefresh() {
+            // Очищаем старый таймер
+            if (window.discountsRefreshTimer) {
+                clearInterval(window.discountsRefreshTimer);
+            }
+            
+            const settings = JSON.parse(localStorage.getItem('discountSettings')) || {};
+            if (settings.autoCheck) {
+                const intervalHours = parseInt(settings.checkInterval) || 4;
+                const intervalMs = intervalHours * 60 * 60 * 1000;
+                
+                window.discountsRefreshTimer = setInterval(() => {
+                    console.log('🔄 Автоматическая проверка скидок');
+                    updateDiscounts(false);
+                }, intervalMs);
+                
+                console.log(`⏰ Автопроверка установлена на каждые ${intervalHours} часов`);
+            }
+        }
+        
+        // Обновление времени проверок
+        function updateCheckTimes() {
+            const lastCheck = localStorage.getItem('lastDiscountCheck');
+            const lastCheckEl = document.getElementById('lastCheckTime');
+            const nextCheckEl = document.getElementById('nextCheckTime');
+            
+            if (lastCheck) {
+                const lastDate = new Date(lastCheck);
+                lastCheckEl.textContent = lastDate.toLocaleString('ru-RU');
+                
+                const settings = JSON.parse(localStorage.getItem('discountSettings')) || {};
+                const intervalHours = parseInt(settings.checkInterval) || 4;
+                const nextDate = new Date(lastDate.getTime() + intervalHours * 60 * 60 * 1000);
+                nextCheckEl.textContent = nextDate.toLocaleString('ru-RU');
+            } else {
+                lastCheckEl.textContent = 'Никогда';
+                nextCheckEl.textContent = 'Не запланирована';
+            }
+        }
+        
+        // Обновление истории проверок
+        function updateCheckHistory() {
+            const container = document.getElementById('checkHistory');
+            const history = JSON.parse(localStorage.getItem('discountsHistory')) || [];
+            
+            if (history.length === 0) {
+                container.innerHTML = '<div class="empty">Проверок еще не было</div>';
+                return;
+            }
+            
+            container.innerHTML = history.map((entry, index) => {
+                const date = new Date(entry.date);
+                const successCount = entry.details?.filter(d => d.hasDiscounts).length || 0;
+                
+                return `
+                    <div style="
+                        padding: 15px;
+                        margin-bottom: 10px;
+                        background: ${index === 0 ? '#f0fdf4' : 'white'};
+                        border-radius: 8px;
+                        border: 1px solid ${index === 0 ? '#bbf7d0' : '#e2e8f0'};
+                    ">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <strong style="color: #1e293b;">${date.toLocaleString('ru-RU')}</strong>
+                            <span style="
+                                background: ${successCount > 0 ? '#10b981' : '#64748b'};
+                                color: white;
+                                padding: 2px 8px;
+                                border-radius: 12px;
+                                font-size: 0.85em;
+                                font-weight: 600;
+                            ">
+                                ${successCount} со скидками
+                            </span>
+                        </div>
+                        <div style="color: #64748b; font-size: 0.9em;">
+                            Проверено игр: ${entry.totalChecked || entry.details?.length || 0}
+                        </div>
+                        <div style="margin-top: 10px; font-size: 0.85em; color: #94a3b8;">
+                            <i class="fas fa-clock"></i> Длительность: ~${Math.round(entry.details?.length * 0.5)} сек.
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Открытие ссылки
+        function openDiscountUrl(url) {
+            if (url) {
+                window.open(url, '_blank');
+            } else {
+                showNotification('❌ Ссылка не найдена', 'error');
+            }
+        }
+        
+        // Заглушка для showNotification если не определена
+        if (typeof showNotification === 'undefined') {
+            window.showNotification = function(message, type = 'info', duration = 3000) {
+                alert(`${type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️'} ${message}`);
+            };
+        }
+    </script>
+</body>
+</html>
