@@ -57,6 +57,17 @@
 
         <div class="section">
             <h2>📚 Список игр</h2>
+            <!-- Поле поиска -->
+    <div style="margin-bottom: 20px;">
+        <input type="text" id="searchGamesInput" 
+               placeholder="🔍 Поиск по названию игры..." 
+               class="input" 
+               style="width: 100%;"
+               oninput="searchGamesList()">
+        <div style="font-size: 0.85em; color: #64748b; margin-top: 5px;">
+            Начните вводить название для быстрого поиска
+        </div>
+    </div>
             <div id="gamesList" class="list"></div>
         </div>
     </div>
@@ -71,6 +82,7 @@
     <script src="firebase.js"></script>
     <script src="security.js"></script>
     <script src="script.js?v=20250115"></script>
+    <script src="autocomplete.js"></script>
 
     <!-- Модальное окно редактирования игры -->
 <div id="editGameModal" class="modal">

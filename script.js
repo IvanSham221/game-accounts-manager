@@ -143,6 +143,81 @@ const POSITION_INSTRUCTIONS = {
 ⭐ Мы будем благодарны за ваш отзыв — он поможет нам в развитии!`
 };
 
+// Добавьте в начало script.js после русских инструкций:
+const POSITION_INSTRUCTIONS_EN = {
+    'p2_ps4': `🔐 Activation instructions for P2 PS4:
+
+1️⃣ Add a new user: On the console, select the "plus" icon → Add user
+2️⃣ Click "MANUAL LOGIN"
+3️⃣ Accept the license agreement → click "CONFIRM"
+4️⃣ Select manual login and enter the provided data
+5️⃣ The code is specified in the data or can be requested from us (30-second code)
+6️⃣ In the "Data Collection" window, select "Limited Data Only"
+7️⃣ After logging in: Go to LIBRARY → Your collection → download the game
+8️⃣ Go to: [SETTINGS] → [ACCOUNT MANAGEMENT] → [ACTIVATE AS PRIMARY PLAYSTATION 4] Select: "DEACTIVATE"
+✅ Done! The game will be available after installation
+
+💬 If you have any questions or difficulties, please write to us, we are always available and will help you quickly!
+📩 Once everything is working, please confirm your order!
+⭐ We would appreciate your feedback — it will help us improve!`,
+
+    'p3_ps4': `🔐 Activation instructions for P3 PS4:
+
+1️⃣ Add a new user
+On the console, select the "plus" icon — Add user
+2️⃣ Click "MANUAL LOGIN"
+3️⃣ License agreement – "Accept"
+4️⃣ Enter the login and password we provide you
+5️⃣ Enter the login code or request it from us (30-second code)
+6️⃣ Information screen — select OK
+7️⃣ Enable console sharing:
+[SETTINGS] → [ACCOUNT MANAGEMENT] → [ACTIVATE AS PRIMARY PLAYSTATION 4] Select: "ACTIVATE"
+8️⃣ On the desktop, go to Library → Purchased and start downloading the game
+9️⃣ After that, return to your main account
+"Settings" → "Power" → "Switch User"
+✅ Done! The game will be available after installation
+
+💬 If you have any questions or difficulties, please write to us, we are always available and will help you quickly!
+📩 Once everything is working, please confirm your order!
+⭐ We would appreciate your feedback — it will help us improve!`,
+
+    'p2_ps5': `🔐 Activation instructions for P2 PS5:
+
+1️⃣ Add a new user: On the console, select the "plus" icon — Add user
+2️⃣ Click "MANUAL LOGIN"
+3️⃣ Accept the license agreement → click "CONFIRM"
+4️⃣ Select manual login and enter the provided data
+5️⃣ The code is specified in the data or can be requested from us (30-second code)
+6️⃣ In the "Data Collection" window, select "Limited Data Only"
+7️⃣ After logging in: On the desktop, go to LIBRARY → Your Collection → Download Game
+8️⃣ Go to: [SETTINGS] → [USERS AND ACCOUNTS] → [OTHER] → [CONSOLE SHARING AND OFFLINE PLAY] Select: "DO NOT ENABLE" or "DISABLE"
+✅ Done! The game will be available after installation
+
+💬 If you have any questions or difficulties, please write to us. We are always available and will help you quickly!
+📩 Once everything is working, please confirm your order!
+⭐ We would appreciate your feedback—it will help us improve!`,
+
+    'p3_ps5': `🔐 Activation instructions for P3 PS5:
+
+1️⃣ Add a new user
+On the console, select the "plus" icon — Add user
+2️⃣ Click "MANUAL LOGIN"
+3️⃣ License agreement – "Accept"
+4️⃣ Enter the login and password we provide you
+5️⃣ Enter the login code or request it from us (30-second code)
+6️⃣ Information screen — select OK
+7️⃣ Enable console sharing:
+(SETTINGS) - [USERS AND ACCOUNTS] - [OTHER] - [CONSOLE SHARING AND OFFLINE PLAY]. In this menu, select "ENABLE"
+8️⃣ On the desktop, go to Library → Purchased and start downloading the game
+9️⃣ After that, return to your main account
+Click on the avatar → change user → switch to your personal user
+✅ Done! The game will be available after installation
+
+💬 If you have any questions or difficulties, please write to us. We are always available and will help you quickly!
+📩 Once everything is working, please confirm your order!
+⭐ We would appreciate your feedback—it will help us improve!`
+};
+
 // Функция для получения инструкции по типу позиции
 function getInstructionForPosition(positionType) {
     return POSITION_INSTRUCTIONS[positionType] || 
@@ -429,22 +504,22 @@ function initMobileMenu() {
 
 // UI улучшения (тема, уведомления)
 function initUIEnhancements() {
-    // Переключатель темы
-    const themeToggle = document.createElement('div');
-    themeToggle.className = 'theme-toggle';
-    themeToggle.innerHTML = `
-        <button class="theme-btn" onclick="toggleTheme()">
-            <span id="themeIcon">🌙</span>
-        </button>
-    `;
-    document.body.appendChild(themeToggle);
-    
     // Проверяем сохраненную тему
     if (localStorage.getItem('theme') === 'dark') {
-    document.body.classList.add('dark-theme');
-    const themeIcon = document.getElementById('themeIcon');
-    if (themeIcon) themeIcon.textContent = '☀️';
-}
+        document.body.classList.add('dark-theme');
+    }
+    
+    // Создаем кнопку переключения темы если её нет
+    if (!document.querySelector('.theme-toggle')) {
+        const themeToggle = document.createElement('div');
+        themeToggle.className = 'theme-toggle';
+        themeToggle.innerHTML = `
+            <button class="theme-btn" onclick="toggleTheme()">
+                <span id="themeIcon">${document.body.classList.contains('dark-theme') ? '☀️' : '🌙'}</span>
+            </button>
+        `;
+        document.body.appendChild(themeToggle);
+    }
     
     // Плавное появление
     document.addEventListener('DOMContentLoaded', () => {
@@ -607,66 +682,200 @@ function initApp() {
     const currentPage = window.location.pathname.split('/').pop();
     const user = security.getCurrentUser();
     
-    if (user) {
-        console.log('👤 Пользователь:', user.name);
-        
-        // Обновляем навигацию
-        if (typeof updateNavigation === 'function') {
-            updateNavigation();
+    if (!user) {
+        // Если нет пользователя, перенаправляем на логин
+        if (currentPage !== 'login.html' && currentPage !== 'index.html') {
+            window.location.href = 'login.html';
         }
+        return;
+    }
+    
+    console.log('👤 Пользователь:', user.name, `(${user.role})`);
+    
+    // Обновляем навигацию
+    if (typeof updateNavigation === 'function') {
+        updateNavigation();
+    }
+    
+    // Инициализируем мобильное меню
+    initMobileMenu();
+    
+    // Инициализируем UI улучшения
+    initUIEnhancements();
+    
+    // Загружаем данные с синхронизацией
+    loadAllDataWithSync().then(() => {
+        console.log(`✅ Все данные загружены: ${games.length} игр, ${accounts.length} аккаунтов, ${sales.length} продаж`);
         
-        // Загружаем данные с синхронизацией
-        loadAllDataWithSync().then(() => {
-            console.log('✅ Все данные загружены и синхронизированы');
-            
-            // Инициализация страниц
-            if (currentPage === 'add-account.html' && typeof loadGamesForSelect === 'function') {
-                loadGamesForSelect();
-            } else if (currentPage === 'accounts.html' && typeof loadGamesForFilter === 'function') {
-                loadGamesForFilter();
-                displayAccounts();
-            } else if (currentPage === 'games.html' && typeof displayGames === 'function') {
-                displayGames();
-            } else if (currentPage === 'manager.html' && typeof loadGamesForManager === 'function') {
-                loadGamesForManager();
-            } else if (currentPage === 'free-accounts.html' && typeof displayFreeAccounts === 'function') {
-                displayFreeAccounts();
-            } else if (currentPage === 'reports.html') {
-                const endDate = new Date();
-                const startDate = new Date();
-                startDate.setDate(startDate.getDate() - 30);
-                const startInput = document.getElementById('startDate');
-                const endInput = document.getElementById('endDate');
-                if (startInput && endInput) {
-                    startInput.value = startDate.toISOString().split('T')[0];
-                    endInput.value = endDate.toISOString().split('T')[0];
-                }
-            }
-            
-            // Инициализация UI улучшений (ДОБАВЬТЕ ЭТУ СТРОЧКУ!)
-            initUIEnhancements();
-            
-            // Запускаем проверку обновлений
-            startSyncChecker();
-            
-        }).catch(error => {
-            console.error('❌ Ошибка загрузки данных:', error);
-        });
+        // Инициализируем страницы
+        initPage(currentPage);
+        
+        // Инициализируем автодополнение если есть
+        initAutocomplete();
+        
+        // Запускаем проверку обновлений
+        startSyncChecker();
         
         // Показываем уведомление
-        if (typeof showNotification === 'function') {
-            showNotification(`Добро пожаловать, ${user.name}! 👋`, 'info', 2000);
-        }
-
-        if (currentPage === 'manager.html') {
-    loadGamesForManager();
-    
-    // Загружаем менеджеров для фильтра с задержкой
-    setTimeout(() => {
-        loadManagersForFilter();
-    }, 1000);
+        showNotification(`Добро пожаловать, ${user.name}! 👋`, 'info', 2000);
+        
+    }).catch(error => {
+        console.error('❌ Ошибка загрузки данных:', error);
+        showNotification('Ошибка загрузки данных. Проверьте соединение.', 'error');
+        
+        // Пробуем загрузить из локального хранилища
+        loadFromLocalStorage();
+        initPage(currentPage);
+    });
 }
+
+function initPage(currentPage) {
+    switch(currentPage) {
+        case 'add-account.html':
+            if (typeof loadGamesForSelect === 'function') {
+                loadGamesForSelect();
+            }
+            break;
+            
+        case 'accounts.html':
+            if (typeof loadGamesForFilter === 'function') {
+                loadGamesForFilter();
+            }
+            if (typeof displayAccounts === 'function') {
+                displayAccounts();
+            }
+            break;
+            
+        case 'games.html':
+            if (typeof displayGames === 'function') {
+                displayGames();
+            }
+            break;
+            
+        case 'manager.html':
+            if (typeof loadGamesForManager === 'function') {
+                loadGamesForManager();
+            }
+            if (typeof loadManagersForFilter === 'function') {
+                setTimeout(() => {
+                    loadManagersForFilter();
+                }, 1000);
+            }
+            break;
+            
+        case 'free-accounts.html':
+            if (typeof displayFreeAccounts === 'function') {
+                displayFreeAccounts();
+            }
+            break;
+            
+        case 'reports.html':
+            // Устанавливаем даты по умолчанию
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+            
+            const startInput = document.getElementById('startDate');
+            const endInput = document.getElementById('endDate');
+            if (startInput && endInput) {
+                startInput.value = startDate.toISOString().split('T')[0];
+                endInput.value = endDate.toISOString().split('T')[0];
+            }
+            break;
+            
+        case 'workers-stats.html':
+            // Устанавливаем даты по умолчанию
+            const endDate2 = new Date();
+            const startDate2 = new Date();
+            startDate2.setDate(startDate2.getDate() - 30);
+            
+            const startInput2 = document.getElementById('statsStartDate');
+            const endInput2 = document.getElementById('statsEndDate');
+            if (startInput2 && endInput2) {
+                startInput2.value = startDate2.toISOString().split('T')[0];
+                endInput2.value = endDate2.toISOString().split('T')[0];
+            }
+            
+            // Загружаем статистику
+            setTimeout(() => {
+                if (typeof generateWorkersStats === 'function') {
+                    generateWorkersStats();
+                }
+            }, 500);
+            break;
+            
+        case 'charts.html':
+            // Устанавливаем даты по умолчанию
+            const endDate3 = new Date();
+            const startDate3 = new Date();
+            startDate3.setDate(startDate3.getDate() - 30);
+            
+            const startInput3 = document.getElementById('chartsStartDate');
+            const endInput3 = document.getElementById('chartsEndDate');
+            if (startInput3 && endInput3) {
+                startInput3.value = startDate3.toISOString().split('T')[0];
+                endInput3.value = endDate3.toISOString().split('T')[0];
+            }
+            
+            // Загружаем графики
+            setTimeout(() => {
+                if (typeof loadCharts === 'function') {
+                    loadCharts();
+                }
+            }, 1000);
+            break;
+            
+        case 'discounts.html':
+            // Инициализируем страницу скидок
+            setTimeout(() => {
+                if (typeof initDiscountsPage === 'function') {
+                    initDiscountsPage();
+                }
+            }, 500);
+            break;
+            
+        case 'workers.html':
+            // Страница работников инициализируется своим скриптом
+            break;
+            
+        default:
+            console.log('📄 Страница:', currentPage);
     }
+}
+
+function initAutocomplete() {
+    // Проверяем, подключен ли скрипт автодополнения
+    if (typeof window.autoComplete !== 'undefined') {
+        console.log('🔍 Инициализирую автодополнение...');
+        
+        // Даем время на загрузку DOM
+        setTimeout(() => {
+            window.autoComplete.setupAllSelects();
+            console.log('✅ Автодополнение инициализировано');
+        }, 1500);
+        
+        // Обновляем при изменении данных
+        if (window.dataSync) {
+            // Слушаем изменения игр
+            window.addEventListener('gamesUpdated', () => {
+                setTimeout(() => {
+                    window.autoComplete.loadGames();
+                    window.autoComplete.setupAllSelects();
+                }, 500);
+            });
+        }
+    } else {
+        console.log('⚠️ Автодополнение не подключено');
+    }
+}
+
+// Функция загрузки из локального хранилища (запасной вариант)
+function loadFromLocalStorage() {
+    games = JSON.parse(localStorage.getItem('games')) || [];
+    accounts = JSON.parse(localStorage.getItem('accounts')) || [];
+    sales = JSON.parse(localStorage.getItem('sales')) || [];
+    
+    console.log(`📂 Загружено локально: ${games.length} игр, ${accounts.length} аккаунтов, ${sales.length} продаж`);
 }
 
 // ============================================
@@ -988,74 +1197,497 @@ function closeGameModal() {
 
 function displayGames() {
     const list = document.getElementById('gamesList');
-    if (games.length === 0) {
-        list.innerHTML = '<div class="empty">Нет добавленных игр</div>';
+    if (!list) return;
+    
+    // Проверяем, есть ли активный поиск
+    const searchInput = document.getElementById('searchGamesInput');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    
+    let gamesToShow = games;
+    
+    // Фильтруем игры если есть поисковый запрос
+    if (searchTerm) {
+        gamesToShow = games.filter(game => 
+            game.name.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    if (gamesToShow.length === 0) {
+        list.innerHTML = `
+            <div class="empty">
+                ${searchTerm ? `
+                    <div style="font-size: 50px; margin-bottom: 15px;">🔍</div>
+                    <h3>Игры не найдены</h3>
+                    <p>Попробуйте другой поисковый запрос</p>
+                    <button onclick="document.getElementById('searchGamesInput').value = ''; displayGames();" 
+                            class="btn btn-primary btn-small" style="margin-top: 10px;">
+                        Показать все игры
+                    </button>
+                ` : `
+                    <div style="font-size: 50px; margin-bottom: 15px;">🎮</div>
+                    <h3>Нет добавленных игр</h3>
+                    <p>Добавьте первую игру выше</p>
+                `}
+            </div>
+        `;
         return;
     }
     
-    list.innerHTML = games.map(game => `
-        <div class="item" style="display: flex; justify-content: space-between; align-items: center; 
-              padding: 20px; margin-bottom: 15px; background: white; border-radius: 12px; 
-              border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-            
-            <div style="flex: 1;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                    <strong style="font-size: 1.2em; color: #2d3748;">${game.name}</strong>
-                    ${game.imageUrl ? `<img src="${game.imageUrl}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;">` : ''}
-                </div>
-                
-                <div style="font-size: 0.9em; color: #64748b;">
-                    <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px;">
-                        ${game.storeLinks?.TR ? `
-                            <div style="display: flex; align-items: center; gap: 5px;">
-                                <span>🇹🇷</span>
-                                <a href="${game.storeLinks.TR}" target="_blank" 
-                                   style="color: #4361ee; text-decoration: none;">
-                                    Турция
-                                </a>
-                                ${game.productIds?.TR ? `
-                                    <span style="background: #f1f5f9; padding: 2px 8px; 
-                                          border-radius: 10px; font-size: 0.8em;">
-                                        ${game.productIds.TR.substring(0, 10)}...
-                                    </span>
-                                ` : ''}
-                            </div>
-                        ` : '<div style="color: #94a3b8;">🇹🇷 Нет ссылки</div>'}
+    // Сортируем игры по дате добавления (новые сначала)
+    const sortedGames = [...gamesToShow].sort((a, b) => {
+        const dateA = new Date(a.created || a.timestamp || 0);
+        const dateB = new Date(b.created || b.timestamp || 0);
+        return dateB - dateA;
+    });
+    
+    list.innerHTML = sortedGames.map(game => {
+        // Определяем, есть ли связанные аккаунты
+        const accountsWithThisGame = accounts.filter(acc => acc.gameId === game.id);
+        const hasAccounts = accountsWithThisGame.length > 0;
+        
+        // Определяем статус игры
+        let statusBadge = '';
+        if (game.storeLinks?.TR && game.storeLinks?.UA) {
+            statusBadge = `<span style="padding: 3px 8px; background: #dcfce7; color: #166534; border-radius: 10px; font-size: 0.8em; font-weight: 600;">✅ Полная</span>`;
+        } else if (game.storeLinks?.TR || game.storeLinks?.UA) {
+            statusBadge = `<span style="padding: 3px 8px; background: #fef3c7; color: #92400e; border-radius: 10px; font-size: 0.8em; font-weight: 600;">⚠️ Частичная</span>`;
+        } else {
+            statusBadge = `<span style="padding: 3px 8px; background: #f1f5f9; color: #475569; border-radius: 10px; font-size: 0.8em; font-weight: 600;">📝 Без ссылок</span>`;
+        }
+        
+        return `
+            <div class="game-item" style="
+                background: white;
+                padding: 25px;
+                border-radius: 12px;
+                margin-bottom: 20px;
+                border: 1px solid #e2e8f0;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+                border-left: 4px solid ${hasAccounts ? '#4361ee' : '#94a3b8'};
+            ">
+                <!-- Заголовок игры -->
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    margin-bottom: 20px;
+                    flex-wrap: wrap;
+                    gap: 15px;
+                ">
+                    <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
+                        ${game.imageUrl ? `
+                            <img src="${game.imageUrl}" 
+                                 style="width: 60px; height: 60px; border-radius: 10px; object-fit: cover; border: 2px solid #e2e8f0;">
+                        ` : `
+                            <div style="
+                                width: 60px; height: 60px;
+                                background: linear-gradient(135deg, #4361ee 0%, #3a56d4 100%);
+                                border-radius: 10px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                color: white;
+                                font-size: 24px;
+                            ">🎮</div>
+                        `}
                         
-                        ${game.storeLinks?.UA ? `
-                            <div style="display: flex; align-items: center; gap: 5px;">
-                                <span>🇺🇦</span>
-                                <a href="${game.storeLinks.UA}" target="_blank" 
-                                   style="color: #4361ee; text-decoration: none;">
-                                    Украина
-                                </a>
-                                ${game.productIds?.UA ? `
-                                    <span style="background: #f1f5f9; padding: 2px 8px; 
-                                          border-radius: 10px; font-size: 0.8em;">
-                                        ${game.productIds.UA.substring(0, 10)}...
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                                <h3 style="margin: 0; color: #2d3748; font-size: 1.3em;">${game.name}</h3>
+                                ${statusBadge}
+                                ${hasAccounts ? `
+                                    <span style="
+                                        padding: 3px 10px;
+                                        background: #e0f2fe;
+                                        color: #0369a1;
+                                        border-radius: 12px;
+                                        font-size: 0.8em;
+                                        font-weight: 600;
+                                    ">
+                                        📊 ${accountsWithThisGame.length} акк.
                                     </span>
                                 ` : ''}
                             </div>
-                        ` : '<div style="color: #94a3b8;">🇺🇦 Нет ссылки</div>'}
+                            
+                            <div style="color: #64748b; font-size: 0.9em;">
+                                <div>ID: ${game.id} • Добавлена: ${game.created || 'Не указано'}</div>
+                                <div>${game.addedBy ? `Добавил: ${game.addedBy}` : ''}</div>
+                                ${game.lastUpdated ? `
+                                    <div>Обновлена: ${new Date(game.lastUpdated).toLocaleDateString('ru-RU')}</div>
+                                ` : ''}
+                            </div>
+                        </div>
                     </div>
                     
-                    <div style="margin-top: 10px; color: #94a3b8; font-size: 0.85em;">
-                        Добавлена: ${game.created} • ${game.addedBy}
-                        ${game.lastUpdated ? `<br>Обновлена: ${new Date(game.lastUpdated).toLocaleDateString('ru-RU')}` : ''}
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        ${game.storeLinks?.TR ? `
+                            <a href="${game.storeLinks.TR}" target="_blank" 
+                               style="text-decoration: none;">
+                                <button class="btn btn-small" style="background: #dc2626; color: white;">
+                                    🇹🇷 Турция
+                                </button>
+                            </a>
+                        ` : ''}
+                        
+                        ${game.storeLinks?.UA ? `
+                            <a href="${game.storeLinks.UA}" target="_blank" 
+                               style="text-decoration: none;">
+                                <button class="btn btn-small" style="background: #2563eb; color: white;">
+                                    🇺🇦 Украина
+                                </button>
+                            </a>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <!-- Ссылки на PS Store -->
+                <div style="
+                    background: #f8fafc;
+                    padding: 20px;
+                    border-radius: 10px;
+                    margin: 20px 0;
+                    border: 1px solid #e2e8f0;
+                ">
+                    <h4 style="margin: 0 0 15px 0; color: #475569; font-size: 1em;">🔗 Ссылки на PS Store:</h4>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                                <span style="font-weight: 600; color: #dc2626;">🇹🇷 Турция:</span>
+                                ${game.storeLinks?.TR ? `
+                                    <span style="
+                                        padding: 2px 8px;
+                                        background: #fef2f2;
+                                        color: #dc2626;
+                                        border-radius: 10px;
+                                        font-size: 0.8em;
+                                        font-weight: 600;
+                                    ">✅ Есть</span>
+                                ` : `
+                                    <span style="
+                                        padding: 2px 8px;
+                                        background: #f1f5f9;
+                                        color: #64748b;
+                                        border-radius: 10px;
+                                        font-size: 0.8em;
+                                        font-weight: 600;
+                                    ">❌ Нет</span>
+                                `}
+                            </div>
+                            
+                            ${game.storeLinks?.TR ? `
+                                <div style="font-family: 'Courier New', monospace; font-size: 0.85em; word-break: break-all; color: #475569;">
+                                    ${game.storeLinks.TR}
+                                </div>
+                                ${game.productIds?.TR ? `
+                                    <div style="margin-top: 8px; font-size: 0.8em; color: #94a3b8;">
+                                        Product ID: ${game.productIds.TR}
+                                    </div>
+                                ` : ''}
+                            ` : `
+                                <div style="color: #94a3b8; font-style: italic;">Ссылка не добавлена</div>
+                            `}
+                        </div>
+                        
+                        <div style="padding: 15px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                                <span style="font-weight: 600; color: #2563eb;">🇺🇦 Украина:</span>
+                                ${game.storeLinks?.UA ? `
+                                    <span style="
+                                        padding: 2px 8px;
+                                        background: #eff6ff;
+                                        color: #2563eb;
+                                        border-radius: 10px;
+                                        font-size: 0.8em;
+                                        font-weight: 600;
+                                    ">✅ Есть</span>
+                                ` : `
+                                    <span style="
+                                        padding: 2px 8px;
+                                        background: #f1f5f9;
+                                        color: #64748b;
+                                        border-radius: 10px;
+                                        font-size: 0.8em;
+                                        font-weight: 600;
+                                    ">❌ Нет</span>
+                                `}
+                            </div>
+                            
+                            ${game.storeLinks?.UA ? `
+                                <div style="font-family: 'Courier New', monospace; font-size: 0.85em; word-break: break-all; color: #475569;">
+                                    ${game.storeLinks.UA}
+                                </div>
+                                ${game.productIds?.UA ? `
+                                    <div style="margin-top: 8px; font-size: 0.8em; color: #94a3b8;">
+                                        Product ID: ${game.productIds.UA}
+                                    </div>
+                                ` : ''}
+                            ` : `
+                                <div style="color: #94a3b8; font-style: italic;">Ссылка не добавлена</div>
+                            `}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Статистика по игре -->
+                ${hasAccounts ? `
+                    <div style="
+                        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+                        padding: 20px;
+                        border-radius: 10px;
+                        margin-bottom: 20px;
+                        border: 1px solid #bbf7d0;
+                    ">
+                        <h4 style="margin: 0 0 15px 0; color: #166534; font-size: 1em;">📊 Статистика по игре:</h4>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 2em; font-weight: 700; color: #166534;">${accountsWithThisGame.length}</div>
+                                <div style="font-size: 0.9em; color: #64748b;">Аккаунтов</div>
+                            </div>
+                            
+                            <div style="text-align: center;">
+                                <div style="font-size: 2em; font-weight: 700; color: #2563eb;">
+                                    ${accountsWithThisGame.reduce((sum, acc) => sum + (acc.positions.p2_ps4 + acc.positions.p3_ps4 + acc.positions.p2_ps5 + acc.positions.p3_ps5), 0)}
+                                </div>
+                                <div style="font-size: 0.9em; color: #64748b;">Всего позиций</div>
+                            </div>
+                            
+                            <div style="text-align: center;">
+                                <div style="font-size: 2em; font-weight: 700; color: #7c3aed;">
+                                    ${accountsWithThisGame.reduce((sum, acc) => sum + (acc.purchaseAmount || 0), 0)} ₽
+                                </div>
+                                <div style="font-size: 0.9em; color: #64748b;">Сумма закупа</div>
+                            </div>
+                            
+                            <div style="text-align: center;">
+                                <div style="font-size: 2em; font-weight: 700; color: #db2777;">
+                                    ${sales.filter(sale => {
+                                        const account = accountsWithThisGame.find(acc => acc.id === sale.accountId);
+                                        return account !== undefined;
+                                    }).length}
+                                </div>
+                                <div style="font-size: 0.9em; color: #64748b;">Продаж</div>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                <!-- Кнопки действий -->
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; padding-top: 20px; border-top: 1px solid #f1f5f9;">
+                    <button class="btn btn-primary btn-small" onclick="editGame(${game.id})" style="flex: 1; min-width: 150px;">
+                        <span style="margin-right: 8px;">✏️</span>
+                        Редактировать игру
+                    </button>
+                    
+                    <button class="btn btn-success btn-small" onclick="openGameStats(${game.id})" style="flex: 1; min-width: 150px;" ${!hasAccounts ? 'disabled style="opacity: 0.5;"' : ''}>
+                        <span style="margin-right: 8px;">📊</span>
+                        Статистика
+                    </button>
+                    
+                    <button class="btn btn-danger btn-small" onclick="deleteGame(${game.id})" style="flex: 1; min-width: 150px;">
+                        <span style="margin-right: 8px;">🗑️</span>
+                        Удалить игру
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Добавляем обработчики для поиска
+    if (searchInput) {
+        searchInput.addEventListener('input', searchGamesList);
+    }
+}
+
+function openGameStats(gameId) {
+    const game = games.find(g => g.id === gameId);
+    if (!game) return;
+    
+    const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
+    const gameSales = sales.filter(sale => {
+        const account = gameAccounts.find(acc => acc.id === sale.accountId);
+        return account !== undefined;
+    });
+    
+    // Создаем модальное окно со статистикой
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'gameStatsModal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 800px;">
+            <span class="close" onclick="document.getElementById('gameStatsModal').remove()">&times;</span>
+            
+            <h2 style="margin-bottom: 25px; color: #2d3748;">
+                <span style="display: inline-block; margin-right: 10px;">📊</span>
+                Статистика игры: ${game.name}
+            </h2>
+            
+            ${renderGameStats(game, gameAccounts, gameSales)}
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'block';
+}
+
+function renderGameStats(game, gameAccounts, gameSales) {
+    const totalPositions = gameAccounts.reduce((sum, acc) => 
+        sum + acc.positions.p2_ps4 + acc.positions.p3_ps4 + acc.positions.p2_ps5 + acc.positions.p3_ps5, 0
+    );
+    
+    const soldPositions = gameSales.length;
+    const freePositions = totalPositions - soldPositions;
+    
+    const totalRevenue = gameSales.reduce((sum, sale) => sum + sale.price, 0);
+    const totalCost = gameAccounts.reduce((sum, acc) => sum + (acc.purchaseAmount || 0), 0);
+    const totalProfit = totalRevenue - totalCost;
+    
+    return `
+        <div class="stats-grid" style="margin: 20px 0;">
+            <div class="stat-card">
+                <div class="stat-value">${gameAccounts.length}</div>
+                <div class="stat-label">Аккаунтов</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-value">${totalPositions}</div>
+                <div class="stat-label">Всего позиций</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-value">${soldPositions}</div>
+                <div class="stat-label">Продано</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-value">${freePositions}</div>
+                <div class="stat-label">Свободно</div>
+            </div>
+        </div>
+        
+        <div class="section" style="margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 10px;">
+            <h3 style="margin-bottom: 15px; color: #2d3748;">💰 Финансы</h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="color: #64748b; font-size: 0.9em;">Затраты на закуп:</div>
+                    <div style="font-size: 1.5em; font-weight: 700; color: #ef4444;">${totalCost} ₽</div>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="color: #64748b; font-size: 0.9em;">Выручка:</div>
+                    <div style="font-size: 1.5em; font-weight: 700; color: #10b981;">${totalRevenue} ₽</div>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="color: #64748b; font-size: 0.9em;">Прибыль:</div>
+                    <div style="font-size: 1.5em; font-weight: 700; color: ${totalProfit >= 0 ? '#10b981' : '#ef4444'};">${totalProfit} ₽</div>
+                </div>
+                
+                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="color: #64748b; font-size: 0.9em;">Рентабельность:</div>
+                    <div style="font-size: 1.5em; font-weight: 700; color: ${totalCost > 0 ? (totalProfit / totalCost * 100 >= 0 ? '#10b981' : '#ef4444') : '#64748b'};">
+                        ${totalCost > 0 ? (totalProfit / totalCost * 100).toFixed(1) : '0'}%
                     </div>
                 </div>
             </div>
+        </div>
+        
+        <div class="section" style="margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 10px;">
+            <h3 style="margin-bottom: 15px; color: #2d3748;">📈 Распределение по позициям</h3>
             
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn btn-primary btn-small" onclick="editGame(${game.id})">
-                    ✏️ Редактировать
-                </button>
-                <button class="btn btn-danger btn-small" onclick="deleteGame(${game.id})">
-                    🗑️ Удалить
-                </button>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                ${['p2_ps4', 'p3_ps4', 'p2_ps5', 'p3_ps5'].map(posType => {
+                    const totalPos = gameAccounts.reduce((sum, acc) => sum + (acc.positions[posType] || 0), 0);
+                    const soldPos = gameSales.filter(sale => sale.positionType === posType).length;
+                    const freePos = totalPos - soldPos;
+                    
+                    return `
+                        <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="font-weight: 600; color: #2d3748; margin-bottom: 10px;">
+                                ${getPositionName(posType)}
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span style="color: #64748b;">Всего:</span>
+                                <span style="font-weight: 600;">${totalPos}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span style="color: #10b981;">Продано:</span>
+                                <span style="font-weight: 600; color: #10b981;">${soldPos}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #ef4444;">Свободно:</span>
+                                <span style="font-weight: 600; color: #ef4444;">${freePos}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
             </div>
         </div>
-    `).join('');
+        
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <button onclick="exportGameStats(${game.id})" class="btn btn-primary">
+                📁 Экспорт статистики
+            </button>
+            <button onclick="document.getElementById('gameStatsModal').remove()" class="btn btn-secondary" style="margin-left: 10px;">
+                Закрыть
+            </button>
+        </div>
+    `;
+}
+
+function exportGameStats(gameId) {
+    const game = games.find(g => g.id === gameId);
+    if (!game) return;
+    
+    const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
+    const gameSales = sales.filter(sale => {
+        const account = gameAccounts.find(acc => acc.id === sale.accountId);
+        return account !== undefined;
+    });
+    
+    // Создаем CSV
+    const headers = ['Дата', 'Аккаунт', 'Позиция', 'Цена', 'Менеджер', 'Примечания'];
+    const rows = gameSales.map(sale => [
+        sale.datetime || sale.date || '',
+        sale.accountLogin || '',
+        sale.positionName || '',
+        sale.price || 0,
+        sale.soldByName || '',
+        sale.notes || ''
+    ]);
+    
+    const csvContent = [
+        `Статистика игры: ${game.name}`,
+        `Аккаунтов: ${gameAccounts.length}`,
+        `Всего позиций: ${gameAccounts.reduce((sum, acc) => sum + acc.positions.p2_ps4 + acc.positions.p3_ps4 + acc.positions.p2_ps5 + acc.positions.p3_ps5, 0)}`,
+        `Продано: ${gameSales.length}`,
+        `Выручка: ${gameSales.reduce((sum, sale) => sum + sale.price, 0)} ₽`,
+        '',
+        ...headers.join(','),
+        ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    // Создаем и скачиваем файл
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (navigator.msSaveBlob) {
+        navigator.msSaveBlob(blob, `статистика_${game.name}_${new Date().toISOString().split('T')[0]}.csv`);
+    } else {
+        link.href = URL.createObjectURL(blob);
+        link.download = `статистика_${game.name}_${new Date().toISOString().split('T')[0]}.csv`;
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    showNotification(`Статистика игры "${game.name}" экспортирована! 📁`, 'success');
 }
 
 document.addEventListener('keydown', function(e) {
@@ -1302,6 +1934,9 @@ function refreshGamesPage() {
             displayGames();
             console.log('🔄 UI игр обновлен');
         }
+        
+        // Отправляем событие обновления игр
+        window.dispatchEvent(new Event('gamesUpdated'));
     }
 }
 
@@ -1323,6 +1958,7 @@ function refreshAccountsPage() {
     }
 }
 
+
 // Функция для обновления всех селектов с играми
 function refreshAllGameSelects() {
     const freshGames = JSON.parse(localStorage.getItem('games')) || [];
@@ -1340,13 +1976,21 @@ function refreshAllGameSelects() {
                 loadGamesForManager();
             }
             console.log('🔄 Все селекты с играми обновлены');
+            
+            // Обновляем автодополнение если есть
+            if (window.autoComplete) {
+                window.autoComplete.loadGames();
+            }
         }, 100);
     }
 }
 
+
 // Проверка обновлений каждые 3 секунды
 function startSyncChecker() {
-    setInterval(() => {
+    if (window.syncChecker) clearInterval(window.syncChecker);
+    
+    window.syncChecker = setInterval(() => {
         refreshGamesPage();
         refreshAccountsPage();
         refreshAllGameSelects();
@@ -2028,6 +2672,7 @@ function getPositionName(positionType) {
     return names[positionType] || positionType;
 }
 
+// Замените существующую функцию showAccountDataAfterSale():
 function showAccountDataAfterSale(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return;
@@ -2046,9 +2691,29 @@ function showAccountDataAfterSale(accountId) {
         }
     }
 
-    // Получаем инструкцию для проданной позиции
-    const instruction = getInstructionForPosition(window.currentSalePosition);
+    // Получаем инструкции на русском и английском
+    const instructionRU = getInstructionForPosition(window.currentSalePosition);
+    const instructionEN = POSITION_INSTRUCTIONS_EN[window.currentSalePosition] || instructionRU;
     
+    // Сохраняем данные на русском
+    window.currentOrderDataRU = `Игра: ${account.gameName}
+Логин PSN: ${account.psnLogin}
+Пароль PSN: ${account.psnPassword || 'Не указан'}
+Код аутентификации PSN: ${currentCode}`;
+    
+    // Сохраняем данные на английском
+    window.currentOrderDataEN = `Game: ${account.gameName}
+PSN Login: ${account.psnLogin}
+PSN Password: ${account.psnPassword || 'Not specified'}
+PSN Authentication Code: ${currentCode}`;
+    
+    // Сохраняем инструкции
+    window.currentInstructionRU = instructionRU;
+    window.currentInstructionEN = instructionEN;
+    
+    // Сохраняем текущий язык (по умолчанию русский)
+    window.currentLanguage = 'RU';
+
     const modalContent = document.getElementById('saleModalContent');
     modalContent.innerHTML = `
         <h2 style="text-align: center; margin-bottom: 25px;">
@@ -2056,7 +2721,49 @@ function showAccountDataAfterSale(accountId) {
             Продажа оформлена!
         </h2>
         
-        <div class="sale-success-section" style="
+        <!-- Языковая панель -->
+        <div class="language-switcher" style="
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 15px;
+            border: 1px solid #e2e8f0;
+        ">
+            <button onclick="switchLanguage('RU')" 
+                    class="language-btn ${window.currentLanguage === 'RU' ? 'active' : ''}"
+                    style="
+                        padding: 10px 25px;
+                        border-radius: 25px;
+                        border: 2px solid ${window.currentLanguage === 'RU' ? '#4361ee' : '#e2e8f0'};
+                        background: ${window.currentLanguage === 'RU' ? '#4361ee' : 'white'};
+                        color: ${window.currentLanguage === 'RU' ? 'white' : '#64748b'};
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                    ">
+                🇷🇺 Русский
+            </button>
+            <button onclick="switchLanguage('EN')" 
+                    class="language-btn ${window.currentLanguage === 'EN' ? 'active' : ''}"
+                    style="
+                        padding: 10px 25px;
+                        border-radius: 25px;
+                        border: 2px solid ${window.currentLanguage === 'EN' ? '#4361ee' : '#e2e8f0'};
+                        background: ${window.currentLanguage === 'EN' ? '#4361ee' : 'white'};
+                        color: ${window.currentLanguage === 'EN' ? 'white' : '#64748b'};
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                    ">
+                🇬🇧 English
+            </button>
+        </div>
+        
+        <!-- Данные для клиента (динамически меняются) -->
+        <div id="orderDataSection" class="sale-success-section" style="
             background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
             padding: 25px;
             border-radius: 15px;
@@ -2065,10 +2772,10 @@ function showAccountDataAfterSale(accountId) {
         ">
             <h3 style="color: #16a34a; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
                 <span>📋</span>
-                Данные для клиента:
+                <span id="dataTitle">Данные для клиента:</span>
             </h3>
             
-            <div class="order-data" style="
+            <div class="order-data" id="orderDataText" style="
                 background: white;
                 padding: 20px;
                 border-radius: 10px;
@@ -2080,25 +2787,23 @@ function showAccountDataAfterSale(accountId) {
                 white-space: pre-wrap;
                 word-break: break-word;
             ">
-Игра: ${account.gameName}
-Логин PSN: ${account.psnLogin}
-Пароль PSN: ${account.psnPassword || 'Не указан'}
-Код аутентификации PSN: ${currentCode}
+${window.currentOrderDataRU}
             </div>
             
             <div class="copy-buttons" style="display: flex; gap: 10px; margin-top: 15px;">
                 <button class="btn btn-success btn-small" onclick="copyAccountData()" style="flex: 1;">
                     <span style="margin-right: 8px;">📋</span>
-                    Скопировать данные
+                    <span id="copyDataBtn">Скопировать данные</span>
                 </button>
                 <button class="btn btn-primary btn-small" onclick="copyInstruction()" style="flex: 1;">
                     <span style="margin-right: 8px;">📝</span>
-                    Скопировать инструкцию
+                    <span id="copyInstructionBtn">Скопировать инструкцию</span>
                 </button>
             </div>
         </div>
         
-        <div class="instruction-section" style="
+        <!-- Инструкция (динамически меняется) -->
+        <div id="instructionSection" class="instruction-section" style="
             background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
             padding: 25px;
             border-radius: 15px;
@@ -2107,10 +2812,10 @@ function showAccountDataAfterSale(accountId) {
         ">
             <h3 style="color: #2563eb; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
                 <span>📖</span>
-                Инструкция для ${getPositionName(window.currentSalePosition)}:
+                <span id="instructionTitle">Инструкция для ${getPositionName(window.currentSalePosition)}:</span>
             </h3>
             
-            <div style="
+            <div id="instructionText" style="
                 background: white;
                 padding: 20px;
                 border-radius: 10px;
@@ -2121,12 +2826,12 @@ function showAccountDataAfterSale(accountId) {
                 line-height: 1.5;
                 color: #4b5563;
             ">
-                ${instruction.replace(/\n/g, '<br>')}
+                ${instructionRU.replace(/\n/g, '<br>')}
             </div>
             
             <div style="margin-top: 15px; text-align: center;">
                 <small style="color: #6b7280;">
-                    ⭐ Инструкция скопирована в буфер обмена при нажатии кнопки выше
+                    ⭐ <span id="instructionHint">Инструкция скопирована в буфер обмена при нажатии кнопки выше</span>
                 </small>
             </div>
         </div>
@@ -2141,7 +2846,7 @@ function showAccountDataAfterSale(accountId) {
             ">
                 <h4 style="color: #475569; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
                     <span>🔑</span>
-                    Оставшиеся коды (${psnCodesArray.length}):
+                    <span id="codesTitle">Оставшиеся коды (${psnCodesArray.length}):</span>
                 </h4>
                 <div class="codes-list" style="
                     display: grid;
@@ -2173,34 +2878,94 @@ function showAccountDataAfterSale(accountId) {
         ">
             <button class="btn btn-success" onclick="copyAllData()" style="padding: 12px 24px;">
                 <span style="margin-right: 8px;">📄</span>
-                Скопировать ВСЁ (данные + инструкция)
+                <span id="copyAllBtn">Скопировать ВСЁ (данные + инструкция)</span>
             </button>
             <button class="btn btn-primary" onclick="closeSaleModalAndRefresh()" style="padding: 12px 24px;">
                 <span style="margin-right: 8px;">✅</span>
-                Готово
+                <span id="doneBtn">Готово</span>
             </button>
         </div>
     `;
     
-    // Сохраняем данные для копирования
-    window.currentOrderData = `Игра: ${account.gameName}
-Логин PSN: ${account.psnLogin}
-Пароль PSN: ${account.psnPassword || 'Не указан'}
-Код аутентификации PSN: ${currentCode}`;
+    // Инициализируем копирование на русском
+    window.currentOrderData = window.currentOrderDataRU;
+    window.currentInstruction = window.currentInstructionRU;
+}
+
+// Добавьте после функции showAccountDataAfterSale() в script.js:
+
+// Функция переключения языка
+function switchLanguage(lang) {
+    if (!window.currentOrderDataRU) return;
     
-    // Сохраняем инструкцию
-    window.currentInstruction = instruction;
+    window.currentLanguage = lang;
+    
+    // Обновляем кнопки языка
+    document.querySelectorAll('.language-btn').forEach(btn => {
+        const isActive = btn.textContent.includes(lang === 'RU' ? 'Русский' : 'English');
+        btn.style.background = isActive ? '#4361ee' : 'white';
+        btn.style.color = isActive ? 'white' : '#64748b';
+        btn.style.borderColor = isActive ? '#4361ee' : '#e2e8f0';
+    });
+    
+    // Обновляем тексты в зависимости от языка
+    if (lang === 'EN') {
+        // Обновляем заголовки
+        document.getElementById('dataTitle').textContent = 'Customer data:';
+        document.getElementById('instructionTitle').textContent = `Instructions for ${getPositionName(window.currentSalePosition)}:`;
+        document.getElementById('copyDataBtn').textContent = 'Copy data';
+        document.getElementById('copyInstructionBtn').textContent = 'Copy instructions';
+        document.getElementById('instructionHint').textContent = 'Instructions copied to clipboard when clicking the button above';
+        document.getElementById('copyAllBtn').textContent = 'Copy ALL (data + instructions)';
+        document.getElementById('doneBtn').textContent = 'Done';
+        
+        if (document.getElementById('codesTitle')) {
+            document.getElementById('codesTitle').textContent = `Remaining codes (${window.currentOrderDataEN.split('\n').filter(line => line.includes('Code')).length}):`;
+        }
+        
+        // Обновляем данные
+        document.getElementById('orderDataText').textContent = window.currentOrderDataEN;
+        document.getElementById('instructionText').innerHTML = window.currentInstructionEN.replace(/\n/g, '<br>');
+        
+        // Обновляем глобальные переменные для копирования
+        window.currentOrderData = window.currentOrderDataEN;
+        window.currentInstruction = window.currentInstructionEN;
+        
+    } else {
+        // Обновляем на русский
+        document.getElementById('dataTitle').textContent = 'Данные для клиента:';
+        document.getElementById('instructionTitle').textContent = `Инструкция для ${getPositionName(window.currentSalePosition)}:`;
+        document.getElementById('copyDataBtn').textContent = 'Скопировать данные';
+        document.getElementById('copyInstructionBtn').textContent = 'Скопировать инструкцию';
+        document.getElementById('instructionHint').textContent = 'Инструкция скопирована в буфер обмена при нажатии кнопки выше';
+        document.getElementById('copyAllBtn').textContent = 'Скопировать ВСЁ (данные + инструкция)';
+        document.getElementById('doneBtn').textContent = 'Готово';
+        
+        if (document.getElementById('codesTitle')) {
+            document.getElementById('codesTitle').textContent = `Оставшиеся коды (${window.currentOrderDataRU.split('\n').filter(line => line.includes('Код')).length}):`;
+        }
+        
+        // Обновляем данные
+        document.getElementById('orderDataText').textContent = window.currentOrderDataRU;
+        document.getElementById('instructionText').innerHTML = window.currentInstructionRU.replace(/\n/g, '<br>');
+        
+        // Обновляем глобальные переменные для копирования
+        window.currentOrderData = window.currentOrderDataRU;
+        window.currentInstruction = window.currentInstructionRU;
+    }
 }
 
 // Функция для копирования инструкции
 function copyInstruction() {
     if (!window.currentInstruction) {
-        showNotification('Инструкция не найдена', 'error');
+        showNotification('❌ Instructions not found', 'error');
         return;
     }
     
+    const isEnglish = window.currentLanguage === 'EN';
+    
     navigator.clipboard.writeText(window.currentInstruction).then(() => {
-        showNotification('Инструкция скопирована в буфер обмена! 📝', 'success');
+        showNotification(isEnglish ? '✅ Instructions copied to clipboard!' : '✅ Инструкция скопирована в буфер обмена!', 'success');
     }).catch(err => {
         const textArea = document.createElement('textarea');
         textArea.value = window.currentInstruction;
@@ -2208,21 +2973,22 @@ function copyInstruction() {
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
-        showNotification('Инструкция скопирована в буфер обмена! 📝', 'success');
+        showNotification(isEnglish ? '✅ Instructions copied to clipboard!' : '✅ Инструкция скопирована в буфер обмена!', 'success');
     });
 }
 
 // Функция для копирования ВСЕГО (данные + инструкция)
 function copyAllData() {
     if (!window.currentOrderData || !window.currentInstruction) {
-        showNotification('Данные не найдены', 'error');
+        showNotification('❌ Data not found', 'error');
         return;
     }
     
+    const isEnglish = window.currentLanguage === 'EN';
     const allData = `${window.currentOrderData}\n\n${window.currentInstruction}`;
     
     navigator.clipboard.writeText(allData).then(() => {
-        showNotification('Все данные скопированы! 📄', 'success');
+        showNotification(isEnglish ? '✅ All data copied!' : '✅ Все данные скопированы!', 'success');
     }).catch(err => {
         const textArea = document.createElement('textarea');
         textArea.value = allData;
@@ -2230,24 +2996,30 @@ function copyAllData() {
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
-        showNotification('Все данные скопированы! 📄', 'success');
+        showNotification(isEnglish ? '✅ All data copied!' : '✅ Все данные скопированы!', 'success');
     });
 }
 
 // Обновим функцию copyAccountData() чтобы она тоже была доступна
 function copyAccountData() {
-    if (!window.currentOrderData) return;
+    if (!window.currentOrderData) {
+        showNotification('❌ Data not found', 'error');
+        return;
+    }
+    
+    const isEnglish = window.currentLanguage === 'EN';
     
     navigator.clipboard.writeText(window.currentOrderData).then(() => {
-        showNotification('Данные скопированы в буфер обмена! 📋', 'success');
+        showNotification(isEnglish ? '✅ Data copied to clipboard!' : '✅ Данные скопированы в буфер обмена!', 'success');
     }).catch(err => {
+        // Fallback для старых браузеров
         const textArea = document.createElement('textarea');
         textArea.value = window.currentOrderData;
         document.body.appendChild(textArea);
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
-        showNotification('Данные скопированы в буфер обмена! 📋', 'success');
+        showNotification(isEnglish ? '✅ Data copied to clipboard!' : '✅ Данные скопированы в буфер обмена!', 'success');
     });
 }
 
@@ -2467,6 +3239,92 @@ async function updateSaleDetails(saleId) {
         
         showNotification('Данные продажи обновлены! 💾', 'success');
     }
+}
+
+// Добавьте в script.js после функций для игр
+
+// Функция поиска в списке игр
+function searchGamesList() {
+    const searchInput = document.getElementById('searchGamesInput');
+    if (!searchInput) return;
+    
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    
+    // Вызываем displayGames() с учетом поиска
+    displayGames();
+    
+    // Показываем количество найденных игр
+    if (searchTerm) {
+        const foundCount = games.filter(game => 
+            game.name.toLowerCase().includes(searchTerm)
+        ).length;
+        
+        // Обновляем заголовок
+        const title = document.querySelector('#gamesList').previousElementSibling;
+        if (title && title.tagName === 'H2') {
+            title.innerHTML = `📚 Список игр <span style="font-size: 0.8em; color: #64748b;">(найдено: ${foundCount})</span>`;
+        }
+    }
+}
+
+// Функция для отображения отфильтрованных игр
+function displayFilteredGames(filteredGames) {
+    const list = document.getElementById('gamesList');
+    if (filteredGames.length === 0) {
+        list.innerHTML = '<div class="empty">Нет добавленных игр</div>';
+        return;
+    }
+    
+    list.innerHTML = filteredGames.map(game => `
+        <div class="item" style="display: flex; justify-content: space-between; align-items: center; 
+              padding: 20px; margin-bottom: 15px; background: white; border-radius: 12px; 
+              border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+            
+            <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <strong style="font-size: 1.2em; color: #2d3748;">${game.name}</strong>
+                    ${game.imageUrl ? `<img src="${game.imageUrl}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;">` : ''}
+                </div>
+                
+                <div style="font-size: 0.9em; color: #64748b;">
+                    <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px;">
+                        ${game.storeLinks?.TR ? `
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span>🇹🇷</span>
+                                <a href="${game.storeLinks.TR}" target="_blank" 
+                                   style="color: #4361ee; text-decoration: none;">
+                                    Турция
+                                </a>
+                            </div>
+                        ` : '<div style="color: #94a3b8;">🇹🇷 Нет ссылки</div>'}
+                        
+                        ${game.storeLinks?.UA ? `
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span>🇺🇦</span>
+                                <a href="${game.storeLinks.UA}" target="_blank" 
+                                   style="color: #4361ee; text-decoration: none;">
+                                    Украина
+                                </a>
+                            </div>
+                        ` : '<div style="color: #94a3b8;">🇺🇦 Нет ссылки</div>'}
+                    </div>
+                    
+                    <div style="margin-top: 10px; color: #94a3b8; font-size: 0.85em;">
+                        Добавлена: ${game.created} • ${game.addedBy}
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-primary btn-small" onclick="editGame(${game.id})">
+                    ✏️ Редактировать
+                </button>
+                <button class="btn btn-danger btn-small" onclick="deleteGame(${game.id})">
+                    🗑️ Удалить
+                </button>
+            </div>
+        </div>
+    `).join('');
 }
 
 // ============================================
