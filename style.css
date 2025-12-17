@@ -2218,3 +2218,107 @@ body.dark-theme .autocomplete-item.highlighted {
         z-index: 9999 !important;
     }
 }
+
+/* В style.css добавьте: */
+
+/* Стили для автодополнения */
+.autocomplete-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.autocomplete-input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.2s;
+    background: white;
+    color: #1e293b;
+}
+
+.autocomplete-input:focus {
+    outline: none;
+    border-color: #4361ee;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+}
+
+.autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-height: 300px;
+    overflow-y: auto;
+    animation: slideDown 0.2s ease-out;
+}
+
+.autocomplete-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.autocomplete-item:hover {
+    background: #f1f5f9;
+}
+
+.autocomplete-item.highlighted {
+    background: #4361ee !important;
+    color: white !important;
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+/* Темная тема */
+body.dark-theme .autocomplete-input {
+    background: rgba(30, 41, 59, 0.8);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+}
+
+body.dark-theme .autocomplete-input:focus {
+    border-color: #4361ee;
+    background: rgba(30, 41, 59, 0.9);
+}
+
+body.dark-theme .autocomplete-dropdown {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+body.dark-theme .autocomplete-item {
+    border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-theme .autocomplete-item:hover {
+    background: rgba(67, 97, 238, 0.2);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .autocomplete-dropdown {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        max-height: 50vh !important;
+        border-radius: 10px 10px 0 0 !important;
+        border: 1px solid rgba(0,0,0,0.1) !important;
+    }
+}

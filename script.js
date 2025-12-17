@@ -850,22 +850,23 @@ function initAutocomplete() {
         
         // Даем время на загрузку DOM
         setTimeout(() => {
-            window.autoComplete.setupAllSelects();
-            console.log('✅ Автодополнение инициализировано');
+            try {
+                window.autoComplete.setupAllSelects();
+                console.log('✅ Автодополнение инициализировано');
+            } catch (error) {
+                console.error('❌ Ошибка инициализации автодополнения:', error);
+            }
         }, 1500);
-        
-        // Обновляем при изменении данных
-        if (window.dataSync) {
-            // Слушаем изменения игр
-            window.addEventListener('gamesUpdated', () => {
-                setTimeout(() => {
-                    window.autoComplete.loadGames();
-                    window.autoComplete.setupAllSelects();
-                }, 500);
-            });
-        }
     } else {
         console.log('⚠️ Автодополнение не подключено');
+    }
+}
+
+function refreshAutocomplete() {
+    if (typeof window.autoComplete !== 'undefined') {
+        window.autoComplete.loadGames();
+        window.autoComplete.setupAllSelects();
+        console.log('🔄 Автодополнение обновлено');
     }
 }
 
@@ -1502,6 +1503,23 @@ function displayGames() {
         searchInput.addEventListener('input', searchGamesList);
     }
 }
+// ============================================
+// ПЕРЕОПРЕДЕЛЕНИЕ ФУНКЦИИ С АВТОДОПОЛНЕНИЕМ
+// ============================================
+
+// Сохраняем оригинальную функцию
+const originalDisplayGames = displayGames;
+
+// Переопределяем функцию displayGames
+window.displayGames = function() {
+    // Вызываем оригинальную функцию
+    originalDisplayGames();
+    
+    // Обновляем автодополнение после отображения игр
+    setTimeout(() => {
+        refreshAutocomplete();
+    }, 500);
+};
 
 function openGameStats(gameId) {
     const game = games.find(g => g.id === gameId);
@@ -3264,6 +3282,14 @@ function searchGamesList() {
         if (title && title.tagName === 'H2') {
             title.innerHTML = `📚 Список игр <span style="font-size: 0.8em; color: #64748b;">(найдено: ${foundCount})</span>`;
         }
+    }
+}
+
+function refreshAutocomplete() {
+    if (typeof window.autoComplete !== 'undefined') {
+        window.autoComplete.loadGames();
+        window.autoComplete.setupAllSelects();
+        console.log('🔄 Автодополнение обновлено');
     }
 }
 

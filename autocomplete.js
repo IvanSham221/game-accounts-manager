@@ -1,4 +1,4 @@
-// autocomplete.js - Умный поиск с автодополнением
+// autocomplete.js - Исправленная версия
 class AutoComplete {
     constructor() {
         this.games = [];
@@ -15,12 +15,6 @@ class AutoComplete {
                 this.setupAllSelects();
             }, 1000);
         });
-        
-        // Обновляем при изменении игр
-        if (window.dataSync) {
-            // Слушаем изменения в играх
-            this.setupGamesListener();
-        }
     }
 
     loadGames() {
@@ -31,70 +25,54 @@ class AutoComplete {
         }
     }
 
-    setupGamesListener() {
-        // Обновляем список игр при изменениях
-        const originalLoadGames = window.loadGamesForSelect;
-        window.loadGamesForSelect = function() {
-            if (originalLoadGames) originalLoadGames();
-            setTimeout(() => {
-                window.autoComplete?.setupAllSelects();
-            }, 500);
-        };
-
-        const originalDisplayGames = window.displayGames;
-        window.displayGames = function() {
-            if (originalDisplayGames) originalDisplayGames();
-            setTimeout(() => {
-                window.autoComplete?.loadGames();
-                window.autoComplete?.setupAllSelects();
-            }, 500);
-        };
-    }
-
     setupAllSelects() {
-        // Все селекты с играми на сайте
+        // Находим все селекты с играми
         const selectIds = [
-            'accountGame',     // Добавление аккаунта
-            'filterGame',      // Фильтр аккаунтов
-            'managerGame',     // Менеджер продаж
-            'editGame',        // Редактирование аккаунта
-            'editFreeGame',    // Привязка игры к аккаунту
-            'filterGame',      // Отчеты
-            'filterGame'       // Фильтр в различных местах
+            'accountGame',
+            'filterGame', 
+            'managerGame',
+            'editGame',
+            'editFreeGame'
         ];
 
-        const selects = document.querySelectorAll('select[id*="Game"], select[id*="game"]');
+        // Ищем все селекты
+        const selects = document.querySelectorAll('select');
         
         selects.forEach(select => {
-            if (!select.classList.contains('autocomplete-initialized')) {
-                this.convertToAutocomplete(select);
-                select.classList.add('autocomplete-initialized');
+            if (selectIds.includes(select.id) || select.id.includes('Game') || select.id.includes('game')) {
+                if (!select.classList.contains('autocomplete-initialized')) {
+                    this.convertToAutocomplete(select);
+                    select.classList.add('autocomplete-initialized');
+                }
             }
         });
     }
 
     convertToAutocomplete(selectElement) {
+        // Создаем контейнер
         const container = document.createElement('div');
-        container.className = 'autocomplete-container';
+        container.className = 'autocomplete-wrapper';
         container.style.position = 'relative';
+        container.style.width = '100%';
+        
+        // Копируем стили оригинального select
+        const originalStyles = window.getComputedStyle(selectElement);
         
         // Создаем поле ввода
         const input = document.createElement('input');
         input.type = 'text';
-        input.className = selectElement.className;
+        input.className = 'autocomplete-input';
         input.placeholder = 'Начните вводить название игры...';
         input.style.width = '100%';
-        input.style.cursor = 'text';
-        
-        // Сохраняем оригинальные стили
-        const originalStyles = window.getComputedStyle(selectElement);
         input.style.padding = originalStyles.padding;
         input.style.fontSize = originalStyles.fontSize;
         input.style.border = originalStyles.border;
         input.style.borderRadius = originalStyles.borderRadius;
         input.style.backgroundColor = originalStyles.backgroundColor;
+        input.style.color = originalStyles.color;
+        input.style.cursor = 'text';
         
-        // Создаем контейнер для выпадающего списка
+        // Создаем выпадающий список
         const dropdown = document.createElement('div');
         dropdown.className = 'autocomplete-dropdown';
         dropdown.style.display = 'none';
@@ -102,22 +80,19 @@ class AutoComplete {
         dropdown.style.top = '100%';
         dropdown.style.left = '0';
         dropdown.style.right = '0';
-        dropdown.style.maxHeight = '300px';
-        dropdown.style.overflowY = 'auto';
-        dropdown.style.zIndex = '1000';
+        dropdown.style.zIndex = '9999';
         dropdown.style.backgroundColor = 'white';
         dropdown.style.border = '1px solid #e2e8f0';
         dropdown.style.borderRadius = '0 0 8px 8px';
         dropdown.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+        dropdown.style.maxHeight = '300px';
+        dropdown.style.overflowY = 'auto';
         
-        // Скрываем оригинальный select
-        selectElement.style.display = 'none';
-        selectElement.id = selectElement.id + '_hidden';
-        
-        // Вставляем новую структуру
-        container.appendChild(input);
-        container.appendChild(dropdown);
-        selectElement.parentNode.insertBefore(container, selectElement.nextSibling);
+        // Сохраняем оригинальный select (скрываем)
+        const originalSelectId = selectElement.id;
+        const hiddenSelect = selectElement.cloneNode(true);
+        hiddenSelect.id = originalSelectId + '_hidden';
+        hiddenSelect.style.display = 'none';
         
         // Устанавливаем начальное значение
         if (selectElement.value) {
@@ -125,20 +100,30 @@ class AutoComplete {
             if (selectedOption) {
                 input.value = selectedOption.textContent;
             }
+        } else {
+            input.value = '';
         }
         
-        // Обработчики событий
-        this.setupInputHandlers(input, dropdown, selectElement);
+        // Добавляем элементы в контейнер
+        container.appendChild(input);
+        container.appendChild(dropdown);
         
-        return { input, dropdown, container };
+        // Заменяем оригинальный select
+        selectElement.parentNode.insertBefore(container, selectElement);
+        selectElement.parentNode.insertBefore(hiddenSelect, selectElement.nextSibling);
+        selectElement.style.display = 'none';
+        
+        // Настраиваем обработчики
+        this.setupInputHandlers(input, dropdown, hiddenSelect);
+        
+        return { input, dropdown, hiddenSelect };
     }
 
-    setupInputHandlers(input, dropdown, originalSelect) {
+    setupInputHandlers(input, dropdown, hiddenSelect) {
         let isOpen = false;
         let selectedIndex = -1;
-        let filteredGames = [];
         
-        // Фокус на поле
+        // Фокус на поле ввода
         input.addEventListener('focus', () => {
             if (input.value.trim() === '') {
                 this.showAllGames(dropdown);
@@ -147,6 +132,8 @@ class AutoComplete {
             }
             dropdown.style.display = 'block';
             isOpen = true;
+            input.style.borderBottomLeftRadius = '0';
+            input.style.borderBottomRightRadius = '0';
         });
         
         // Ввод текста
@@ -155,17 +142,28 @@ class AutoComplete {
             dropdown.style.display = 'block';
             isOpen = true;
             selectedIndex = -1;
+            
+            // Очищаем скрытый select если поле пустое
+            if (e.target.value.trim() === '') {
+                hiddenSelect.value = '';
+                hiddenSelect.dispatchEvent(new Event('change'));
+            }
         });
         
         // Клик вне элемента
         document.addEventListener('click', (e) => {
-            if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            if (!container.contains(e.target)) {
                 dropdown.style.display = 'none';
                 isOpen = false;
+                input.style.borderBottomLeftRadius = '';
+                input.style.borderBottomRightRadius = '';
                 
-                // Если поле пустое, очищаем select
-                if (input.value.trim() === '') {
-                    originalSelect.value = '';
+                // Если поле пустое, но был выбран элемент - восстанавливаем
+                if (input.value.trim() === '' && hiddenSelect.value) {
+                    const selectedOption = hiddenSelect.options[hiddenSelect.selectedIndex];
+                    if (selectedOption) {
+                        input.value = selectedOption.textContent;
+                    }
                 }
             }
         });
@@ -192,18 +190,25 @@ class AutoComplete {
                 case 'Enter':
                     e.preventDefault();
                     if (selectedIndex >= 0 && items[selectedIndex]) {
-                        items[selectedIndex].click();
-                    } else if (items.length > 0) {
-                        items[0].click();
+                        this.selectGame(items[selectedIndex], input, hiddenSelect);
                     }
+                    dropdown.style.display = 'none';
+                    isOpen = false;
+                    input.style.borderBottomLeftRadius = '';
+                    input.style.borderBottomRightRadius = '';
                     break;
                     
                 case 'Escape':
                     dropdown.style.display = 'none';
                     isOpen = false;
+                    input.style.borderBottomLeftRadius = '';
+                    input.style.borderBottomRightRadius = '';
                     break;
             }
         });
+        
+        // Ссылка на контейнер
+        const container = input.parentElement;
     }
 
     searchGames(searchTerm, dropdown) {
@@ -213,89 +218,50 @@ class AutoComplete {
         }
         
         const term = searchTerm.toLowerCase().trim();
-        
-        // Проверяем кэш
-        const cacheKey = `search_${term}`;
-        if (this.cache.has(cacheKey)) {
-            this.displayResults(this.cache.get(cacheKey), dropdown);
-            return;
-        }
-        
-        // Умный поиск с несколькими стратегиями
         const results = this.performSearch(term);
-        
-        // Сохраняем в кэш
-        this.cache.set(cacheKey, results);
-        
-        // Показываем результаты
         this.displayResults(results, dropdown);
     }
 
     performSearch(term) {
-        const exactMatch = [];
-        const startsWith = [];
-        const includes = [];
-        const similar = [];
-        
+        const results = [];
         const words = term.split(' ').filter(w => w.length > 0);
         
         this.games.forEach(game => {
             const gameName = game.name.toLowerCase();
-            const gameNameLower = gameName;
+            let score = 0;
             
             // 1. Точное совпадение
-            if (gameNameLower === term) {
-                exactMatch.push({ game, score: 100 });
-                return;
+            if (gameName === term) {
+                score = 100;
+            }
+            // 2. Начинается с
+            else if (gameName.startsWith(term)) {
+                score = 90;
+            }
+            // 3. Содержит все слова
+            else if (words.every(word => gameName.includes(word))) {
+                score = 80;
+            }
+            // 4. Содержит хотя бы одно слово
+            else if (words.some(word => gameName.includes(word))) {
+                score = 70;
+            }
+            // 5. Нечеткое совпадение
+            else if (this.fuzzyMatch(gameName, term)) {
+                score = 60;
             }
             
-            // 2. Начинается с поискового запроса
-            if (gameNameLower.startsWith(term)) {
-                startsWith.push({ game, score: 90 - (gameName.length - term.length) });
-                return;
-            }
-            
-            // 3. Содержит все слова поискового запроса
-            const containsAllWords = words.every(word => gameNameLower.includes(word));
-            if (containsAllWords) {
-                // Вычисляем релевантность по позиции слов
-                let score = 80;
-                words.forEach(word => {
-                    const position = gameNameLower.indexOf(word);
-                    if (position === 0) score += 5;
-                });
-                includes.push({ game, score });
-                return;
-            }
-            
-            // 4. Частичное совпадение (хотя бы одно слово)
-            const containsSomeWords = words.some(word => gameNameLower.includes(word));
-            if (containsSomeWords) {
-                let score = 70;
-                const matchedWords = words.filter(word => gameNameLower.includes(word)).length;
-                score += (matchedWords / words.length) * 10;
-                includes.push({ game, score });
-                return;
-            }
-            
-            // 5. Похожие названия (нечеткий поиск)
-            if (this.fuzzyMatch(gameNameLower, term)) {
-                const similarity = this.calculateSimilarity(gameNameLower, term);
-                if (similarity > 0.6) {
-                    similar.push({ game, score: Math.round(similarity * 100) });
-                }
+            if (score > 0) {
+                results.push({ game, score });
             }
         });
         
-        // Объединяем и сортируем результаты
-        const allResults = [...exactMatch, ...startsWith, ...includes, ...similar];
-        allResults.sort((a, b) => b.score - a.score);
-        
-        return allResults.map(r => r.game).slice(0, 15); // Ограничиваем 15 результатами
+        // Сортируем по релевантности
+        results.sort((a, b) => b.score - a.score);
+        return results.map(r => r.game).slice(0, 15);
     }
 
     fuzzyMatch(str, search) {
-        // Простой нечеткий поиск
         let searchIndex = 0;
         for (let i = 0; i < str.length; i++) {
             if (str[i] === search[searchIndex]) {
@@ -306,54 +272,34 @@ class AutoComplete {
         return false;
     }
 
-    calculateSimilarity(str1, str2) {
-        // Простая метрика сходства
-        const set1 = new Set(str1);
-        const set2 = new Set(str2);
-        const intersection = new Set([...set1].filter(x => set2.has(x)));
-        return intersection.size / Math.max(set1.size, set2.size);
-    }
-
     showAllGames(dropdown) {
-        const recentGames = this.getRecentGames();
-        const otherGames = this.games
-            .filter(game => !recentGames.some(r => r.id === game.id))
-            .slice(0, 20); // Показываем только 20 игр
+        // Показываем популярные игры (с аккаунтами) и недавние
+        const gamesWithAccounts = this.games.filter(game => {
+            const accounts = JSON.parse(localStorage.getItem('accounts')) || [];
+            return accounts.some(acc => acc.gameId === game.id);
+        });
         
-        const allGames = [...recentGames, ...otherGames];
+        const otherGames = this.games
+            .filter(game => !gamesWithAccounts.some(g => g.id === game.id))
+            .slice(0, 10);
+        
+        const allGames = [...gamesWithAccounts, ...otherGames];
         this.displayResults(allGames, dropdown);
-    }
-
-    getRecentGames() {
-        try {
-            const sales = JSON.parse(localStorage.getItem('sales')) || [];
-            const recentSales = sales.slice(-10); // Последние 10 продаж
-            
-            const gameIds = [...new Set(recentSales.map(sale => {
-                const account = window.accounts?.find(acc => acc.id === sale.accountId);
-                return account?.gameId;
-            }).filter(id => id))];
-            
-            return gameIds.map(id => 
-                this.games.find(game => game.id === id)
-            ).filter(game => game);
-        } catch (e) {
-            return [];
-        }
     }
 
     displayResults(games, dropdown) {
         if (!games || games.length === 0) {
             dropdown.innerHTML = `
-                <div class="autocomplete-item" style="padding: 12px; color: #64748b; text-align: center;">
+                <div class="autocomplete-item" style="padding: 15px; color: #64748b; text-align: center;">
                     🎮 Игры не найдены
                 </div>
             `;
             return;
         }
         
-        dropdown.innerHTML = games.map((game, index) => {
-            const isRecent = this.getRecentGames().some(g => g.id === game.id);
+        dropdown.innerHTML = games.map(game => {
+            const accounts = JSON.parse(localStorage.getItem('accounts')) || [];
+            const gameAccounts = accounts.filter(acc => acc.gameId === game.id);
             
             return `
                 <div class="autocomplete-item" 
@@ -364,47 +310,46 @@ class AutoComplete {
                         cursor: pointer;
                         transition: all 0.2s;
                         border-bottom: 1px solid #f1f5f9;
-                        background: ${isRecent ? '#f8fafc' : 'white'};
                         display: flex;
                         align-items: center;
-                        gap: 10px;
+                        gap: 12px;
                      "
-                     onmouseover="this.style.background='#f1f5f9'"
-                     onmouseout="this.style.background='${isRecent ? '#f8fafc' : 'white'}'">
+                     onmouseenter="this.style.background='#f1f5f9'"
+                     onmouseleave="this.style.background='white'">
                      
                     ${game.imageUrl ? `
                         <img src="${game.imageUrl}" 
-                             style="width: 30px; height: 30px; border-radius: 4px; object-fit: cover;">
+                             style="width: 40px; height: 40px; border-radius: 6px; object-fit: cover;">
                     ` : `
                         <div style="
-                            width: 30px; height: 30px; 
+                            width: 40px; height: 40px;
                             background: linear-gradient(135deg, #4361ee, #3a56d4);
-                            border-radius: 4px;
+                            border-radius: 6px;
                             display: flex;
                             align-items: center;
                             justify-content: center;
                             color: white;
-                            font-size: 12px;
+                            font-size: 18px;
                         ">🎮</div>
                     `}
                     
                     <div style="flex: 1;">
                         <div style="font-weight: 600; color: #1e293b;">${game.name}</div>
-                        ${game.storeLinks?.TR || game.storeLinks?.UA ? `
-                            <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
-                                ${game.storeLinks.TR ? '🇹🇷' : ''} ${game.storeLinks.UA ? '🇺🇦' : ''}
-                            </div>
-                        ` : ''}
+                        <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                            ${gameAccounts.length > 0 ? `📊 ${gameAccounts.length} акк. • ` : ''}
+                            ${game.storeLinks?.TR ? '🇹🇷' : ''} ${game.storeLinks?.UA ? '🇺🇦' : ''}
+                        </div>
                     </div>
                     
-                    ${isRecent ? `
+                    ${gameAccounts.length > 0 ? `
                         <span style="
                             font-size: 10px;
-                            padding: 2px 6px;
+                            padding: 2px 8px;
                             background: #dcfce7;
                             color: #166534;
                             border-radius: 10px;
-                        ">Недавно</span>
+                            font-weight: 600;
+                        ">Есть аккаунты</span>
                     ` : ''}
                 </div>
             `;
@@ -413,64 +358,48 @@ class AutoComplete {
         // Добавляем обработчики клика
         dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
             item.addEventListener('click', () => {
-                const gameId = item.getAttribute('data-game-id');
-                const gameName = item.getAttribute('data-game-name');
-                
-                // Находим связанный input и select
                 const input = dropdown.previousElementSibling;
-                const originalSelect = document.getElementById(input.parentElement.nextElementSibling.id + '_hidden');
+                const hiddenSelect = document.getElementById(input.parentElement.nextElementSibling.id);
+                this.selectGame(item, input, hiddenSelect);
                 
-                if (originalSelect) {
-                    // Устанавливаем значение в select
-                    originalSelect.value = gameId;
-                    
-                    // Ищем опцию с таким значением
-                    const option = Array.from(originalSelect.options).find(opt => opt.value === gameId);
-                    if (option) {
-                        originalSelect.selectedIndex = option.index;
-                    }
-                    
-                    // Обновляем значение в input
-                    input.value = gameName;
-                    
-                    // Триггерим событие изменения
-                    originalSelect.dispatchEvent(new Event('change'));
-                    input.dispatchEvent(new Event('change'));
-                }
-                
-                // Закрываем выпадающий список
                 dropdown.style.display = 'none';
-                
-                // Добавляем в историю поиска
-                this.addToSearchHistory(gameId);
+                input.style.borderBottomLeftRadius = '';
+                input.style.borderBottomRightRadius = '';
             });
         });
     }
 
-    addToSearchHistory(gameId) {
-        try {
-            const history = JSON.parse(localStorage.getItem('searchHistory')) || [];
-            const now = Date.now();
+    selectGame(item, input, hiddenSelect) {
+        const gameId = item.getAttribute('data-game-id');
+        const gameName = item.getAttribute('data-game-name');
+        
+        // Устанавливаем значение в input
+        input.value = gameName;
+        
+        // Устанавливаем значение в скрытый select
+        if (hiddenSelect) {
+            hiddenSelect.value = gameId;
             
-            // Удаляем старые записи (старше 30 дней)
-            const recentHistory = history.filter(h => now - h.timestamp < 30 * 24 * 60 * 60 * 1000);
-            
-            // Добавляем новую запись или обновляем время
-            const existingIndex = recentHistory.findIndex(h => h.gameId === gameId);
-            if (existingIndex >= 0) {
-                recentHistory[existingIndex].timestamp = now;
-            } else {
-                recentHistory.push({ gameId, timestamp: now });
+            // Ищем опцию с таким значением
+            const option = Array.from(hiddenSelect.options).find(opt => opt.value === gameId);
+            if (option) {
+                hiddenSelect.selectedIndex = option.index;
             }
             
-            // Сортируем по времени (новые в начале)
-            recentHistory.sort((a, b) => b.timestamp - a.timestamp);
+            // Триггерим событие изменения
+            const changeEvent = new Event('change', { bubbles: true });
+            hiddenSelect.dispatchEvent(changeEvent);
             
-            // Сохраняем только последние 50 записей
-            localStorage.setItem('searchHistory', JSON.stringify(recentHistory.slice(0, 50)));
-        } catch (e) {
-            console.error('Ошибка сохранения истории поиска:', e);
+            // Также триггерим на оригинальном select если он есть
+            const originalId = hiddenSelect.id.replace('_hidden', '');
+            const originalSelect = document.getElementById(originalId);
+            if (originalSelect) {
+                originalSelect.value = gameId;
+                originalSelect.dispatchEvent(changeEvent);
+            }
         }
+        
+        console.log(`✅ Выбрана игра: ${gameName} (ID: ${gameId})`);
     }
 
     highlightItem(items, index) {
@@ -480,13 +409,12 @@ class AutoComplete {
                 item.style.color = 'white';
                 item.scrollIntoView({ block: 'nearest' });
             } else {
-                const isRecent = item.style.background.includes('f8fafc');
-                item.style.background = isRecent ? '#f8fafc' : 'white';
+                item.style.background = 'white';
                 item.style.color = '#1e293b';
             }
         });
     }
 }
 
-// Инициализируем глобально
+// Инициализируем
 window.autoComplete = new AutoComplete();
