@@ -7,11 +7,48 @@
     <link rel="stylesheet" href="style.css?v=20250115">
 </head>
 <body>
+    <div id="mobileMenu" class="mobile-menu">
+    <div class="mobile-menu-header">
+        <div class="user-info-mobile">
+            <div class="user-avatar">👤</div>
+            <div>
+                <div class="user-name" id="mobileUserName"></div>
+                <div class="user-role" id="mobileUserRole"></div>
+            </div>
+        </div>
+        <button class="close-menu" onclick="toggleMobileMenu()">×</button>
+    </div>
+    
+    <div class="mobile-menu-nav">
+        <!-- Пункты меню будут добавляться скриптом -->
+    </div>
+    
+    <div class="mobile-menu-footer">
+        <button onclick="logout()" class="btn btn-danger btn-block">
+            <span>🚪</span> Выйти
+        </button>
+    </div>
+</div>
+
+<!-- Бургер-кнопка -->
+<div class="burger-container">
+    <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
+        <div class="burger-icon">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <!-- Опционально: бейдж с уведомлениями -->
+        <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
+        <!-- Текст при наведении (только на ПК) -->
+        <div class="burger-label">Меню</div>
+    </button>
+</div>
+
+<!-- Оверлей для закрытия меню -->
+<div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
     <div class="container">
         <h1><span>👨‍💼</span><span>Менеджер аккаунтов</span></h1>
-        
-        <div class="nav-buttons"></div>
-
         <div class="section">
             <h2>🎯 Поиск аккаунтов</h2>
             <div class="search-container">

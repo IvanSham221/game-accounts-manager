@@ -224,6 +224,34 @@ function getInstructionForPosition(positionType) {
            '⚠️ Инструкция для данного типа позиции не найдена.';
 }
 
+function toggleMobileMenu() {
+    const menu = document.getElementById('mobileMenu');
+    const overlay = document.getElementById('menuOverlay');
+    const burgerBtn = document.querySelector('.burger-btn');
+    
+    menu.classList.toggle('active');
+    overlay.classList.toggle('active');
+    burgerBtn.classList.toggle('active');
+    
+    // Блокировка прокрутки страницы при открытом меню
+    if (menu.classList.contains('active')) {
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = 'auto';
+    }
+}
+
+function closeMobileMenu() {
+    const menu = document.getElementById('mobileMenu');
+    const overlay = document.getElementById('menuOverlay');
+    const burgerBtn = document.querySelector('.burger-btn');
+    
+    menu.classList.remove('active');
+    overlay.classList.remove('active');
+    burgerBtn.classList.remove('active');
+    document.body.style.overflow = 'auto';
+}
+
 // ==================== УНИВЕРСАЛЬНЫЕ ФУНКЦИИ МОДАЛЬНЫХ ОКОН ====================
 
 function openModal(modalId) {
@@ -277,14 +305,82 @@ window.onclick = function(event) {
     });
 }
 
+// Функция для обновления бейджа с уведомлениями
+function updateMenuBadge() {
+    const badge = document.getElementById('menuBadge');
+    if (!badge) return;
+    
+    // Считаем "горячие" уведомления (например, новые скидки)
+    let notificationCount = 0;
+    
+    // 1. Проверяем большие скидки (например, > 60%)
+    const discounts = JSON.parse(localStorage.getItem('discountsResults')) || [];
+    const bigDiscounts = discounts.filter(d => 
+        (d.discounts?.TR?.discount >= 70) || (d.discounts?.UA?.discount >= 70)
+    );
+    notificationCount += bigDiscounts.length;
+    
+    // 2. Проверяем новые продажи (за последние 24 часа)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const recentSales = sales.filter(sale => 
+        new Date(sale.timestamp) > yesterday
+    );
+    notificationCount += recentSales.length;
+    
+    // 3. Можно добавить другие типы уведомлений
+    
+    // Обновляем бейдж
+    if (notificationCount > 0) {
+        badge.textContent = notificationCount > 9 ? '9+' : notificationCount;
+        badge.style.display = 'flex';
+        
+        // Анимация пульсации для новых уведомлений
+        if (notificationCount > 0) {
+            badge.style.animation = 'pulse 2s infinite';
+        }
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+// Функция для анимации "тряски" кнопки
+function shakeBurgerButton() {
+    const burgerBtn = document.querySelector('.burger-btn');
+    if (burgerBtn && !burgerBtn.classList.contains('active')) {
+        burgerBtn.style.animation = 'shake 0.5s ease-in-out';
+        setTimeout(() => {
+            burgerBtn.style.animation = '';
+        }, 500);
+    }
+}
+
+// Анимация тряски (добавь в CSS)
+const style = document.createElement('style');
+style.textContent = `
+@keyframes shake {
+    0%, 100% { transform: scale(1) rotate(0); }
+    25% { transform: scale(1.1) rotate(-5deg); }
+    50% { transform: scale(1.1) rotate(5deg); }
+    75% { transform: scale(1.1) rotate(-5deg); }
+}
+`;
+document.head.appendChild(style);
+
+
 // Закрытие по ESC
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeModal('editModal');
         closeModal('editFreeModal');
         closeModal('saleModal');
+        closeMobileMenu();
     }
 });
+
+setInterval(() => {
+    refreshMobileMenu();
+}, 5000);
 
 // Выход из системы
 function logout() {
@@ -465,41 +561,110 @@ function sanitizeInput(input) {
 // МОБИЛЬНОЕ МЕНЮ И UI УЛУЧШЕНИЯ
 // ============================================
 
-// Мобильное меню
+// Инициализация меню
 function initMobileMenu() {
-    const navElement = document.querySelector('.nav-buttons');
-    if (!navElement || document.querySelector('.mobile-menu-toggle')) return;
+    const user = security.getCurrentUser();
+    if (!user) return;
     
-    // Создаем кнопку переключения меню
-    const toggleBtn = document.createElement('button');
-    toggleBtn.className = 'mobile-menu-toggle';
-    toggleBtn.innerHTML = '☰ Меню навигации';
-    toggleBtn.type = 'button';
+    // Обновляем информацию пользователя
+    document.getElementById('mobileUserName').textContent = user.name;
+    document.getElementById('mobileUserRole').textContent = 
+        user.role === 'admin' ? 'Администратор 👑' : 'Работник 👷';
     
-    toggleBtn.onclick = function() {
-        navElement.classList.toggle('active');
-        this.innerHTML = navElement.classList.contains('active') 
-            ? '✕ Закрыть меню' 
-            : '☰ Меню навигации';
-    };
+    // Определяем текущую страницу
+    const currentPage = window.location.pathname.split('/').pop();
     
-    // Вставляем кнопку перед навигацией
-    navElement.parentNode.insertBefore(toggleBtn, navElement);
+    // Пункты меню
+    const menuItems = [
+        { icon: '🎮', text: 'Панель менеджера', page: 'manager.html', id: 'manager' },
+        { icon: '➕', text: 'Добавить аккаунт', page: 'add-account.html', id: 'add-account' },
+        { icon: '📋', text: 'Список аккаунтов', page: 'accounts.html', id: 'accounts' },
+        { icon: '🆓', text: 'Свободные аккаунты', page: 'free-accounts.html', id: 'free-accounts' },
+        { icon: '🎯', text: 'Управление играми', page: 'games.html', id: 'games' },
+        { icon: '📊', text: 'Отчеты', page: 'reports.html', id: 'reports' },
+        { icon: '📈', text: 'Статистика работников', page: 'workers-stats.html', id: 'workers-stats' },
+        { icon: '📊', text: 'Графики', page: 'charts.html', id: 'charts' },
+        { icon: '🔥', text: 'Акции PS Store', page: 'discounts.html', id: 'discounts' },
+        { icon: '👑', text: 'Работники', page: 'workers.html', id: 'workers', adminOnly: true },
+        { icon: '📁', text: 'Экспорт CSV', onclick: 'exportToCSV()', id: 'export' },
+        { icon: '🔄', text: 'Синхронизация', onclick: 'syncData()', id: 'sync' }
+    ];
+
     
-    // Автоматически скрываем меню на мобильных
-    if (window.innerWidth <= 768) {
-        navElement.classList.remove('active');
-    }
+    // Создаем меню
+    const menuNav = document.querySelector('.mobile-menu-nav');
+    menuNav.innerHTML = '';
     
-    // Обновляем при изменении размера окна
-    window.addEventListener('resize', function() {
-        if (window.innerWidth > 768) {
-            navElement.classList.add('active');
+    menuItems.forEach(item => {
+        // Проверяем права доступа
+        if (item.adminOnly && user.role !== 'admin') return;
+        
+        const isActive = currentPage === item.page;
+        
+        const menuItem = document.createElement('a');
+        menuItem.className = `mobile-menu-item ${isActive ? 'active' : ''}`;
+        menuItem.id = `menu-${item.id}`;
+        
+        if (item.onclick) {
+            menuItem.href = '#';
+            menuItem.onclick = function(e) {
+                e.preventDefault();
+                eval(item.onclick);
+                closeMobileMenu();
+            };
         } else {
-            navElement.classList.remove('active');
+            menuItem.href = item.page;
+            menuItem.onclick = closeMobileMenu;
         }
-        toggleBtn.innerHTML = '☰ Меню навигации';
+        
+        menuItem.innerHTML = `
+            <span style="margin-right: 15px; font-size: 1.3rem;">${item.icon}</span>
+            <span>${item.text}</span>
+        `;
+        
+        menuNav.appendChild(menuItem);
     });
+    
+    // Обновляем бургер-кнопку
+    updateBurgerButton();
+
+     // Обновляем бейдж каждые 30 секунд
+    setInterval(updateMenuBadge, 30000);
+    
+    // Первое обновление
+    setTimeout(updateMenuBadge, 2000);
+}
+
+function notifyNewDiscount() {
+    showNotification('Новая большая скидка! 🔥', 'warning');
+    shakeBurgerButton();
+    updateMenuBadge();
+}
+
+    // Обновление состояния бургер-кнопки
+function updateBurgerButton() {
+    const burgerBtn = document.querySelector('.burger-btn');
+    if (burgerBtn) {
+        burgerBtn.innerHTML = `
+            <span></span>
+            <span></span>
+            <span></span>
+        `;
+    }
+}
+
+// Функция синхронизации
+function syncData() {
+    const syncBtn = document.querySelector('#syncButton');
+    if (syncBtn) {
+        syncBtn.click();
+        showNotification('Синхронизация запущена...', 'info');
+    }
+}
+
+// Обновление меню при изменении данных
+function refreshMobileMenu() {
+    initMobileMenu();
 }
 
 // UI улучшения (тема, уведомления)
@@ -727,6 +892,10 @@ function initApp() {
         loadFromLocalStorage();
         initPage(currentPage);
     });
+
+    setTimeout(() => {
+        initMobileMenu();
+    }, 100);
 }
 
 function initPage(currentPage) {
