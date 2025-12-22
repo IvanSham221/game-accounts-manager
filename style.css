@@ -2803,3 +2803,235 @@ body.dark-theme .burger-btn:hover {
         padding-top: 10px;
         border-top: 1px dashed #e2e8f0;
     }
+    /* ============================================
+   СТИЛИ ДЛЯ КОММЕНТАРИЕВ
+   ============================================ */
+
+/* Модальное окно с комментариями */
+#commentsModal .modal-content {
+    max-width: 600px !important;
+    max-height: 80vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Список комментариев */
+.comments-list {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 10px;
+    margin-bottom: 20px;
+}
+
+/* Отдельный комментарий */
+.comment-item {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #e2e8f0;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.comment-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Автор комментария */
+.comment-author {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.comment-avatar {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #4361ee 0%, #3a56d4 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.comment-author.admin .comment-avatar {
+    background: linear-gradient(135deg, #f72585 0%, #e63946 100%);
+}
+
+.comment-info {
+    flex: 1;
+}
+
+.comment-name {
+    font-weight: 600;
+    color: #2d3748;
+    font-size: 14px;
+}
+
+.comment-meta {
+    font-size: 12px;
+    color: #64748b;
+}
+
+/* Текст комментария */
+.comment-text {
+    color: #374151;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 14px;
+}
+
+/* Поле для нового комментария */
+.new-comment-box {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 20px;
+    margin-top: 20px;
+}
+
+.new-comment-textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 80px;
+    margin-bottom: 15px;
+}
+
+.new-comment-textarea:focus {
+    outline: none;
+    border-color: #4361ee;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+}
+
+/* Кнопка комментариев на карточке аккаунта */
+.comments-btn {
+    background: #f8fafc !important;
+    color: #64748b !important;
+    border: 1px solid #e2e8f0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    transition: all 0.2s ease !important;
+}
+
+.comments-btn:hover {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    transform: translateY(-1px);
+}
+
+.comments-count {
+    background: #4361ee !important;
+    color: white !important;
+    border-radius: 50% !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+}
+
+/* Прокрутка в списке комментариев */
+.comments-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.comments-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.comments-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.comments-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Темная тема для комментариев */
+.dark-theme .comment-item {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+.dark-theme .comment-name {
+    color: #e2e8f0;
+}
+
+.dark-theme .comment-meta {
+    color: #94a3b8;
+}
+
+.dark-theme .comment-text {
+    color: #cbd5e1;
+}
+
+.dark-theme .new-comment-textarea {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+.dark-theme .new-comment-textarea:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.dark-theme .comments-btn {
+    background: #334155 !important;
+    color: #cbd5e1 !important;
+    border-color: #475569 !important;
+}
+
+.dark-theme .comments-btn:hover {
+    background: #475569 !important;
+    border-color: #64748b !important;
+}
+
+/* Анимация появления комментария */
+@keyframes commentSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.comment-item {
+    animation: commentSlideIn 0.3s ease-out;
+}
+
+/* Бейдж для нового комментария */
+.new-comment-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    animation: pulse 2s infinite;
+}

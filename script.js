@@ -801,22 +801,26 @@ async function loadAllDataWithSync() {
     try {
         console.log('🔄 Загружаем данные с синхронизацией...');
         
-        // Используем forceFullSync для первоначальной загрузки
         if (window.dataSync && window.dataSync.forceFullSync) {
             await dataSync.forceFullSync();
         }
         
-        // Обновляем глобальные переменные из localStorage
+        // Обновляем глобальные переменные
         games = JSON.parse(localStorage.getItem('games')) || [];
         accounts = JSON.parse(localStorage.getItem('accounts')) || [];
         sales = JSON.parse(localStorage.getItem('sales')) || [];
+        
+        // Убедимся, что у всех аккаунтов есть массив комментариев
+        accounts.forEach(account => {
+            if (!account.comments) {
+                account.comments = [];
+            }
+        });
         
         console.log(`📊 Данные загружены: ${games.length} игр, ${accounts.length} аккаунтов, ${sales.length} продаж`);
         
     } catch (error) {
         console.error('❌ Ошибка при загрузке данных:', error);
-        
-        // Загружаем из localStorage как запасной вариант
         games = JSON.parse(localStorage.getItem('games')) || [];
         accounts = JSON.parse(localStorage.getItem('accounts')) || [];
         sales = JSON.parse(localStorage.getItem('sales')) || [];
@@ -1926,6 +1930,8 @@ function getAccountFormData() {
             p3_ps5: parseInt(document.getElementById('p3_ps5').value) || 0
         }
     };
+
+    comments: [];
 }
 
 function clearAccountForm() {
@@ -2597,45 +2603,95 @@ function displaySearchResults(accountsList, gameName) {
         </div>
     `;
     
-    resultsContainer.innerHTML = accountsList.map(account => `
-        <div class="account-card-manager">
-            <div class="account-main">
-                <div class="account-login">${account.psnLogin}</div>
-                <div class="account-meta">
-                    <span class="account-price-manager">${account.purchaseAmount} ₽</span>
-                    <span class="account-game-manager">${account.gameName}</span>
+    resultsContainer.innerHTML = accountsList.map(account => {
+        const commentsCount = account.comments ? account.comments.length : 0;
+        
+        return `
+            <div class="account-card-manager" data-account-id="${account.id}">
+                <div class="account-main">
+                    <div class="account-login">${account.psnLogin}</div>
+                    <div class="account-meta">
+                        <span class="account-price-manager">${account.purchaseAmount} ₽</span>
+                        <span class="account-game-manager">${account.gameName}</span>
+                        <!-- КНОПКА КОММЕНТАРИЕВ -->
+                        <button class="btn btn-small comments-btn" 
+                                onclick="showAccountComments(${account.id})"
+                                style="
+                                    background: #f8fafc;
+                                    color: #64748b;
+                                    border: 1px solid #e2e8f0;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 5px;
+                                    padding: 6px 12px;
+                                    font-size: 13px;
+                                    border-radius: 8px;
+                                    transition: all 0.2s ease;
+                                ">
+                            <span style="margin-right: 5px;">💬</span>
+                            ${commentsCount > 0 ? `
+                                <span class="comments-count" style="
+                                    background: #4361ee;
+                                    color: white;
+                                    border-radius: 50%;
+                                    width: 20px;
+                                    height: 20px;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    margin-left: 2px;
+                                ">${commentsCount}</span>
+                                <span style="font-size: 12px;">Комментарии</span>
+                            ` : '<span style="font-size: 12px;">Комментарии</span>'}
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="platforms-container">
+                    <!-- PS4 -->
+                    <div class="platform-section">
+                        <div class="platform-title">PS4</div>
+                        <div class="positions-container">
+                            ${generatePositionsHTML(account, 'p2_ps4', 'П2 PS4', 'П2')}
+                            ${generatePositionsHTML(account, 'p3_ps4', 'П3 PS4', 'П3')}
+                            ${account.positions.p2_ps4 === 0 && account.positions.p3_ps4 === 0 ? 
+                                '<div class="position-empty">Нет позиций</div>' : ''
+                            }
+                        </div>
+                    </div>
+                    
+                    <!-- PS5 -->
+                    <div class="platform-section">
+                        <div class="platform-title">PS5</div>
+                        <div class="positions-container">
+                            ${generatePositionsHTML(account, 'p2_ps5', 'П2 PS5', 'П2')}
+                            ${generatePositionsHTML(account, 'p3_ps5', 'П3 PS5', 'П3')}
+                            ${account.positions.p2_ps5 === 0 && account.positions.p3_ps5 === 0 ? 
+                                '<div class="position-empty">Нет позиций</div>' : ''
+                            }
+                        </div>
+                    </div>
                 </div>
             </div>
+        `;
+    }).join('');
+    
+    // Добавляем обработчики событий для кнопок комментариев
+    setTimeout(() => {
+        document.querySelectorAll('.comments-btn').forEach(btn => {
+            btn.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-1px)';
+                this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+            });
             
-            <div class="platforms-container">
-                
-                <!-- PS4 -->
-<div class="platform-section">
-    <div class="platform-title">PS4</div>
-    <div class="positions-container">
-        ${generatePositionsHTML(account, 'p2_ps4', 'П2 PS4', 'П2')}
-        ${generatePositionsHTML(account, 'p3_ps4', 'П3 PS4', 'П3')}
-        ${account.positions.p2_ps4 === 0 && account.positions.p3_ps4 === 0 ? 
-            '<div class="position-empty">Нет позиций</div>' : ''
-        }
-    </div>
-</div>
-
-<!-- PS5 -->
-<div class="platform-section">
-    <div class="platform-title">PS5</div>
-    <div class="positions-container">
-        ${generatePositionsHTML(account, 'p2_ps5', 'П2 PS5', 'П2')}
-        ${generatePositionsHTML(account, 'p3_ps5', 'П3 PS5', 'П3')}
-        ${account.positions.p2_ps5 === 0 && account.positions.p3_ps5 === 0 ? 
-            '<div class="position-empty">Нет позиций</div>' : ''
-        }
-    </div>
-</div>
-                
-            </div>
-        </div>
-    `).join('');
+            btn.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = 'none';
+            });
+        });
+    }, 100);
 }
 
 function handlePositionClick(accountId, positionType, positionName, positionIndex) {
@@ -4666,6 +4722,389 @@ function generateWorkersDetailedStatsHTML(workersStats) {
             `).join('')}
         </div>
     `;
+}
+
+// ============================================
+// СИСТЕМА КОММЕНТАРИЕВ ДЛЯ АККАУНТОВ
+// ============================================
+
+
+// Функция для добавления комментария к аккаунту
+// Обновите функцию addCommentToAccount() для лучшей синхронизации:
+function addCommentToAccount(accountId, commentText) {
+    const accountIndex = accounts.findIndex(acc => acc.id === accountId);
+    if (accountIndex === -1) {
+        showNotification('Аккаунт не найден', 'error');
+        return false;
+    }
+    
+    const currentUser = security.getCurrentUser();
+    if (!currentUser) {
+        showNotification('Пользователь не авторизован', 'error');
+        return false;
+    }
+    
+    const newComment = {
+        id: Date.now(),
+        text: commentText.trim(),
+        author: currentUser.name,
+        authorUsername: currentUser.username,
+        role: currentUser.role,
+        timestamp: new Date().toISOString(),
+        date: new Date().toLocaleDateString('ru-RU'),
+        time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    // Инициализируем массив комментариев если его нет
+    if (!accounts[accountIndex].comments) {
+        accounts[accountIndex].comments = [];
+    }
+    
+    // Добавляем комментарий в начало массива
+    accounts[accountIndex].comments.unshift(newComment);
+    
+    // Сохраняем изменения
+    saveToStorage('accounts', accounts).then(result => {
+        if (result.success) {
+            showNotification('Комментарий сохранен', 'success');
+        } else {
+            showNotification('Комментарий сохранен локально', 'warning');
+        }
+    }).catch(error => {
+        console.error('Ошибка сохранения комментария:', error);
+    });
+    
+    // Обновляем отображение если мы на странице менеджера
+    if (window.location.pathname.includes('manager.html')) {
+        refreshAccountCommentsDisplay(accountId);
+    }
+    
+    return true;
+}
+
+// Функция для удаления комментария
+function deleteComment(accountId, commentId) {
+    const accountIndex = accounts.findIndex(acc => acc.id === accountId);
+    if (accountIndex === -1) return false;
+    
+    if (!accounts[accountIndex].comments) return false;
+    
+    const commentIndex = accounts[accountIndex].comments.findIndex(c => c.id === commentId);
+    if (commentIndex === -1) return false;
+    
+    const comment = accounts[accountIndex].comments[commentIndex];
+    const currentUser = security.getCurrentUser();
+    
+    // Проверяем права: автор или администратор может удалять
+    if (comment.authorUsername !== currentUser.username && currentUser.role !== 'admin') {
+        showNotification('Вы можете удалять только свои комментарии', 'error');
+        return false;
+    }
+    
+    if (confirm('Удалить этот комментарий?')) {
+        accounts[accountIndex].comments.splice(commentIndex, 1);
+        saveToStorage('accounts', accounts);
+        
+        // Обновляем отображение
+        if (window.location.pathname.includes('manager.html')) {
+            refreshAccountCommentsDisplay(accountId);
+        }
+        
+        showNotification('Комментарий удален', 'info');
+        return true;
+    }
+    
+    return false;
+}
+
+// Функция для отображения модального окна с комментариями
+function showAccountComments(accountId) {
+    const account = accounts.find(acc => acc.id === accountId);
+    if (!account) return;
+    
+    // Создаем модальное окно для комментариев
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'commentsModal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+            <span class="close" onclick="document.getElementById('commentsModal').remove()">&times;</span>
+            
+            <h2 style="margin-bottom: 20px; color: #2d3748; display: flex; align-items: center; gap: 10px;">
+                <span>💬</span>
+                Комментарии к аккаунту: ${account.psnLogin}
+            </h2>
+            
+            <div id="commentsList" style="flex: 1; overflow-y: auto; margin-bottom: 20px; padding-right: 10px;">
+                ${renderCommentsList(account.comments || [], account.id)}
+            </div>
+            
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                <textarea id="newCommentText" 
+                          placeholder="Введите комментарий..." 
+                          rows="3"
+                          style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button class="btn btn-secondary" onclick="document.getElementById('commentsModal').remove()" style="flex: 1;">
+                        Закрыть
+                    </button>
+                    <button class="btn btn-primary" onclick="submitComment(${account.id})" style="flex: 2;">
+                        <span style="margin-right: 8px;">📝</span>
+                        Добавить комментарий
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'block';
+    
+    // Автофокус на поле ввода
+    setTimeout(() => {
+        const textarea = document.getElementById('newCommentText');
+        if (textarea) textarea.focus();
+    }, 100);
+}
+
+
+// Функция для отправки комментария
+function submitComment(accountId) {
+    const textarea = document.getElementById('newCommentText');
+    const commentText = textarea.value.trim();
+    
+    if (!commentText) {
+        showNotification('Введите текст комментария', 'warning');
+        return;
+    }
+    
+    if (addCommentToAccount(accountId, commentText)) {
+        textarea.value = '';
+        
+        // Обновляем список комментариев
+        const account = accounts.find(acc => acc.id === accountId);
+        if (account) {
+            document.getElementById('commentsList').innerHTML = renderCommentsList(account.comments || [], account.id);
+            // Прокручиваем вверх чтобы увидеть новый комментарий
+            const commentsList = document.getElementById('commentsList');
+            if (commentsList) {
+                commentsList.scrollTop = 0;
+            }
+        }
+        
+        showNotification('Комментарий добавлен', 'success');
+    }
+}
+
+// Функция для рендеринга списка комментариев
+function renderCommentsList(comments, accountId) {
+    if (!comments || comments.length === 0) {
+        return `
+            <div class="empty" style="text-align: center; padding: 40px 20px; color: #94a3b8;">
+                <div style="font-size: 3em; margin-bottom: 15px;">💬</div>
+                <h3 style="margin: 0 0 10px 0; color: #64748b;">Нет комментариев</h3>
+                <p>Будьте первым, кто оставит комментарий</p>
+            </div>
+        `;
+    }
+    
+    return comments.map(comment => `
+        <div class="comment-item" style="
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #e2e8f0;
+            position: relative;
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="
+                        width: 32px;
+                        height: 32px;
+                        background: ${comment.role === 'admin' ? 
+                            'linear-gradient(135deg, #f72585 0%, #e63946 100%)' : 
+                            'linear-gradient(135deg, #4361ee 0%, #3a56d4 100%)'};
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: white;
+                        font-weight: 600;
+                        font-size: 14px;
+                    ">
+                        ${comment.author.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <div style="font-weight: 600; color: #2d3748;">${comment.author}</div>
+                        <div style="font-size: 0.85em; color: #64748b;">
+                            ${comment.date} в ${comment.time}
+                            ${comment.role === 'admin' ? ' • 👑 Администратор' : ' • 👷 Работник'}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 5px;">
+                    ${comment.authorUsername === security.getCurrentUser()?.username || security.getCurrentUser()?.role === 'admin' ? `
+                        <button onclick="deleteCommentFromModal(${comment.id}, ${accountId})" 
+                                class="btn btn-small btn-danger" 
+                                style="padding: 4px 8px; font-size: 12px;">
+                            🗑️
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+            
+            <div style="color: #374151; line-height: 1.5; white-space: pre-wrap;">
+                ${sanitizeHTML(comment.text)}
+            </div>
+        </div>
+    `).join('');
+}
+
+
+// Вспомогательная функция для удаления комментария из модального окна
+function deleteCommentFromModal(commentId, accountId) {
+    if (deleteComment(accountId, commentId)) {
+        // Обновляем отображение в модальном окне
+        const account = accounts.find(acc => acc.id === accountId);
+        if (account && document.getElementById('commentsList')) {
+            document.getElementById('commentsList').innerHTML = renderCommentsList(account.comments || [], account.id);
+        }
+        
+        // Также обновляем счетчик на карточке аккаунта
+        refreshAccountCommentsDisplay(accountId);
+    }
+}
+
+// Функция для обновления отображения комментариев на карточке аккаунта
+function refreshAccountCommentsDisplay(accountId) {
+    // Находим карточку аккаунта в результатах поиска
+    const accountCard = document.querySelector(`[data-account-id="${accountId}"]`);
+    if (!accountCard) return;
+    
+    const account = accounts.find(acc => acc.id === accountId);
+    if (!account) return;
+    
+    // Обновляем кнопку комментариев
+    const commentsBtn = accountCard.querySelector('.comments-btn');
+    if (commentsBtn) {
+        const commentsCount = account.comments ? account.comments.length : 0;
+        commentsBtn.innerHTML = `
+            <span style="margin-right: 5px;">💬</span>
+            ${commentsCount > 0 ? `
+                <span class="comments-count" style="
+                    background: #4361ee;
+                    color: white;
+                    border-radius: 50%;
+                    width: 20px;
+                    height: 20px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 12px;
+                    font-weight: 600;
+                ">${commentsCount}</span>
+            ` : 'Комментарии'}
+        `;
+    }
+}
+
+// Обновите функцию showAllComments():
+function showAllComments() {
+    // Собираем все аккаунты с комментариями
+    const accountsWithComments = accounts.filter(acc => 
+        acc.comments && acc.comments.length > 0
+    );
+    
+    if (accountsWithComments.length === 0) {
+        showNotification('Нет комментариев в системе', 'info');
+        return;
+    }
+    
+    // Создаем модальное окно со всеми комментариями
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'allCommentsModal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
+            <span class="close" onclick="document.getElementById('allCommentsModal').remove()">&times;</span>
+            
+            <h2 style="margin-bottom: 20px; color: #2d3748; display: flex; align-items: center; gap: 10px;">
+                <span>💬</span>
+                Все комментарии (${accountsWithComments.reduce((sum, acc) => sum + acc.comments.length, 0)})
+            </h2>
+            
+            <div style="margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>Аккаунтов с комментариями:</strong> ${accountsWithComments.length}
+                    </div>
+                    <div>
+                        <strong>Всего комментариев:</strong> ${accountsWithComments.reduce((sum, acc) => sum + acc.comments.length, 0)}
+                    </div>
+                </div>
+            </div>
+            
+            <div id="allCommentsList" style="flex: 1; overflow-y: auto; padding-right: 10px;">
+                ${accountsWithComments.map(account => `
+                    <div class="account-comments-section" style="margin-bottom: 30px; border-bottom: 1px solid #e2e8f0; padding-bottom: 20px;">
+                        <h3 style="margin: 0 0 15px 0; color: #2d3748; display: flex; align-items: center; gap: 10px;">
+                            <span>🎮</span>
+                            ${account.gameName} - ${account.psnLogin}
+                            <span style="font-size: 0.8em; background: #e2e8f0; padding: 2px 10px; border-radius: 12px;">
+                                ${account.comments.length} коммент.
+                            </span>
+                        </h3>
+                        
+                        ${account.comments.map(comment => `
+                            <div class="comment-item" style="margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <strong style="color: #2d3748;">${comment.author}</strong>
+                                        <span style="font-size: 0.85em; color: #64748b;">
+                                            ${comment.date} в ${comment.time}
+                                        </span>
+                                    </div>
+                                    ${comment.authorUsername === security.getCurrentUser()?.username || security.getCurrentUser()?.role === 'admin' ? `
+                                        <button onclick="deleteComment(${account.id}, ${comment.id})" 
+                                                class="btn btn-small btn-danger" 
+                                                style="padding: 2px 6px; font-size: 11px;">
+                                            🗑️
+                                        </button>
+                                    ` : ''}
+                                </div>
+                                <div style="color: #374151; line-height: 1.4; font-size: 0.95em;">
+                                    ${sanitizeHTML(comment.text)}
+                                </div>
+                            </div>
+                        `).join('')}
+                        
+                        <div style="margin-top: 15px;">
+                            <textarea id="newCommentFor${account.id}" 
+                                      placeholder="Добавить комментарий к этому аккаунту..." 
+                                      rows="2"
+                                      style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px;"></textarea>
+                            <button onclick="addCommentFromAllModal(${account.id})" 
+                                    class="btn btn-small btn-primary" 
+                                    style="margin-top: 5px; font-size: 12px;">
+                                Добавить комментарий
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center;">
+                <button class="btn btn-secondary" onclick="document.getElementById('allCommentsModal').remove()">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'block';
 }
 
 function generateWorkersDailyStatsHTML(periodSales) {

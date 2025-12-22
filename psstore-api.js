@@ -1,6 +1,6 @@
 // psstore-api.js - API клиент для PS Store
 class PSStoreAPI {
-    constructor(serverUrl = null) {
+    constructor(serverUrl = 'https://ps-store-api.onrender.com') {
         // Автоматически определяем URL сервера
         if (serverUrl) {
             this.serverUrl = serverUrl;
