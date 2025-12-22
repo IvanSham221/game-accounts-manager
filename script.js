@@ -9,23 +9,6 @@ let accounts = [];
 let sales = [];
 let currentUser = null;
 
-function extractProductId(url) {
-    if (!url || typeof url !== 'string') return '';
-    
-    // Убираем возможные параметры запроса
-    const cleanUrl = url.split('?')[0];
-    
-    // Ищем product/ в ссылке
-    const productMatch = cleanUrl.match(/product\/([A-Z0-9_-]+)/i);
-    if (productMatch) return productMatch[1];
-    
-    // Альтернативный формат
-    const idMatch = cleanUrl.match(/([A-Z]{2}\d{4}-[A-Z]{3}\d{5}_\d{2}-[A-Z0-9]+)/i);
-    if (idMatch) return idMatch[1];
-    
-    return '';
-}
-
 // Функция для проверки ссылки PS Store
 function isValidPSStoreUrl(url, region = 'TR') {
     if (!url) return false;
@@ -438,14 +421,6 @@ function updateNavigation() {
         <span>📈</span>
         <span class="nav-text">Статистика работников</span>
     </button>
-    <button onclick="security.updateSession(); location.href='charts.html'" class="btn ${location.pathname.includes('charts.html') ? 'btn-primary' : 'btn-secondary'}">
-        <span>📈</span>
-        <span class="nav-text">Графики</span>
-    </button>
-    <button onclick="security.updateSession(); location.href='discounts.html'" class="btn ${location.pathname.includes('discounts.html') ? 'btn-primary' : 'btn-secondary'}">
-        <span>🔥</span>
-        <span class="nav-text">Акции PS Store</span>
-    </button>
     `;
     
     // Только администратор видит кнопку "Работники"
@@ -583,8 +558,6 @@ function initMobileMenu() {
         { icon: '🎯', text: 'Управление играми', page: 'games.html', id: 'games' },
         { icon: '📊', text: 'Отчеты', page: 'reports.html', id: 'reports' },
         { icon: '📈', text: 'Статистика работников', page: 'workers-stats.html', id: 'workers-stats' },
-        { icon: '📊', text: 'Графики', page: 'charts.html', id: 'charts' },
-        { icon: '🔥', text: 'Акции PS Store', page: 'discounts.html', id: 'discounts' },
         { icon: '👑', text: 'Работники', page: 'workers.html', id: 'workers', adminOnly: true },
         { icon: '📁', text: 'Экспорт CSV', onclick: 'exportToCSV()', id: 'export' },
         { icon: '🔄', text: 'Синхронизация', onclick: 'syncData()', id: 'sync' }
@@ -633,24 +606,6 @@ function initMobileMenu() {
     
     // Первое обновление
     setTimeout(updateMenuBadge, 2000);
-}
-
-function notifyNewDiscount() {
-    showNotification('Новая большая скидка! 🔥', 'warning');
-    shakeBurgerButton();
-    updateMenuBadge();
-}
-
-    // Обновление состояния бургер-кнопки
-function updateBurgerButton() {
-    const burgerBtn = document.querySelector('.burger-btn');
-    if (burgerBtn) {
-        burgerBtn.innerHTML = `
-            <span></span>
-            <span></span>
-            <span></span>
-        `;
-    }
 }
 
 // Функция синхронизации
@@ -972,37 +927,6 @@ function initPage(currentPage) {
                 }
             }, 500);
             break;
-            
-        case 'charts.html':
-            // Устанавливаем даты по умолчанию
-            const endDate3 = new Date();
-            const startDate3 = new Date();
-            startDate3.setDate(startDate3.getDate() - 30);
-            
-            const startInput3 = document.getElementById('chartsStartDate');
-            const endInput3 = document.getElementById('chartsEndDate');
-            if (startInput3 && endInput3) {
-                startInput3.value = startDate3.toISOString().split('T')[0];
-                endInput3.value = endDate3.toISOString().split('T')[0];
-            }
-            
-            // Загружаем графики
-            setTimeout(() => {
-                if (typeof loadCharts === 'function') {
-                    loadCharts();
-                }
-            }, 1000);
-            break;
-            
-        case 'discounts.html':
-            // Инициализируем страницу скидок
-            setTimeout(() => {
-                if (typeof initDiscountsPage === 'function') {
-                    initDiscountsPage();
-                }
-            }, 500);
-            break;
-            
         case 'workers.html':
             // Страница работников инициализируется своим скриптом
             break;
