@@ -1,152 +1,143 @@
-// psstore-api.js
+// psstore-api.js - API клиент для PS Store
 class PSStoreAPI {
-    constructor() {
-        this.corsProxy = 'https://cors-anywhere.herokuapp.com/'; // Или ваш прокси
-        this.baseUrl = 'https://store.playstation.com/store/api/chihiro/00_09_000';
+    constructor(serverUrl = null) {
+        // Автоматически определяем URL сервера
+        if (serverUrl) {
+            this.serverUrl = serverUrl;
+        } else {
+            // Проверяем, работает ли локальный сервер
+            const isLocalhost = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1';
+            
+            if (isLocalhost) {
+                this.serverUrl = 'http://localhost:3001';
+            } else {
+                // Используем Render сервер
+                this.serverUrl = 'https://ps-store-api.onrender.com';
+                // Или ваш домен на Render
+            }
+        }
+        
+        console.log(`🌐 API настроен на: ${this.serverUrl}`);
+        this.testConnection();
+    }
+
+    async testConnection() {
+        try {
+            const response = await fetch(`${this.serverUrl}/api/test`, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' },
+                timeout: 5000
+            });
+            
+            if (response.ok) {
+                console.log(`✅ Сервер API доступен`);
+            } else {
+                console.warn(`⚠️ Сервер API недоступен (статус: ${response.status})`);
+            }
+        } catch (error) {
+            console.warn(`⚠️ Не удалось подключиться к API серверу:`, error.message);
+            console.log(`ℹ️ Используется демо-режим`);
+        }
     }
 
     async getGameInfo(productId, region = 'TR') {
+        console.log(`🎮 Запрос игры ${productId} (${region})`);
+        
         try {
-            const url = this.getApiUrl(productId, region);
-            const response = await fetch(url, {
-                headers: this.getHeaders(region),
-                referrerPolicy: 'no-referrer'
-            });
-
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            
+            const response = await fetch(
+                `${this.serverUrl}/api/game/${productId}/${region}`,
+                {
+                    method: 'GET',
+                    headers: { 
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors',
+                    signal: controller.signal
+                }
+            );
+            
+            clearTimeout(timeoutId);
+            
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                throw new Error(`HTTP ${response.status}`);
             }
-
+            
             const data = await response.json();
-            return this.parseResponse(data, region);
-
-        } catch (error) {
-            console.error(`API Error (${region}):`, error);
+            console.log(`✅ Данные получены для ${productId}`);
+            return data;
             
-            // Фоллбэк: пробуем через прокси если прямой запрос не работает
-            return this.getGameInfoFallback(productId, region);
+        } catch (error) {
+            console.error(`❌ Ошибка запроса ${productId}:`, error.message);
+            
+            // Возвращаем демо-данные при ошибке
+            return this.getFallbackData(productId, region);
         }
     }
 
-    getApiUrl(productId, region) {
-        const lang = region === 'TR' ? 'tr/tr' : 'ua/uk';
-        return `${this.baseUrl}/${lang}/999/${productId}`;
-    }
-
-    getHeaders(region) {
-        return {
-            'Accept': 'application/json',
-            'Accept-Language': region === 'TR' ? 'tr-TR' : 'uk-UA',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Origin': 'https://store.playstation.com',
-            'Referer': 'https://store.playstation.com/'
-        };
-    }
-
-    parseResponse(data, region) {
-        if (!data || !data.default_sku) return null;
-
-        const sku = data.default_sku;
-        const price = this.parsePrice(sku.display_price || sku.price || '0');
-        const originalPrice = sku.original_price ? 
-            this.parsePrice(sku.original_price) : price;
-
-        const discount = originalPrice.amount > 0 && price.amount < originalPrice.amount ?
-            Math.round((1 - price.amount / originalPrice.amount) * 100) : 0;
-
-        return {
-            name: data.name || '',
-            price: price,
-            originalPrice: originalPrice,
-            discount: discount,
-            currency: region === 'TR' ? '₺' : '₴',
-            image: this.getBestImage(data.images),
-            url: `https://store.playstation.com/${region === 'TR' ? 'tr-tr' : 'uk-ua'}/product/${data.id}`,
-            isOnSale: discount > 0 || sku.is_plus || sku.rewards,
-            validUntil: sku.availability?.to_date ? 
-                new Date(sku.availability.to_date) : null,
-            productId: data.id
-        };
-    }
-
-    parsePrice(priceStr) {
-        if (!priceStr) return { amount: 0, formatted: 'N/A' };
+    // Массовая проверка игр
+    async getBatchGamesInfo(gamesList) {
+        console.log(`🔄 Массовая проверка ${gamesList.length} игр`);
         
-        // Удаляем всё кроме цифр и запятой/точки
-        const cleanStr = priceStr.replace(/[^\d,.]/g, '');
-        const amount = parseFloat(cleanStr.replace(',', '.'));
-        
-        return {
-            amount: isNaN(amount) ? 0 : amount,
-            formatted: priceStr.trim()
-        };
-    }
-
-    getBestImage(images) {
-        if (!images || !images.length) return '';
-        
-        // Ищем большое изображение
-        const largeImage = images.find(img => 
-            img.type === 'MASTER' || img.type === 'BIG_IMAGE'
-        );
-        
-        if (largeImage) return largeImage.url;
-        
-        // Или первое доступное
-        const firstImage = images.find(img => img.url);
-        return firstImage ? firstImage.url : '';
-    }
-
-    async getGameInfoFallback(productId, region) {
         try {
-            // Альтернативный метод: парсинг HTML страницы
-            const storeUrl = `https://store.playstation.com/${region === 'TR' ? 'tr-tr' : 'uk-ua'}/product/${productId}`;
-            const html = await this.fetchWithProxy(storeUrl);
+            const response = await fetch(`${this.serverUrl}/api/games/batch`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ games: gamesList }),
+                timeout: 30000
+            });
             
-            return this.parseFromHTML(html, region);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log(`✅ Массовая проверка завершена`);
+            return data.results;
+            
         } catch (error) {
-            console.error('Fallback also failed:', error);
-            return null;
+            console.error('❌ Ошибка массовой проверки:', error);
+            
+            // Возвращаем демо-данные для каждой игры
+            return gamesList.map(game => ({
+                productId: game.productId,
+                region: game.region,
+                success: false,
+                error: error.message,
+                data: this.getFallbackData(game.productId, game.region)
+            }));
         }
     }
 
-    async fetchWithProxy(url) {
-        const proxyUrl = `${this.corsProxy}${url}`;
-        const response = await fetch(proxyUrl, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
+    getFallbackData(productId, region) {
+        const discount = Math.random() > 0.5 ? Math.floor(Math.random() * 30) + 10 : 0;
+        const basePrice = region === 'TR' ? 
+            Math.floor(Math.random() * 300) + 200 : 
+            Math.floor(Math.random() * 500) + 300;
         
-        if (!response.ok) throw new Error(`Proxy HTTP ${response.status}`);
-        return await response.text();
-    }
-
-    parseFromHTML(html, region) {
-        // Парсим HTML для извлечения данных
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        
-        // Ищем мета-теги с информацией
-        const priceMeta = doc.querySelector('meta[property="product:price:amount"]');
-        const oldPriceMeta = doc.querySelector('meta[property="product:original_price:amount"]');
-        const imageMeta = doc.querySelector('meta[property="og:image"]');
-        const titleMeta = doc.querySelector('meta[property="og:title"]');
-        
-        const price = priceMeta ? parseFloat(priceMeta.content) : 0;
-        const oldPrice = oldPriceMeta ? parseFloat(oldPriceMeta.content) : price;
-        const discount = oldPrice > 0 && price < oldPrice ?
-            Math.round((1 - price / oldPrice) * 100) : 0;
+        const price = discount > 0 ? Math.round(basePrice * (1 - discount/100)) : basePrice;
         
         return {
-            name: titleMeta ? titleMeta.content.replace(' - PlayStation Store', '') : '',
-            price: { amount: price, formatted: `${price} ${region === 'TR' ? '₺' : '₴'}` },
-            originalPrice: { amount: oldPrice, formatted: `${oldPrice} ${region === 'TR' ? '₺' : '₴'}` },
+            name: `Игра ${productId}`,
+            price: { 
+                amount: price, 
+                formatted: `${price} ${region === 'TR' ? '₺' : '₴'}` 
+            },
+            originalPrice: { 
+                amount: basePrice, 
+                formatted: `${basePrice} ${region === 'TR' ? '₺' : '₴'}` 
+            },
             discount: discount,
-            currency: region === 'TR' ? '₺' : '₴',
-            image: imageMeta ? imageMeta.content : '',
             isOnSale: discount > 0,
-            validUntil: null
+            isDemo: true,
+            note: 'Демо-данные (сервер недоступен)'
         };
     }
 }

@@ -1,9 +1,3 @@
-// script.js - ПОЛНАЯ ВЕРСИЯ с Firebase и синхронизацией
-
-// ============================================
-// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И НАСТРОЙКИ
-// ============================================
-
 let games = [];
 let accounts = [];
 let sales = [];
@@ -438,10 +432,6 @@ function updateNavigation() {
         <span>📈</span>
         <span class="nav-text">Статистика работников</span>
     </button>
-    <button onclick="security.updateSession(); location.href='charts.html'" class="btn ${location.pathname.includes('charts.html') ? 'btn-primary' : 'btn-secondary'}">
-        <span>📈</span>
-        <span class="nav-text">Графики</span>
-    </button>
     <button onclick="security.updateSession(); location.href='discounts.html'" class="btn ${location.pathname.includes('discounts.html') ? 'btn-primary' : 'btn-secondary'}">
         <span>🔥</span>
         <span class="nav-text">Акции PS Store</span>
@@ -457,14 +447,6 @@ function updateNavigation() {
             </button>
         `;
     }
-    
-    // Кнопка экспорта
-    navButtons += `
-        <button onclick="security.updateSession(); exportToCSV()" class="btn btn-success">
-            <span>📁</span>
-            <span class="nav-text">Экспорт CSV</span>
-        </button>
-    `;
     
     // Информация о пользователе и выход
     navButtons += `
@@ -583,10 +565,8 @@ function initMobileMenu() {
         { icon: '🎯', text: 'Управление играми', page: 'games.html', id: 'games' },
         { icon: '📊', text: 'Отчеты', page: 'reports.html', id: 'reports' },
         { icon: '📈', text: 'Статистика работников', page: 'workers-stats.html', id: 'workers-stats' },
-        { icon: '📊', text: 'Графики', page: 'charts.html', id: 'charts' },
         { icon: '🔥', text: 'Акции PS Store', page: 'discounts.html', id: 'discounts' },
         { icon: '👑', text: 'Работники', page: 'workers.html', id: 'workers', adminOnly: true },
-        { icon: '📁', text: 'Экспорт CSV', onclick: 'exportToCSV()', id: 'export' },
         { icon: '🔄', text: 'Синхронизация', onclick: 'syncData()', id: 'sync' }
     ];
 
@@ -971,27 +951,6 @@ function initPage(currentPage) {
                     generateWorkersStats();
                 }
             }, 500);
-            break;
-            
-        case 'charts.html':
-            // Устанавливаем даты по умолчанию
-            const endDate3 = new Date();
-            const startDate3 = new Date();
-            startDate3.setDate(startDate3.getDate() - 30);
-            
-            const startInput3 = document.getElementById('chartsStartDate');
-            const endInput3 = document.getElementById('chartsEndDate');
-            if (startInput3 && endInput3) {
-                startInput3.value = startDate3.toISOString().split('T')[0];
-                endInput3.value = endDate3.toISOString().split('T')[0];
-            }
-            
-            // Загружаем графики
-            setTimeout(() => {
-                if (typeof loadCharts === 'function') {
-                    loadCharts();
-                }
-            }, 1000);
             break;
             
         case 'discounts.html':
@@ -4195,50 +4154,6 @@ function loadGamesForFilter() {
     }
 }
 
-// Экспорт данных
-function exportToCSV() {
-    if (accounts.length === 0) {
-        showNotification('Нет данных для экспорта', 'warning');
-        return;
-    }
-    
-    const headers = ['Игра', 'Логин PSN', 'Пароль PSN', 'Почта', 'Пароль почты', 'Сумма закупа', 'Коды PSN', 'Дата добавления'];
-    const csvRows = [];
-    
-    csvRows.push(headers.join(','));
-    
-    accounts.forEach(account => {
-        const row = [
-            `"${account.gameName}"`,
-            `"${account.psnLogin}"`,
-            `"${account.psnPassword || ''}"`,
-            `"${account.email || ''}"`,
-            `"${account.emailPassword || ''}"`,
-            account.purchaseAmount || 0,
-            `"${account.psnCodes || ''}"`,
-            `"${account.created}"`
-        ];
-        csvRows.push(row.join(','));
-    });
-    
-    const csvString = csvRows.join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    
-    if (navigator.msSaveBlob) {
-        navigator.msSaveBlob(blob, 'accounts.csv');
-    } else {
-        link.href = URL.createObjectURL(blob);
-        link.download = 'accounts.csv';
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-    
-    showNotification('Данные экспортированы в CSV 📁', 'success');
-}
-
 // Обработчики кликов вне модальных окон
 window.onclick = function(event) {
     const editModal = document.getElementById('editModal');
@@ -4866,4 +4781,3 @@ function generateWorkersDailyStatsHTML(periodSales) {
         </div>
     `;
 }
-

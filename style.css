@@ -2755,3 +2755,51 @@ body.dark-theme .burger-btn:hover {
         width: 320px;
     }
 }
+
+.price-old {
+        text-decoration: line-through;
+        color: #94a3b8;
+        font-size: 0.9em;
+        margin-bottom: 4px;
+    }
+    
+    .price-new {
+        font-size: 1.3em;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    
+    .discount-percent {
+        font-size: 1.8em;
+        font-weight: 800;
+        color: #ef4444;
+        text-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+    }
+    
+    .region-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 12px;
+        font-size: 0.85em;
+        font-weight: 600;
+    }
+    
+    .region-tr {
+        background: linear-gradient(135deg, #e63946 0%, #a4161a 100%);
+        color: white;
+    }
+    
+    .region-ua {
+        background: linear-gradient(135deg, #0057b7 0%, #ffd700 100%);
+        color: white;
+    }
+    
+    .discount-meta {
+        display: flex;
+        justify-content: space-between;
+        color: #64748b;
+        font-size: 0.85em;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed #e2e8f0;
+    }
