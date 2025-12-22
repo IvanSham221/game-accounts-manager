@@ -433,14 +433,6 @@ function updateNavigation() {
         `;
     }
     
-    // Кнопка экспорта
-    navButtons += `
-        <button onclick="security.updateSession(); exportToCSV()" class="btn btn-success">
-            <span>📁</span>
-            <span class="nav-text">Экспорт CSV</span>
-        </button>
-    `;
-    
     // Информация о пользователе и выход
     navButtons += `
         <div class="user-info">
@@ -559,7 +551,6 @@ function initMobileMenu() {
         { icon: '📊', text: 'Отчеты', page: 'reports.html', id: 'reports' },
         { icon: '📈', text: 'Статистика работников', page: 'workers-stats.html', id: 'workers-stats' },
         { icon: '👑', text: 'Работники', page: 'workers.html', id: 'workers', adminOnly: true },
-        { icon: '📁', text: 'Экспорт CSV', onclick: 'exportToCSV()', id: 'export' },
         { icon: '🔄', text: 'Синхронизация', onclick: 'syncData()', id: 'sync' }
     ];
 
@@ -4117,50 +4108,6 @@ function loadGamesForFilter() {
         filter.innerHTML = '<option value="">Все игры</option>' +
             games.map(game => `<option value="${game.id}">${game.name}</option>`).join('');
     }
-}
-
-// Экспорт данных
-function exportToCSV() {
-    if (accounts.length === 0) {
-        showNotification('Нет данных для экспорта', 'warning');
-        return;
-    }
-    
-    const headers = ['Игра', 'Логин PSN', 'Пароль PSN', 'Почта', 'Пароль почты', 'Сумма закупа', 'Коды PSN', 'Дата добавления'];
-    const csvRows = [];
-    
-    csvRows.push(headers.join(','));
-    
-    accounts.forEach(account => {
-        const row = [
-            `"${account.gameName}"`,
-            `"${account.psnLogin}"`,
-            `"${account.psnPassword || ''}"`,
-            `"${account.email || ''}"`,
-            `"${account.emailPassword || ''}"`,
-            account.purchaseAmount || 0,
-            `"${account.psnCodes || ''}"`,
-            `"${account.created}"`
-        ];
-        csvRows.push(row.join(','));
-    });
-    
-    const csvString = csvRows.join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    
-    if (navigator.msSaveBlob) {
-        navigator.msSaveBlob(blob, 'accounts.csv');
-    } else {
-        link.href = URL.createObjectURL(blob);
-        link.download = 'accounts.csv';
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-    
-    showNotification('Данные экспортированы в CSV 📁', 'success');
 }
 
 // Обработчики кликов вне модальных окон
