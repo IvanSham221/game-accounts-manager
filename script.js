@@ -4866,4 +4866,3 @@ function generateWorkersDailyStatsHTML(periodSales) {
         </div>
     `;
 }
-
