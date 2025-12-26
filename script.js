@@ -41,6 +41,24 @@ function checkAuth() {
     
     return true;
 }
+
+function initFirebaseListeners() {
+    console.log('🔔 Инициализация Firebase слушателей...');
+    
+    // Твои слушатели уже работают в firebase.js, но мы можем добавить дополнительные
+    
+    // Принудительно обновляем селекты при загрузке страницы
+    if (window.location.pathname.includes('add-account.html')) {
+        setTimeout(() => {
+            const freshGames = JSON.parse(localStorage.getItem('games')) || [];
+            if (freshGames.length > 0) {
+                games = freshGames;
+                loadGamesForSelect();
+            }
+        }, 500);
+    }
+}
+
 const POSITION_INSTRUCTIONS = {
     'p2_ps4': `🔐 Инструкция по активации П2 PS4:
 
@@ -829,6 +847,9 @@ function initApp() {
     
     // Инициализируем UI улучшения
     initUIEnhancements();
+
+    // Инициализируем Firebase слушатели
+    setTimeout(initFirebaseListeners, 1000);
     
     // Загружаем данные с синхронизацией
     loadAllDataWithSync().then(() => {
@@ -866,6 +887,13 @@ function initPage(currentPage) {
             if (typeof loadGamesForSelect === 'function') {
                 loadGamesForSelect();
             }
+            // Слушаем изменения в localStorage
+            window.addEventListener('storage', function(e) {
+                if (e.key === 'games' && window.location.pathname.includes('add-account.html')) {
+                    console.log('🔄 Обнаружено изменение игр, обновляем селект');
+                    setTimeout(loadGamesForSelect, 100);
+                }
+            });
             break;
             
         case 'accounts.html':
@@ -1850,23 +1878,105 @@ async function deleteGame(gameId) {
 // ============================================
 
 async function addAccount() {
+    console.log('➕ Добавляем новый аккаунт...');
+    
+    // Получаем данные из формы
     const formData = getAccountFormData();
     if (!formData) {
         return;
     }
     
+    // Показываем в консоли куда добавляем
+    console.log(`🎮 Добавляем аккаунт в игру: ${formData.gameName}`);
+    
+    // Создаем новый аккаунт
     const newAccount = {
         id: Date.now(),
         ...formData,
         created: new Date().toLocaleDateString('ru-RU'),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        comments: []
     };
 
+    // Добавляем в массив
     accounts.push(newAccount);
-    await saveToStorage('accounts', accounts);
-    clearAccountForm();
     
-    showNotification('Аккаунт успешно добавлен и синхронизирован! 🎮', 'success');
+    try {
+        // Сохраняем
+        await saveToStorage('accounts', accounts);
+        
+        // Очищаем форму (игра остается выбранной!)
+        clearAccountForm();
+        
+        // Показываем успешное сообщение
+        showNotification(`Аккаунт добавлен в "${formData.gameName}"! 🎮`, 'success');
+        
+        // Выводим в консоль для отладки
+        console.log(`✅ Аккаунт "${formData.psnLogin}" добавлен к игре "${formData.gameName}"`);
+        console.log(`📊 Всего аккаунтов в системе: ${accounts.length}`);
+        
+    } catch (error) {
+        console.error('❌ Ошибка при добавлении:', error);
+        showNotification('Ошибка при добавлении аккаунта ❌', 'error');
+    }
+}
+
+// 🔥 НОВАЯ ФУНКЦИЯ: мгновенное обновление селектов
+function refreshAllGameSelectsImmediately() {
+    console.log('🔥 Мгновенное обновление селектов');
+    
+    // Обновляем глобальную переменную games из localStorage
+    const freshGames = JSON.parse(localStorage.getItem('games')) || [];
+    games = freshGames;
+    
+    // Обновляем селекты без задержек
+    if (window.location.pathname.includes('add-account.html')) {
+        const select = document.getElementById('accountGame');
+        if (select) {
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">Выберите игру</option>';
+            
+            freshGames.forEach(game => {
+                const option = document.createElement('option');
+                option.value = game.id;
+                option.textContent = game.name;
+                select.appendChild(option);
+            });
+            
+            const freeOption = document.createElement('option');
+            freeOption.value = 0;
+            freeOption.textContent = 'Свободный';
+            select.appendChild(freeOption);
+            
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        }
+    }
+    
+    // Обновляем другие селекты если они есть на странице
+    const managerSelect = document.getElementById('managerGame');
+    if (managerSelect && window.location.pathname.includes('manager.html')) {
+        const currentValue = managerSelect.value;
+        managerSelect.innerHTML = '<option value="">Выберите игру</option>';
+        
+        freshGames.forEach(game => {
+            const option = document.createElement('option');
+            option.value = game.id;
+            option.textContent = game.name;
+            managerSelect.appendChild(option);
+        });
+        
+        if (currentValue) {
+            managerSelect.value = currentValue;
+        }
+    }
+    
+    // Обновляем автодополнение если есть
+    if (window.autoComplete && typeof window.autoComplete.loadGames === 'function') {
+        window.autoComplete.loadGames();
+        window.autoComplete.setupAllSelects();
+    }
 }
 
 function getAccountFormData() {
@@ -1874,9 +1984,25 @@ function getAccountFormData() {
     const gameId = parseInt(gameSelect.value);
     const game = games.find(g => g.id === gameId);
     
+    // Проверяем выбрана ли игра
+    if (!gameId) {
+        console.warn('⚠️ Игра не выбрана - создаем Свободный аккаунт');
+        // Можно добавить предупреждение, но не блокируем
+        // showNotification('Игра не выбрана - аккаунт будет Свободным', 'warning');
+    }
+    
     const psnLogin = document.getElementById('psnLogin').value.trim();
     if (!psnLogin) {
-        showNotification('Введите логин PSN', 'warning');
+        showNotification('Введите логин PSN!', 'warning');
+        return null;
+    }
+    
+    // Проверка на дубликат логина
+    const duplicate = accounts.find(acc => 
+        acc.psnLogin.toLowerCase() === psnLogin.toLowerCase()
+    );
+    if (duplicate) {
+        showNotification(`Логин "${psnLogin}" уже существует!`, 'error');
         return null;
     }
     
@@ -1906,12 +2032,12 @@ function getAccountFormData() {
             p3_ps5: parseInt(document.getElementById('p3_ps5').value) || 0
         }
     };
-
-    comments: [];
 }
 
 function clearAccountForm() {
-    document.getElementById('accountGame').selectedIndex = 0;
+    console.log('🧹 Очищаю форму (игра остается выбранной)');
+    
+    // Очищаем ВСЕ поля КРОМЕ выбранной игры
     document.getElementById('purchaseAmount').value = '';
     document.getElementById('psnLogin').value = '';
     document.getElementById('psnPassword').value = '';
@@ -1921,11 +2047,24 @@ function clearAccountForm() {
     document.getElementById('birthDate').value = '';
     document.getElementById('psnCodes').value = '';
     document.getElementById('psnAuthenticator').value = '';
+    
+    // Сбрасываем позиции на 0
     document.getElementById('p2_ps4').value = '0';
     document.getElementById('p3_ps4').value = '0';
     document.getElementById('p2_ps5').value = '0';
     document.getElementById('p3_ps5').value = '0';
+    
+    // Фокус на поле логина для быстрого ввода следующего аккаунта
+    setTimeout(() => {
+        const loginField = document.getElementById('psnLogin');
+        if (loginField) {
+            loginField.focus();
+        }
+    }, 100);
+    
+    console.log('✅ Форма очищена (игра осталась выбранной)');
 }
+
 
 // ============================================
 // ОТОБРАЖЕНИЕ АККАУНТОВ
@@ -2088,29 +2227,48 @@ function refreshAccountsPage() {
 
 
 // Функция для обновления всех селектов с играми
+// Функция для обновления всех селектов с играми
 function refreshAllGameSelects() {
+    console.log('🔄 Обновляем все селекты с играми');
+    
+    // Обновляем данные из localStorage
     const freshGames = JSON.parse(localStorage.getItem('games')) || [];
     if (JSON.stringify(freshGames) !== JSON.stringify(games)) {
         games = freshGames;
-        
-        setTimeout(() => {
-            if (typeof loadGamesForSelect === 'function') {
-                loadGamesForSelect();
-            }
-            if (typeof loadGamesForFilter === 'function') {
-                loadGamesForFilter();
-            }
-            if (typeof loadGamesForManager === 'function') {
-                loadGamesForManager();
-            }
-            console.log('🔄 Все селекты с играми обновлены');
-            
-            // Обновляем автодополнение если есть
-            if (window.autoComplete) {
-                window.autoComplete.loadGames();
-            }
-        }, 100);
     }
+    
+    // Обновляем все селекты на разных страницах
+    setTimeout(() => {
+        // На странице добавления аккаунта
+        if (typeof loadGamesForSelect === 'function' && 
+            window.location.pathname.includes('add-account.html')) {
+            loadGamesForSelect();
+        }
+        
+        // На странице фильтрации аккаунтов
+        if (typeof loadGamesForFilter === 'function' && 
+            window.location.pathname.includes('accounts.html')) {
+            loadGamesForFilter();
+        }
+        
+        // На странице менеджера
+        if (typeof loadGamesForManager === 'function' && 
+            window.location.pathname.includes('manager.html')) {
+            loadGamesForManager();
+        }
+        
+        console.log('✅ Все селекты обновлены');
+        
+        // Обновляем автодополнение если есть
+        if (window.autoComplete && typeof window.autoComplete.loadGames === 'function') {
+            setTimeout(() => {
+                window.autoComplete.loadGames();
+                window.autoComplete.setupAllSelects();
+                console.log('✅ Автодополнение обновлено');
+            }, 300);
+        }
+        
+    }, 100);
 }
 
 
@@ -4560,10 +4718,40 @@ function getSalesListHTML(salesData) {
 
 function loadGamesForSelect() {
     const select = document.getElementById('accountGame');
-    if (select) {
-        select.innerHTML = '<option value="">Выберите игру</option>' +
-            games.map(game => `<option value="${game.id}">${game.name}</option>`).join('');
+    if (!select) return;
+    
+    // Всегда обновляем games из localStorage перед показом
+    const freshGames = JSON.parse(localStorage.getItem('games')) || [];
+    games = freshGames;
+    
+    console.log('🔄 Загружаем игры для селекта:', freshGames.length);
+    
+    // Сохраняем текущее значение
+    const currentValue = select.value;
+    
+    // Очищаем и заполняем заново
+    select.innerHTML = '<option value="">Выберите игру</option>';
+    
+    // Добавляем все игры
+    freshGames.forEach(game => {
+        const option = document.createElement('option');
+        option.value = game.id;
+        option.textContent = game.name;
+        select.appendChild(option);
+    });
+    
+    // Добавляем опцию "Свободный"
+    const freeOption = document.createElement('option');
+    freeOption.value = 0;
+    freeOption.textContent = 'Свободный';
+    select.appendChild(freeOption);
+    
+    // Восстанавливаем выбранное значение если нужно
+    if (currentValue) {
+        select.value = currentValue;
     }
+    
+    console.log('✅ Селект игр обновлен, игр:', freshGames.length);
 }
 
 function loadGamesForFilter() {
