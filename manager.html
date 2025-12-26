@@ -58,6 +58,7 @@
                         <option value="">Выберите игру</option>
                     </select>
                     <button onclick="searchByGame()" class="btn btn-primary">Найти по игре</button>
+                    <button onclick="showGameStats()" class="btn btn-info" id="showStatsBtn" style="display: none;">📊 Показать статистику</button>
                 </div>
                 
                 <div class="search-group">
@@ -65,16 +66,6 @@
                     <input type="text" id="managerLogin" placeholder="Введите логин PSN..." class="input">
                     <button onclick="searchByLogin()" class="btn btn-primary">Найти по логину</button>
                 </div>
-                
-                <!-- В manager.html после существующего поиска -->
-<div class="search-group">
-    <label>Фильтр по менеджеру:</label>
-    <select id="filterManager" class="input" onchange="filterByManager()">
-        <option value="">Все менеджеры</option>
-    </select>
-</div>
-
-                <button onclick="clearManagerSearch()" class="btn btn-secondary">Очистить поиск</button>
             </div>
         </div>
 

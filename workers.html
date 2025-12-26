@@ -8,59 +8,51 @@
 </head>
 <body>
     <div id="mobileMenu" class="mobile-menu">
-    <div class="mobile-menu-header">
-        <div class="user-info-mobile">
-            <div class="user-avatar">👤</div>
-            <div>
-                <div class="user-name" id="mobileUserName"></div>
-                <div class="user-role" id="mobileUserRole"></div>
-            </div>
-        </div>
-        <button class="close-menu" onclick="toggleMobileMenu()">×</button>
-    </div>
-    
-    <div class="mobile-menu-nav">
-        <!-- Пункты меню будут добавляться скриптом -->
-    </div>
-    
-    <div class="mobile-menu-footer">
-        <button onclick="logout()" class="btn btn-danger btn-block">
-            <span>🚪</span> Выйти
-        </button>
-    </div>
-</div>
-
-<!-- Бургер-кнопка -->
-<div class="burger-container">
-    <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
-        <div class="burger-icon">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-        <!-- Опционально: бейдж с уведомлениями -->
-        <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
-        <!-- Текст при наведении (только на ПК) -->
-        <div class="burger-label">Меню</div>
-    </button>
-</div>
-
-<!-- Оверлей для закрытия меню -->
-<div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
-    <div class="container">
-        <h1><span>👑</span><span>Управление работниками</span></h1>
-        <!-- Проверка доступа -->
-        <div id="accessCheck">
-            <div class="section">
-                <div style="text-align: center; padding: 40px;">
-                    <div class="loading">⏳</div>
-                    <p>Проверка прав доступа...</p>
+        <div class="mobile-menu-header">
+            <div class="user-info-mobile">
+                <div class="user-avatar">👤</div>
+                <div>
+                    <div class="user-name" id="mobileUserName"></div>
+                    <div class="user-role" id="mobileUserRole"></div>
                 </div>
             </div>
+            <button class="close-menu" onclick="toggleMobileMenu()">×</button>
         </div>
+        
+        <div class="mobile-menu-nav">
+            <!-- Пункты меню будут добавляться скриптом -->
+        </div>
+        
+        <div class="mobile-menu-footer">
+            <button onclick="logout()" class="btn btn-danger btn-block">
+                <span>🚪</span> Выйти
+            </button>
+        </div>
+    </div>
 
-        <!-- Контент для администратора (скрыт по умолчанию) -->
-        <div id="adminContent" style="display: none;">
+    <!-- Бургер-кнопка -->
+    <div class="burger-container">
+        <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
+            <div class="burger-icon">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <!-- Опционально: бейдж с уведомлениями -->
+            <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
+            <!-- Текст при наведении (только на ПК) -->
+            <div class="burger-label">Меню</div>
+        </button>
+    </div>
+
+    <!-- Оверлей для закрытия меню -->
+    <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
+    
+    <div class="container">
+        <h1><span>👑</span><span>Управление работниками</span></h1>
+        
+        <!-- Прямо показываем контент, без проверки админа -->
+        <div id="adminContent">
             <!-- Форма добавления работника -->
             <div class="section">
                 <h2>➕ Добавить работника</h2>
@@ -101,48 +93,33 @@
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            checkAdminAccess();
-        });
-        
-        // Проверка прав администратора
-        function checkAdminAccess() {
+            // Простая проверка авторизации
             const user = security.getCurrentUser();
-            
             if (!user) {
                 window.location.href = 'login.html';
                 return;
             }
             
-            if (user.role !== 'admin') {
-                document.getElementById('accessCheck').innerHTML = `
-                    <div class="section">
-                        <div style="text-align: center; padding: 40px;">
-                            <div style="font-size: 60px; margin-bottom: 20px;">🚫</div>
-                            <h2>Доступ запрещен</h2>
-                            <p style="margin: 15px 0;">Только администратор может управлять работниками</p>
-                            <button onclick="location.href='manager.html'" class="btn btn-primary">
-                                Вернуться на панель
-                            </button>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
+            // Просто инициализируем меню
+            initMobileMenu();
             
-            // Показываем админ-панель
-            document.getElementById('accessCheck').style.display = 'none';
-            document.getElementById('adminContent').style.display = 'block';
-            
-            // Загружаем работников
+            // Загружаем работников сразу
             loadWorkers();
-        }
+        });
         
-        // Загрузка работников
-        async function loadWorkers() {
+        // Загрузка работников (простая версия)
+        function loadWorkers() {
             try {
-                // Используем dataSync для загрузки
-                const workers = await dataSync.forceSyncWorkers();
+                const workersStr = localStorage.getItem('workers');
+                let workers = workersStr ? JSON.parse(workersStr) : [];
+                
+                // Если нет работников в хранилище, создаем пустой массив
+                if (!workersStr) {
+                    localStorage.setItem('workers', JSON.stringify([]));
+                }
+                
                 displayWorkers(workers);
+                
             } catch (error) {
                 console.error('Ошибка загрузки работников:', error);
                 document.getElementById('workersList').innerHTML = `
@@ -157,9 +134,8 @@
         // Отображение работников
         function displayWorkers(workers) {
             const workersList = document.getElementById('workersList');
-            const user = security.getCurrentUser();
             
-            if (workers.length === 0) {
+            if (!workers || workers.length === 0) {
                 workersList.innerHTML = `
                     <div class="empty">
                         <div style="font-size: 50px; margin-bottom: 15px;">👥</div>
@@ -174,41 +150,35 @@
                 <div class="item" style="margin-bottom: 15px; padding: 20px; border-radius: 10px; background: rgba(255,255,255,0.8); border: 1px solid #eee;">
                     <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
                         <div>
-                            <strong>${worker.name}</strong>
+                            <strong>${worker.name || worker.username || 'Без имени'}</strong>
                             <div style="color: #666; font-size: 0.9em; margin-top: 5px;">
-                                Логин: ${worker.username} | 
+                                Логин: ${worker.username || 'Не указан'} | 
                                 Добавлен: ${worker.created || 'Не указано'}
                             </div>
                         </div>
                         <div>
-                            <span style="padding: 4px 10px; border-radius: 20px; font-size: 0.85em; background: ${worker.active ? '#e8f5e9' : '#ffebee'}; color: ${worker.active ? '#2e7d32' : '#c62828'};">
-                                ${worker.active ? '✅ Активен' : '❌ Неактивен'}
+                            <span style="padding: 4px 10px; border-radius: 20px; font-size: 0.85em; background: ${(worker.active !== false) ? '#e8f5e9' : '#ffebee'}; color: ${(worker.active !== false) ? '#2e7d32' : '#c62828'};">
+                                ${(worker.active !== false) ? '✅ Активен' : '❌ Неактивен'}
                             </span>
                         </div>
                     </div>
                     
-                    ${worker.username !== 'admin' && worker.username !== user.username ? `
-                        <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
-                            <button class="btn btn-small ${worker.active ? 'btn-warning' : 'btn-success'}" 
-                                    onclick="toggleWorker('${worker.username}', ${!worker.active})">
-                                ${worker.active ? 'Деактивировать' : 'Активировать'}
-                            </button>
-                            <button class="btn btn-danger btn-small" 
-                                    onclick="deleteWorker('${worker.username}')">
-                                Удалить
-                            </button>
-                        </div>
-                    ` : worker.username === user.username ? `
-                        <div style="margin-top: 10px; color: #4361ee; font-weight: 500;">
-                            👤 Это вы
-                        </div>
-                    ` : ''}
+                    <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                        <button class="btn btn-small ${(worker.active !== false) ? 'btn-warning' : 'btn-success'}" 
+                                onclick="toggleWorker('${worker.username}', ${(worker.active !== false) ? 'false' : 'true'})">
+                            ${(worker.active !== false) ? 'Деактивировать' : 'Активировать'}
+                        </button>
+                        <button class="btn btn-danger btn-small" 
+                                onclick="deleteWorker('${worker.username}')">
+                            Удалить
+                        </button>
+                    </div>
                 </div>
             `).join('');
         }
         
         // Добавить работника
-        async function addWorker() {
+        function addWorker() {
             const name = document.getElementById('workerName').value.trim();
             const username = document.getElementById('workerLogin').value.trim();
             const password = document.getElementById('workerPassword').value;
@@ -231,13 +201,15 @@
                 return;
             }
             
-            if (username === 'admin') {
-                alert('Логин "admin" зарезервирован');
-                return;
+            // Загружаем существующих работников
+            let workers = [];
+            try {
+                const workersStr = localStorage.getItem('workers');
+                workers = workersStr ? JSON.parse(workersStr) : [];
+            } catch (e) {
+                console.error('Ошибка чтения работников:', e);
+                workers = [];
             }
-            
-            // Загружаем существующих работников через dataSync
-            let workers = await dataSync.forceSyncWorkers();
             
             // Проверяем уникальность логина
             if (workers.find(w => w.username === username)) {
@@ -246,20 +218,21 @@
             }
             
             // Добавляем нового работника
-            workers.push({
+            const newWorker = {
                 name: name,
                 username: username,
-                password: password,
+                password: security.hashPassword(password), // Хешируем пароль
                 active: active,
                 created: new Date().toLocaleString('ru-RU'),
-                role: 'worker',
-                createdBy: JSON.parse(localStorage.getItem('currentUser')).username
-            });
+                role: 'worker'
+            };
             
-            // Сохраняем через dataSync (он сам синхронизирует с Firebase)
-            const result = await dataSync.saveWorkers(workers);
+            workers.push(newWorker);
             
-            if (result.success) {
+            try {
+                // Сохраняем в localStorage
+                localStorage.setItem('workers', JSON.stringify(workers));
+                
                 // Очищаем форму
                 document.getElementById('workerName').value = '';
                 document.getElementById('workerLogin').value = '';
@@ -270,19 +243,30 @@
                 loadWorkers();
                 
                 // Показываем уведомление
-                alert(`Работник "${name}" добавлен! ${result.synced ? 'Синхронизировано с облаком.' : 'Сохранено локально.'}`);
-            } else {
-                alert('Ошибка сохранения');
+                alert(`Работник "${name}" добавлен!`);
+                
+            } catch (error) {
+                console.error('❌ Ошибка сохранения:', error);
+                alert('Ошибка сохранения работника');
             }
         }
         
         // Изменить статус работника
-        async function toggleWorker(username, active) {
+        function toggleWorker(username, active) {
             if (!confirm(`${active ? 'Активировать' : 'Деактивировать'} работника?`)) {
                 return;
             }
             
-            let workers = await dataSync.forceSyncWorkers();
+            let workers = [];
+            try {
+                const workersStr = localStorage.getItem('workers');
+                workers = workersStr ? JSON.parse(workersStr) : [];
+            } catch (e) {
+                console.error('Ошибка чтения работников:', e);
+                alert('Ошибка чтения данных');
+                return;
+            }
+            
             const workerIndex = workers.findIndex(w => w.username === username);
             
             if (workerIndex === -1) {
@@ -291,60 +275,109 @@
             }
             
             workers[workerIndex].active = active;
-            const result = await dataSync.saveWorkers(workers);
             
-            if (result.success) {
+            try {
+                localStorage.setItem('workers', JSON.stringify(workers));
                 loadWorkers();
-                alert(`Статус работника изменен! ${result.synced ? 'Синхронизировано с облаком.' : 'Сохранено локально.'}`);
-            } else {
+                alert(`Статус работника изменен!`);
+            } catch (error) {
+                console.error('❌ Ошибка сохранения:', error);
                 alert('Ошибка сохранения');
             }
         }
         
         // Удалить работника
-        async function deleteWorker(username) {
+        function deleteWorker(username) {
             if (!confirm('Удалить этого работника?')) {
                 return;
             }
             
-            let workers = await dataSync.forceSyncWorkers();
+            let workers = [];
+            try {
+                const workersStr = localStorage.getItem('workers');
+                workers = workersStr ? JSON.parse(workersStr) : [];
+            } catch (e) {
+                console.error('Ошибка чтения работников:', e);
+                alert('Ошибка чтения данных');
+                return;
+            }
+            
             workers = workers.filter(w => w.username !== username);
             
-            const result = await dataSync.saveWorkers(workers);
-            
-            if (result.success) {
+            try {
+                localStorage.setItem('workers', JSON.stringify(workers));
                 loadWorkers();
-                alert(`Работник удален! ${result.synced ? 'Синхронизировано с облаком.' : 'Сохранено локально.'}`);
-            } else {
+                alert(`Работник удален!`);
+            } catch (error) {
+                console.error('❌ Ошибка удаления:', error);
                 alert('Ошибка удаления');
             }
         }
         
-        // Стили
-        const style = document.createElement('style');
-        style.textContent = `
-            .loading {
-                font-size: 40px;
-                animation: spin 1s linear infinite;
-            }
+        // Инициализация мобильного меню
+        function initMobileMenu() {
+            const user = security.getCurrentUser();
+            if (!user) return;
             
-            @keyframes spin {
-                from { transform: rotate(0deg); }
-                to { transform: rotate(360deg); }
-            }
+            // Обновляем информацию пользователя в меню
+            document.getElementById('mobileUserName').textContent = user.name || user.username;
+            document.getElementById('mobileUserRole').textContent = 
+                user.role === 'admin' ? 'Администратор 👑' : 'Работник 👷';
             
-            .btn-warning {
-                background: #ff9800;
-                color: white;
-            }
+            // Пункты меню
+            const menuItems = [
+                { icon: '🎮', text: 'Панель менеджера', page: 'manager.html' },
+                { icon: '➕', text: 'Добавить аккаунт', page: 'add-account.html' },
+                { icon: '📋', text: 'Список аккаунтов', page: 'accounts.html' },
+                { icon: '🆓', text: 'Свободные аккаунты', page: 'free-accounts.html' },
+                { icon: '🎯', text: 'Управление играми', page: 'games.html' },
+                { icon: '📊', text: 'Отчеты', page: 'reports.html' },
+                { icon: '📈', text: 'Статистика работников', page: 'workers-stats.html' },
+                { icon: '🔥', text: 'Акции PS Store', page: 'discounts.html' },
+                { icon: '👑', text: 'Работники', page: 'workers.html' }
+            ];
             
-            .empty {
-                text-align: center;
-                padding: 40px 20px;
-                color: #666;
+            const menuNav = document.querySelector('.mobile-menu-nav');
+            menuNav.innerHTML = '';
+            
+            menuItems.forEach(item => {
+                const menuItem = document.createElement('a');
+                menuItem.className = 'mobile-menu-item';
+                menuItem.href = item.page;
+                menuItem.onclick = function() {
+                    toggleMobileMenu();
+                };
+                
+                menuItem.innerHTML = `
+                    <span style="margin-right: 15px; font-size: 1.3rem;">${item.icon}</span>
+                    <span>${item.text}</span>
+                `;
+                
+                menuNav.appendChild(menuItem);
+            });
+        }
+        
+        // Переключение мобильного меню
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            const overlay = document.getElementById('menuOverlay');
+            const burgerBtn = document.querySelector('.burger-btn');
+            
+            menu.classList.toggle('active');
+            overlay.classList.toggle('active');
+            burgerBtn.classList.toggle('active');
+            
+            if (menu.classList.contains('active')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = 'auto';
             }
-        `;
-        document.head.appendChild(style);
+        }
+        
+        // Выход из системы
+        function logout() {
+            security.logout();
+        }
     </script>
 </body>
 </html>

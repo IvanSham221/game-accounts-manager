@@ -2,28 +2,20 @@ let games = [];
 let accounts = [];
 let sales = [];
 let currentUser = null;
+let showAllAccounts = false
 
 function extractProductId(url) {
     if (!url || typeof url !== 'string') return '';
-    
-    // Убираем возможные параметры запроса
     const cleanUrl = url.split('?')[0];
-    
-    // Ищем product/ в ссылке
     const productMatch = cleanUrl.match(/product\/([A-Z0-9_-]+)/i);
     if (productMatch) return productMatch[1];
-    
-    // Альтернативный формат
     const idMatch = cleanUrl.match(/([A-Z]{2}\d{4}-[A-Z]{3}\d{5}_\d{2}-[A-Z0-9]+)/i);
     if (idMatch) return idMatch[1];
-    
     return '';
 }
 
-// Функция для проверки ссылки PS Store
 function isValidPSStoreUrl(url, region = 'TR') {
     if (!url) return false;
-    
     if (region === 'TR') {
         return url.includes('store.playstation.com') && 
                (url.includes('/tr-tr/') || url.includes('/tr/'));
@@ -31,22 +23,13 @@ function isValidPSStoreUrl(url, region = 'TR') {
         return url.includes('store.playstation.com') && 
                (url.includes('/uk-ua/') || url.includes('/ua/'));
     }
-    
     return false;
 }
-
-// ============================================
-// СИСТЕМА АВТОРИЗАЦИИ И НАВИГАЦИИ
-// ============================================
-
-// Проверка авторизации
 function checkAuth() {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     if (!currentUser) {
         return false;
     }
-    
-    // Проверяем, активен ли пользователь (для работников)
     if (currentUser.role === 'worker') {
         const workers = JSON.parse(localStorage.getItem('workers')) || [];
         const worker = workers.find(w => w.username === currentUser.username);
@@ -58,11 +41,6 @@ function checkAuth() {
     
     return true;
 }
-
-// ============================================
-// ИНСТРУКЦИИ ДЛЯ РАЗНЫХ ТИПОВ ПОЗИЦИЙ
-// ============================================
-
 const POSITION_INSTRUCTIONS = {
     'p2_ps4': `🔐 Инструкция по активации П2 PS4:
 
@@ -136,8 +114,6 @@ const POSITION_INSTRUCTIONS = {
 📩 Как только всё получится — пожалуйста, подтвердите выполнение заказа!
 ⭐ Мы будем благодарны за ваш отзыв — он поможет нам в развитии!`
 };
-
-// Добавьте в начало script.js после русских инструкций:
 const POSITION_INSTRUCTIONS_EN = {
     'p2_ps4': `🔐 Activation instructions for P2 PS4:
 
@@ -212,7 +188,6 @@ Click on the avatar → change user → switch to your personal user
 ⭐ We would appreciate your feedback—it will help us improve!`
 };
 
-// Функция для получения инструкции по типу позиции
 function getInstructionForPosition(positionType) {
     return POSITION_INSTRUCTIONS[positionType] || 
            '⚠️ Инструкция для данного типа позиции не найдена.';
@@ -226,8 +201,6 @@ function toggleMobileMenu() {
     menu.classList.toggle('active');
     overlay.classList.toggle('active');
     burgerBtn.classList.toggle('active');
-    
-    // Блокировка прокрутки страницы при открытом меню
     if (menu.classList.contains('active')) {
         document.body.style.overflow = 'hidden';
     } else {
@@ -245,8 +218,6 @@ function closeMobileMenu() {
     burgerBtn.classList.remove('active');
     document.body.style.overflow = 'auto';
 }
-
-// ==================== УНИВЕРСАЛЬНЫЕ ФУНКЦИИ МОДАЛЬНЫХ ОКОН ====================
 
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
@@ -273,21 +244,16 @@ function closeModal(modalId) {
         }, 300);
     }
 }
-
-// Обновленные функции закрытия
 function closeModal() {
     closeModal('editModal');
 }
-
 function closeFreeModal() {
     closeModal('editFreeModal');
 }
-
 function closeSaleModal() {
     closeModal('saleModal');
 }
 
-// Обработчик клика вне модального окна
 window.onclick = function(event) {
     const modals = ['editModal', 'editFreeModal', 'saleModal'];
     
@@ -794,6 +760,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+     // Скрываем кнопку статистики при загрузке
+    const statsBtn = document.getElementById('showStatsBtn');
+    if (statsBtn) {
+        statsBtn.style.display = 'none';
+    }
+    
+    // Скрываем секцию статистики
+    const statsSection = document.getElementById('statsSection');
+    if (statsSection) {
+        statsSection.style.display = 'none';
+    }
 });
 
 // ФУНКЦИЯ ДЛЯ ЗАГРУЗКИ ВСЕХ ДАННЫХ С СИНХРОНИЗАЦИЕЙ
@@ -909,11 +887,9 @@ function initPage(currentPage) {
             if (typeof loadGamesForManager === 'function') {
                 loadGamesForManager();
             }
-            if (typeof loadManagersForFilter === 'function') {
-                setTimeout(() => {
-                    loadManagersForFilter();
-                }, 1000);
-            }
+            setTimeout(() => {
+                setupGameSelectListener();
+            }, 500);
             break;
             
         case 'free-accounts.html':
@@ -2479,6 +2455,16 @@ function searchByGame() {
     
     if (!gameId) {
         showNotification('Выберите игру для поиска', 'warning');
+        
+        // Скрываем кнопку статистики если игра не выбрана
+        const statsBtn = document.getElementById('showStatsBtn');
+        if (statsBtn) {
+            statsBtn.style.display = 'none';
+        }
+        
+        // Очищаем результаты
+        document.getElementById('searchResults').innerHTML = '';
+        
         return;
     }
     
@@ -2489,7 +2475,335 @@ function searchByGame() {
     }
     
     const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
+    
+    // Показываем кнопку статистики только если есть аккаунты
+    const statsBtn = document.getElementById('showStatsBtn');
+    if (statsBtn) {
+        if (gameAccounts.length > 0) {
+            statsBtn.style.display = 'inline-block';
+            statsBtn.textContent = `📊 Статистика (${gameAccounts.length} акк.)`;
+        } else {
+            statsBtn.style.display = 'none';
+        }
+    }
+    
+    // ВАЖНО: НЕ показываем статистику автоматически!
+    // Просто скрываем старую статистику если она была
+    document.getElementById('statsSection').style.display = 'none';
+    
+    // Показываем результаты поиска
     displaySearchResults(gameAccounts, game.name);
+    
+    // Если нет аккаунтов - показываем сообщение
+    if (gameAccounts.length === 0) {
+        showNotification(`По игре "${game.name}" не найдено аккаунтов`, 'info');
+        document.getElementById('searchResults').innerHTML = `
+            <div class="empty">
+                <h3>По игре "${game.name}" не найдено аккаунтов</h3>
+                <p>Добавьте аккаунты для этой игры</p>
+            </div>
+        `;
+    }
+}
+
+// ============================================
+// ФУНКЦИЯ ПОКАЗА СТАТИСТИКИ ПО ИГРЕ
+// ============================================
+
+function showGameStats() {
+    const gameSelect = document.getElementById('managerGame');
+    const gameId = parseInt(gameSelect.value);
+    
+    if (!gameId) {
+        showNotification('Выберите игру для просмотра статистики', 'warning');
+        return;
+    }
+    
+    const game = games.find(g => g.id === gameId);
+    if (!game) {
+        showNotification('Игра не найдена', 'error');
+        return;
+    }
+    
+    const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
+    
+    if (gameAccounts.length === 0) {
+        showNotification('Нет аккаунтов для этой игры', 'info');
+        return;
+    }
+    
+    // Рассчитываем статистику
+    const stats = calculateGameStats(gameAccounts);
+    
+    // Показываем статистику
+    displayGameStats(game.name, stats);
+    
+    // Прокручиваем к статистике
+    const statsSection = document.getElementById('statsSection');
+    if (statsSection) {
+        statsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+// Функция расчета статистики
+function calculateGameStats(gameAccounts) {
+    let stats = {
+        totalAccounts: gameAccounts.length,
+        
+        // Все позиции
+        totalPositions: 0,
+        freePositions: 0,
+        soldPositions: 0,
+        
+        // По типам позиций
+        p2_ps4: { total: 0, free: 0, sold: 0 },
+        p3_ps4: { total: 0, free: 0, sold: 0 },
+        p2_ps5: { total: 0, free: 0, sold: 0 },
+        p3_ps5: { total: 0, free: 0, sold: 0 },
+        
+        // Продажи
+        totalRevenue: 0,
+        avgPrice: 0,
+        salesCount: 0
+    };
+    
+    // Собираем все ID аккаунтов для быстрого поиска продаж
+    const accountIds = gameAccounts.map(acc => acc.id);
+    const gameSales = sales.filter(sale => accountIds.includes(sale.accountId));
+    
+    stats.salesCount = gameSales.length;
+    stats.totalRevenue = gameSales.reduce((sum, sale) => sum + sale.price, 0);
+    stats.avgPrice = stats.salesCount > 0 ? stats.totalRevenue / stats.salesCount : 0;
+    
+    // Рассчитываем позиции
+    gameAccounts.forEach(account => {
+        // P2 PS4
+        const p2_ps4_count = account.positions.p2_ps4 || 0;
+        stats.p2_ps4.total += p2_ps4_count;
+        stats.totalPositions += p2_ps4_count;
+        
+        // P3 PS4
+        const p3_ps4_count = account.positions.p3_ps4 || 0;
+        stats.p3_ps4.total += p3_ps4_count;
+        stats.totalPositions += p3_ps4_count;
+        
+        // P2 PS5
+        const p2_ps5_count = account.positions.p2_ps5 || 0;
+        stats.p2_ps5.total += p2_ps5_count;
+        stats.totalPositions += p2_ps5_count;
+        
+        // P3 PS5
+        const p3_ps5_count = account.positions.p3_ps5 || 0;
+        stats.p3_ps5.total += p3_ps5_count;
+        stats.totalPositions += p3_ps5_count;
+    });
+    
+    // Рассчитываем проданные позиции по каждой категории
+    gameSales.forEach(sale => {
+        switch(sale.positionType) {
+            case 'p2_ps4':
+                stats.p2_ps4.sold++;
+                stats.soldPositions++;
+                break;
+            case 'p3_ps4':
+                stats.p3_ps4.sold++;
+                stats.soldPositions++;
+                break;
+            case 'p2_ps5':
+                stats.p2_ps5.sold++;
+                stats.soldPositions++;
+                break;
+            case 'p3_ps5':
+                stats.p3_ps5.sold++;
+                stats.soldPositions++;
+                break;
+        }
+    });
+    
+    // Рассчитываем свободные позиции
+    stats.p2_ps4.free = stats.p2_ps4.total - stats.p2_ps4.sold;
+    stats.p3_ps4.free = stats.p3_ps4.total - stats.p3_ps4.sold;
+    stats.p2_ps5.free = stats.p2_ps5.total - stats.p2_ps5.sold;
+    stats.p3_ps5.free = stats.p3_ps5.total - stats.p3_ps5.sold;
+    
+    stats.freePositions = stats.totalPositions - stats.soldPositions;
+    
+    return stats;
+}
+
+function displayGameStats(gameName, stats) {
+    const statsSection = document.getElementById('statsSection');
+    
+    // Компактная версия статистики
+    statsSection.style.display = 'block';
+    statsSection.innerHTML = `
+        <div class="stats-header">
+            <h3>📊 Статистика: ${gameName}</h3>
+            <button class="btn btn-small btn-secondary" onclick="hideStats()" style="margin-left: auto;">
+                Скрыть статистику
+            </button>
+        </div>
+        
+        <div class="compact-stats-grid">
+            <!-- Основная статистика -->
+            <div class="compact-stat-card main-stat">
+                <div class="compact-stat-value">${stats.totalAccounts}</div>
+                <div class="compact-stat-label">Всего аккаунтов</div>
+            </div>
+            
+            <div class="compact-stat-card main-stat">
+                <div class="compact-stat-value">${stats.totalPositions}</div>
+                <div class="compact-stat-label">Всего позиций</div>
+            </div>
+            
+            <div class="compact-stat-card main-stat free-positions">
+                <div class="compact-stat-value">${stats.freePositions}</div>
+                <div class="compact-stat-label">Свободных позиций</div>
+            </div>
+            
+            <div class="compact-stat-card main-stat sold-positions">
+                <div class="compact-stat-value">${stats.soldPositions}</div>
+                <div class="compact-stat-label">Продано позиций</div>
+            </div>
+        </div>
+        
+        <!-- Детализация по типам позиций -->
+        <div class="position-stats-section">
+            <h4 style="margin: 20px 0 15px 0; color: #64748b; font-size: 0.9em;">📈 Детализация по позициям:</h4>
+            
+            <div class="position-stats-grid">
+                <!-- PS4 -->
+                <div class="platform-stats">
+                    <div class="platform-title">🎮 PS4</div>
+                    
+                    <div class="position-type-stats">
+                        <div class="position-stat-item">
+                            <div class="position-type-label">П2 PS4:</div>
+                            <div class="position-numbers">
+                                <span class="total-positions">${stats.p2_ps4.total}</span>
+                                <span class="separator">/</span>
+                                <span class="free-positions" style="color: #10b981;">${stats.p2_ps4.free}</span>
+                                <span class="separator">/</span>
+                                <span class="sold-positions" style="color: #ef4444;">${stats.p2_ps4.sold}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="position-stat-item">
+                            <div class="position-type-label">П3 PS4:</div>
+                            <div class="position-numbers">
+                                <span class="total-positions">${stats.p3_ps4.total}</span>
+                                <span class="separator">/</span>
+                                <span class="free-positions" style="color: #10b981;">${stats.p3_ps4.free}</span>
+                                <span class="separator">/</span>
+                                <span class="sold-positions" style="color: #ef4444;">${stats.p3_ps4.sold}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- PS5 -->
+                <div class="platform-stats">
+                    <div class="platform-title">🎮 PS5</div>
+                    
+                    <div class="position-type-stats">
+                        <div class="position-stat-item">
+                            <div class="position-type-label">П2 PS5:</div>
+                            <div class="position-numbers">
+                                <span class="total-positions">${stats.p2_ps5.total}</span>
+                                <span class="separator">/</span>
+                                <span class="free-positions" style="color: #10b981;">${stats.p2_ps5.free}</span>
+                                <span class="separator">/</span>
+                                <span class="sold-positions" style="color: #ef4444;">${stats.p2_ps5.sold}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="position-stat-item">
+                            <div class="position-type-label">П3 PS5:</div>
+                            <div class="position-numbers">
+                                <span class="total-positions">${stats.p3_ps5.total}</span>
+                                <span class="separator">/</span>
+                                <span class="free-positions" style="color: #10b981;">${stats.p3_ps5.free}</span>
+                                <span class="separator">/</span>
+                                <span class="sold-positions" style="color: #ef4444;">${stats.p3_ps5.sold}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Легенда -->
+            <div class="stats-legend" style="
+                margin-top: 15px;
+                padding: 10px;
+                background: #f8fafc;
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+                font-size: 0.8em;
+                color: #64748b;
+                display: flex;
+                gap: 15px;
+                justify-content: center;
+            ">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="font-weight: 600; color: #1e293b;">Всего</span>
+                    <span>/</span>
+                    <span style="color: #10b981; font-weight: 600;">Свободно</span>
+                    <span>/</span>
+                    <span style="color: #ef4444; font-weight: 600;">Продано</span>
+                </div>
+                ${stats.salesCount > 0 ? `
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span>💰 Продаж:</span>
+                        <span style="font-weight: 600;">${stats.salesCount}</span>
+                        <span>•</span>
+                        <span>Средняя цена:</span>
+                        <span style="font-weight: 600;">${Math.round(stats.avgPrice)} ₽</span>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+        
+        <!-- Кнопка экспорта -->
+        <div style="text-align: center; margin-top: 15px;">
+            <button onclick="exportGameStatsToCSV('${gameName}', stats)" class="btn btn-small btn-primary">
+                📁 Экспорт статистики
+            </button>
+        </div>
+    `;
+    
+    // Сохраняем текущую статистику для экспорта
+    window.currentGameStats = { gameName, stats };
+}
+
+function hideStats() {
+    const statsSection = document.getElementById('statsSection');
+    if (statsSection) {
+        statsSection.style.display = 'none';
+        showNotification('Статистика скрыта', 'info');
+    }
+}
+
+// Добавьте эту функцию для обработки изменений в выпадающем списке
+function setupGameSelectListener() {
+    const gameSelect = document.getElementById('managerGame');
+    if (!gameSelect) return;
+    
+    gameSelect.addEventListener('change', function() {
+        // При смене игры скрываем статистику
+        const statsSection = document.getElementById('statsSection');
+        if (statsSection) {
+            statsSection.style.display = 'none';
+        }
+        
+        // Скрываем кнопку статистики пока не нажата кнопка поиска
+        const statsBtn = document.getElementById('showStatsBtn');
+        if (statsBtn) {
+            statsBtn.style.display = 'none';
+        }
+        
+        // Очищаем результаты поиска
+        document.getElementById('searchResults').innerHTML = '';
+    });
 }
 
 function searchByLogin() {
@@ -2515,46 +2829,39 @@ function searchByLogin() {
         return;
     }
     
-    const gamesMap = {};
-    foundAccounts.forEach(acc => {
-        if (!gamesMap[acc.gameName]) {
-            gamesMap[acc.gameName] = [];
-        }
-        gamesMap[acc.gameName].push(acc);
-    });
+    // Скрываем кнопку статистики при поиске по логину
+    const statsBtn = document.getElementById('showStatsBtn');
+    if (statsBtn) {
+        statsBtn.style.display = 'none';
+    }
     
-    const statsSection = document.getElementById('statsSection');
-    statsSection.style.display = 'block';
-    statsSection.innerHTML = `
-        <div class="stats-header">
-            <h3>🔍 Результаты поиска по логину: "${loginSearch}"</h3>
-        </div>
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value">${foundAccounts.length}</div>
-                <div class="stat-label">Найдено аккаунтов</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value">${Object.keys(gamesMap).length}</div>
-                <div class="stat-label">Игр</div>
-            </div>
-        </div>
-        ${Object.keys(gamesMap).length > 1 ? `
-            <div class="games-breakdown">
-                <h4>Распределение по играм:</h4>
-                <div class="games-list">
-                    ${Object.entries(gamesMap).map(([gameName, gameAccounts]) => `
-                        <div class="game-item">
-                            <span class="game-name">${gameName}</span>
-                            <span class="game-count">${gameAccounts.length} акк.</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        ` : ''}
-    `;
+    // Скрываем статистику
+    document.getElementById('statsSection').style.display = 'none';
     
     displaySearchResults(foundAccounts, `по логину "${loginSearch}"`);
+}
+
+function clearSearchFields() {
+    const gameSelect = document.getElementById('managerGame');
+    const loginInput = document.getElementById('managerLogin');
+    
+    if (gameSelect) {
+        gameSelect.selectedIndex = 0;
+    }
+    
+    if (loginInput) {
+        loginInput.value = '';
+    }
+    
+    // Скрываем кнопку статистики
+    const statsBtn = document.getElementById('showStatsBtn');
+    if (statsBtn) {
+        statsBtn.style.display = 'none';
+    }
+    
+    // Скрываем статистику
+    document.getElementById('statsSection').style.display = 'none';
+    document.getElementById('searchResults').innerHTML = '';
 }
 
 // ============================================
@@ -2568,130 +2875,393 @@ function getPositionSaleInfo(accountId, positionType, positionIndex) {
 
 function displaySearchResults(accountsList, gameName) {
     const resultsContainer = document.getElementById('searchResults');
-    const statsSection = document.getElementById('statsSection');
     
     if (accountsList.length === 0) {
-        statsSection.style.display = 'none';
-        resultsContainer.innerHTML = '<div class="empty">По игре "' + gameName + '" не найдено аккаунтов</div>';
+        resultsContainer.innerHTML = `
+            <div class="empty">
+                <h3>По игре "${gameName}" не найдено аккаунтов</h3>
+            </div>
+        `;
         return;
     }
     
-    const totalAccounts = accountsList.length;
-    const totalInvestment = accountsList.reduce((sum, acc) => sum + (acc.purchaseAmount || 0), 0);
-    const totalPositions = accountsList.reduce((sum, acc) => 
-        sum + acc.positions.p2_ps4 + acc.positions.p3_ps4 + acc.positions.p2_ps5 + acc.positions.p3_ps5, 0
-    );
-    
-    const p2_ps4 = accountsList.reduce((sum, acc) => sum + acc.positions.p2_ps4, 0);
-    const p3_ps4 = accountsList.reduce((sum, acc) => sum + acc.positions.p3_ps4, 0);
-    const p2_ps5 = accountsList.reduce((sum, acc) => sum + acc.positions.p2_ps5, 0);
-    const p3_ps5 = accountsList.reduce((sum, acc) => sum + acc.positions.p3_ps5, 0);
-    
-    statsSection.style.display = 'block';
-    statsSection.innerHTML = `
-        <div class="stats-header">
-            <h3>🎮 Статистика: ${gameName}</h3>
-        </div>
-        <div class="stats-grid">
-            <div class="stat-card"><div class="stat-value">${totalAccounts}</div><div class="stat-label">Аккаунтов</div></div>
-            <div class="stat-card"><div class="stat-value">${totalInvestment} ₽</div><div class="stat-label">Сумма закупа</div></div>
-            <div class="stat-card"><div class="stat-value">${totalPositions}</div><div class="stat-label">Всего позиций</div></div>
-            <div class="stat-card"><div class="stat-value">${p2_ps4}</div><div class="stat-label">П2 PS4</div></div>
-            <div class="stat-card"><div class="stat-value">${p3_ps4}</div><div class="stat-label">П3 PS4</div></div>
-            <div class="stat-card"><div class="stat-value">${p2_ps5}</div><div class="stat-label">П2 PS5</div></div>
-            <div class="stat-card"><div class="stat-value">${p3_ps5}</div><div class="stat-label">П3 PS5</div></div>
-        </div>
-    `;
-    
-    resultsContainer.innerHTML = accountsList.map(account => {
-        const commentsCount = account.comments ? account.comments.length : 0;
+    // Функция проверки, полностью ли продан аккаунт
+    function isAccountFullySold(account) {
+        let totalPositions = 0;
+        let soldPositions = 0;
         
-        return `
-            <div class="account-card-manager" data-account-id="${account.id}">
-                <div class="account-main">
-                    <div class="account-login">${account.psnLogin}</div>
-                    <div class="account-meta">
-                        <span class="account-price-manager">${account.purchaseAmount} ₽</span>
-                        <span class="account-game-manager">${account.gameName}</span>
-                        <!-- КНОПКА КОММЕНТАРИЕВ -->
-                        <button class="btn btn-small comments-btn" 
-                                onclick="showAccountComments(${account.id})"
-                                style="
-                                    background: #f8fafc;
-                                    color: #64748b;
-                                    border: 1px solid #e2e8f0;
-                                    display: flex;
-                                    align-items: center;
-                                    gap: 5px;
-                                    padding: 6px 12px;
-                                    font-size: 13px;
-                                    border-radius: 8px;
-                                    transition: all 0.2s ease;
-                                ">
-                            <span style="margin-right: 5px;">💬</span>
-                            ${commentsCount > 0 ? `
-                                <span class="comments-count" style="
-                                    background: #4361ee;
-                                    color: white;
-                                    border-radius: 50%;
-                                    width: 20px;
-                                    height: 20px;
-                                    display: inline-flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    font-size: 11px;
-                                    font-weight: 600;
-                                    margin-left: 2px;
-                                ">${commentsCount}</span>
-                                <span style="font-size: 12px;">Комментарии</span>
-                            ` : '<span style="font-size: 12px;">Комментарии</span>'}
-                        </button>
-                    </div>
+        // Считаем все позиции
+        ['p2_ps4', 'p3_ps4', 'p2_ps5', 'p3_ps5'].forEach(posType => {
+            const count = account.positions[posType] || 0;
+            totalPositions += count;
+            
+            // Считаем сколько из них продано
+            for (let i = 1; i <= count; i++) {
+                if (getPositionSaleInfo(account.id, posType, i)) {
+                    soldPositions++;
+                }
+            }
+        });
+        
+        // Если есть позиции и все проданы
+        return totalPositions > 0 && soldPositions === totalPositions;
+    }
+    
+    // Фильтруем аккаунты в зависимости от настройки
+    let filteredAccounts = accountsList;
+    if (!showAllAccounts) {
+        // Скрываем полностью проданные
+        filteredAccounts = accountsList.filter(account => !isAccountFullySold(account));
+    }
+    
+    // Считаем скрытые
+    const hiddenCount = accountsList.length - filteredAccounts.length;
+    
+    // Генерируем HTML
+    let html = '';
+    
+    // Кнопка переключения показа
+    if (accountsList.length > 0) {
+        html += `
+            <div style="
+                margin-bottom: 20px;
+                padding: 15px;
+                background: ${hiddenCount > 0 ? '#f0f9ff' : '#f8fafc'};
+                border-radius: 10px;
+                border: 1px solid ${hiddenCount > 0 ? '#bae6fd' : '#e2e8f0'};
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            ">
+                <div style="font-weight: 600; color: #2d3748;">
+                    Найдено: ${filteredAccounts.length} аккаунтов
+                    ${hiddenCount > 0 ? ` (${hiddenCount} скрыто)` : ''}
                 </div>
                 
-                <div class="platforms-container">
-                    <!-- PS4 -->
-                    <div class="platform-section">
-                        <div class="platform-title">PS4</div>
-                        <div class="positions-container">
-                            ${generatePositionsHTML(account, 'p2_ps4', 'П2 PS4', 'П2')}
-                            ${generatePositionsHTML(account, 'p3_ps4', 'П3 PS4', 'П3')}
-                            ${account.positions.p2_ps4 === 0 && account.positions.p3_ps4 === 0 ? 
-                                '<div class="position-empty">Нет позиций</div>' : ''
-                            }
+                <button onclick="toggleShowAllAccounts()" 
+                        style="
+                            background: ${showAllAccounts ? '#dc2626' : '#3b82f6'};
+                            color: white;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 8px;
+                            font-weight: 600;
+                            font-size: 14px;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                        ">
+                    ${showAllAccounts ? '👁️' : '👁️‍🗨️'}
+                    ${showAllAccounts ? 'Скрыть проданные' : 'Показать все'}
+                </button>
+            </div>
+        `;
+    }
+    
+    // Если после фильтрации ничего не осталось
+    if (filteredAccounts.length === 0) {
+        html += `
+            <div style="
+                text-align: center;
+                padding: 40px 20px;
+                background: #f8fafc;
+                border-radius: 10px;
+                border: 1px solid #e2e8f0;
+                color: #64748b;
+            ">
+                <div style="font-size: 3em; margin-bottom: 10px;">👻</div>
+                <h3 style="color: #64748b; margin-bottom: 10px;">Все аккаунты проданы</h3>
+                <p>Все позиции по этой игре полностью распроданы</p>
+                <button onclick="toggleShowAllAccounts()" 
+                        style="
+                            background: #3b82f6;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 8px;
+                            font-weight: 600;
+                            margin-top: 15px;
+                            cursor: pointer;
+                        ">
+                    👁️‍🗨️ Показать проданные
+                </button>
+            </div>
+        `;
+    } else {
+        // Показываем аккаунты
+        html += filteredAccounts.map(account => {
+            const commentsCount = account.comments ? account.comments.length : 0;
+            const isSold = isAccountFullySold(account);
+            
+            return `
+                <div class="account-simple ${isSold ? 'fully-sold' : ''}" style="
+                    background: ${isSold ? '#fef2f2' : 'white'};
+                    border-radius: 12px;
+                    border: 1px solid ${isSold ? '#fecaca' : '#e2e8f0'};
+                    margin-bottom: 15px;
+                    padding: 20px;
+                    width: 100%;
+                    position: relative;
+                    ${isSold ? 'opacity: 0.8;' : ''}
+                ">
+                    ${isSold ? `
+                        <div style="
+                            position: absolute;
+                            top: -10px;
+                            right: -10px;
+                            background: #dc2626;
+                            color: white;
+                            padding: 4px 12px;
+                            border-radius: 20px;
+                            font-size: 12px;
+                            font-weight: 700;
+                            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+                        ">
+                            ПРОДАНО
                         </div>
+                    ` : ''}
+                    
+                    <!-- ВЕРХ: ЛОГИН -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <div style="
+                            font-size: 1.3em;
+                            font-weight: 700;
+                            color: ${isSold ? '#dc2626' : '#2d3748'};
+                            ${isSold ? 'text-decoration: line-through;' : ''}
+                        ">
+                            ${account.psnLogin}
+                        </div>
+                        
+                        ${commentsCount > 0 ? `
+                            <button onclick="showAccountComments(${account.id})" 
+                                    style="
+                                        background: ${isSold ? '#fecaca' : '#4361ee'};
+                                        color: ${isSold ? '#dc2626' : 'white'};
+                                        border: ${isSold ? '1px solid #fecaca' : 'none'};
+                                        padding: 8px 16px;
+                                        border-radius: 8px;
+                                        font-weight: 600;
+                                        font-size: 14px;
+                                        cursor: pointer;
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 5px;
+                                    ">
+                                💬 ${commentsCount}
+                            </button>
+                        ` : `
+                            <button onclick="showAccountComments(${account.id})" 
+                                    style="
+                                        background: #f8fafc;
+                                        color: #64748b;
+                                        border: 1px solid #e2e8f0;
+                                        padding: 8px 16px;
+                                        border-radius: 8px;
+                                        font-size: 14px;
+                                        cursor: pointer;
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 5px;
+                                    ">
+                                💬 Добавить
+                            </button>
+                        `}
                     </div>
                     
-                    <!-- PS5 -->
-                    <div class="platform-section">
-                        <div class="platform-title">PS5</div>
-                        <div class="positions-container">
-                            ${generatePositionsHTML(account, 'p2_ps5', 'П2 PS5', 'П2')}
-                            ${generatePositionsHTML(account, 'p3_ps5', 'П3 PS5', 'П3')}
-                            ${account.positions.p2_ps5 === 0 && account.positions.p3_ps5 === 0 ? 
-                                '<div class="position-empty">Нет позиций</div>' : ''
-                            }
+                    <!-- ПОСАДКИ: PS4 слева, PS5 справа -->
+                    <div style="
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 20px;
+                    ">
+                        <!-- ЛЕВАЯ ПОЛОВИНА: PS4 -->
+                        <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                            <div style="font-weight: 700; color: #2d3748; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                                <span>🎮</span>
+                                <span>PS4</span>
+                            </div>
+                            
+                            <!-- ВСЕ ПОСАДКИ PS4 В ОДНОЙ СТРОКЕ -->
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                ${generateSimplePositionButtons(account, 'p2_ps4', 'П2 PS4', 'П2')}
+                                
+                                <!-- Просто небольшой отступ между П2 и П3 -->
+                                ${account.positions.p2_ps4 > 0 ? '<div style="margin-right: 15px;"></div>' : ''}
+                                
+                                ${generateSimplePositionButtons(account, 'p3_ps4', 'П3 PS4', 'П3')}
+                            </div>
+                        </div>
+                        
+                        <!-- ПРАВАЯ ПОЛОВИНА: PS5 -->
+                        <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                            <div style="font-weight: 700; color: #2d3748; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                                <span>🎮</span>
+                                <span>PS5</span>
+                            </div>
+                            
+                            <!-- ВСЕ ПОСАДКИ PS5 В ОДНОЙ СТРОКЕ -->
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                ${generateSimplePositionButtons(account, 'p2_ps5', 'П2 PS5', 'П2')}
+                                
+                                <!-- Просто небольшой отступ между П2 и П3 -->
+                                ${account.positions.p2_ps5 > 0 ? '<div style="margin-right: 15px;"></div>' : ''}
+                                
+                                ${generateSimplePositionButtons(account, 'p3_ps5', 'П3 PS5', 'П3')}
+                            </div>
                         </div>
                     </div>
                 </div>
+            `;
+        }).join('');
+    }
+    
+    resultsContainer.innerHTML = html;
+}
+
+function toggleShowAllAccounts() {
+    showAllAccounts = !showAllAccounts;
+    
+    // Обновляем отображение
+    const gameSelect = document.getElementById('managerGame');
+    const gameId = parseInt(gameSelect.value);
+    
+    if (gameId) {
+        const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
+        const game = games.find(g => g.id === gameId);
+        if (game) {
+            displaySearchResults(gameAccounts, game.name);
+        }
+    }
+    
+    // Показываем уведомление
+    showNotification(
+        showAllAccounts ? 'Показаны все аккаунты' : 'Скрыты проданные аккаунты',
+        'info'
+    );
+}
+
+function generateSimplePositionButtons(account, positionType, positionName, positionLabel) {
+    const positionCount = account.positions[positionType] || 0;
+    if (positionCount === 0) return '';
+    
+    const buttons = [];
+    for (let i = 1; i <= positionCount; i++) {
+        const saleInfo = getPositionSaleInfo(account.id, positionType, i);
+        const isSold = !!saleInfo;
+        
+        buttons.push(`
+            <button onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
+                    style="
+                        width: 40px;
+                        height: 40px;
+                        background: ${isSold ? '#ef4444' : '#3b82f6'};
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        font-weight: 600;
+                        font-size: 14px;
+                        cursor: pointer;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        transition: all 0.2s ease;
+                    "
+                    onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.05)'"
+                    onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'"
+                    title="${isSold ? 'Продано' : 'Свободно'}">
+                <div>${i}</div>
+                <div style="font-size: 9px;">${positionLabel}</div>
+            </button>
+        `);
+    }
+    
+    return buttons.join('');
+}
+// Вспомогательная функция для генерации кнопок позиций
+function generatePositionButtons(account, positionType, positionName, positionLabel) {
+    const positionCount = account.positions[positionType] || 0;
+    
+    if (positionCount === 0) return '';
+    
+    const positionsHTML = Array(positionCount).fill().map((_, index) => {
+        const positionNumber = index + 1;
+        const saleInfo = getPositionSaleInfo(account.id, positionType, positionNumber);
+        const isSold = !!saleInfo;
+        
+        let displayDate = '';
+        if (saleInfo) {
+            if (saleInfo.datetime) {
+                displayDate = saleInfo.datetime;
+            } else if (saleInfo.date) {
+                displayDate = saleInfo.date + (saleInfo.time ? ` ${saleInfo.time}` : '');
+            }
+        }
+        
+        let managerHTML = '';
+        if (saleInfo && saleInfo.soldByName) {
+            const managerIcon = saleInfo.managerRole === 'admin' ? '👑' : '👷';
+            managerHTML = `
+                <div style="font-size: 11px; color: #64748b; margin-top: 3px;">
+                    ${saleInfo.soldByName} ${managerIcon}
+                </div>
+            `;
+        }
+        
+        const soldClass = isSold ? 'sold' : '';
+        const adminClass = (saleInfo && saleInfo.managerRole === 'admin') ? 'admin-sold' : '';
+        
+        return `
+            <div class="position-single ${soldClass} ${adminClass}" 
+                 onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${positionNumber})"
+                 title="${isSold ? `Продано: ${displayDate}` : 'Свободно'}"
+                 style="
+                    min-width: 50px;
+                    height: 50px;
+                    background: ${isSold ? 
+                        (saleInfo.managerRole === 'admin' ? 
+                            'linear-gradient(135deg, #f72585 0%, #e63946 100%)' : 
+                            'linear-gradient(135deg, #4361ee 0%, #3a56d4 100%)'
+                        ) : '#f1f5f9'};
+                    color: ${isSold ? 'white' : '#64748b'};
+                    border-radius: 8px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    font-weight: 600;
+                    font-size: 16px;
+                    position: relative;
+                 ">
+                <div>${positionNumber}</div>
+                <div style="font-size: 11px; margin-top: 2px;">${positionLabel}</div>
+                
+                ${isSold ? `
+                    <div style="
+                        position: absolute;
+                        top: -5px;
+                        right: -5px;
+                        background: ${saleInfo.managerRole === 'admin' ? '#f72585' : '#4361ee'};
+                        color: white;
+                        width: 20px;
+                        height: 20px;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 10px;
+                    ">
+                        ${saleInfo.managerRole === 'admin' ? '👑' : '💰'}
+                    </div>
+                ` : ''}
             </div>
         `;
     }).join('');
     
-    // Добавляем обработчики событий для кнопок комментариев
-    setTimeout(() => {
-        document.querySelectorAll('.comments-btn').forEach(btn => {
-            btn.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-1px)';
-                this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-            });
-            
-            btn.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0)';
-                this.style.boxShadow = 'none';
-            });
-        });
-    }, 100);
+    return positionsHTML;
 }
 
 function handlePositionClick(accountId, positionType, positionName, positionIndex) {
@@ -3537,224 +4107,6 @@ function displayFilteredGames(filteredGames) {
     `).join('');
 }
 
-// ============================================
-// ФИЛЬТРАЦИЯ ПО МЕНЕДЖЕРУ
-// ============================================
-
-// Загрузка списка менеджеров для фильтра
-function loadManagersForFilter() {
-    const select = document.getElementById('filterManager');
-    if (!select) return;
-    
-    const managersMap = new Map(); // Используем Map для уникальности
-    
-    // 1. Собираем менеджеров из продаж
-    sales.forEach(sale => {
-        if (sale.soldByName && sale.soldBy) {
-            const key = sale.soldBy; // Используем username как ключ
-            if (!managersMap.has(key)) {
-                managersMap.set(key, {
-                    name: sale.soldByName,
-                    username: sale.soldBy,
-                    role: sale.managerRole || 'worker'
-                });
-            }
-        }
-    });
-    
-    // 2. Добавляем текущих работников из базы
-    const workers = JSON.parse(localStorage.getItem('workers')) || [];
-    workers.forEach(worker => {
-        if (worker.active !== false && worker.username) {
-            const key = worker.username;
-            if (!managersMap.has(key)) {
-                managersMap.set(key, {
-                    name: worker.name || worker.username,
-                    username: worker.username,
-                    role: worker.role || 'worker'
-                });
-            }
-        }
-    });
-    
-    // 3. Добавляем администратора (если есть продажи от админа)
-    const currentUser = security.getCurrentUser();
-    if (currentUser && currentUser.role === 'admin' && !managersMap.has(currentUser.username)) {
-        managersMap.set(currentUser.username, {
-            name: currentUser.name,
-            username: currentUser.username,
-            role: 'admin'
-        });
-    }
-    
-    // Сортируем по имени и формируем опции
-    const sortedManagers = Array.from(managersMap.values())
-        .sort((a, b) => a.name.localeCompare(b.name));
-    
-    select.innerHTML = '<option value="">Все менеджеры</option>';
-    sortedManagers.forEach(manager => {
-        const displayName = `${manager.name} (${manager.role === 'admin' ? '👑' : '👷'})`;
-        select.innerHTML += `<option value="${manager.username}">${displayName}</option>`;
-    });
-    
-    console.log('Загружено менеджеров для фильтра:', sortedManagers.length);
-}
-
-// Функция фильтрации по менеджеру
-function filterByManager() {
-    const managerFilter = document.getElementById('filterManager').value;
-    const gameSelect = document.getElementById('managerGame');
-    const gameId = gameSelect ? parseInt(gameSelect.value) : 0;
-    
-    if (!gameId) {
-        // Если игра не выбрана, показываем все аккаунты с продажами этого менеджера
-        if (!managerFilter) {
-            showNotification('Выберите менеджера для фильтрации', 'warning');
-            return;
-        }
-        
-        // Находим все аккаунты, где есть продажи от выбранного менеджера
-        const salesByManager = sales.filter(sale => 
-            sale.soldBy === managerFilter
-        );
-        
-        const accountIds = [...new Set(salesByManager.map(sale => sale.accountId))];
-        const filteredAccounts = accounts.filter(acc => accountIds.includes(acc.id));
-        
-        if (filteredAccounts.length === 0) {
-            document.getElementById('searchResults').innerHTML = `
-                <div class="empty">
-                    <h3>У выбранного менеджера нет продаж</h3>
-                </div>
-            `;
-            document.getElementById('statsSection').style.display = 'none';
-            showNotification('У этого менеджера нет продаж', 'info');
-            return;
-        }
-        
-        // Группируем по играм для статистики
-        const gamesMap = {};
-        filteredAccounts.forEach(acc => {
-            if (!gamesMap[acc.gameName]) {
-                gamesMap[acc.gameName] = [];
-            }
-            gamesMap[acc.gameName].push(acc);
-        });
-        
-        // Показываем статистику
-        const statsSection = document.getElementById('statsSection');
-        statsSection.style.display = 'block';
-        
-        const managerInfo = salesByManager[0] ? 
-            `${salesByManager[0].soldByName} (${salesByManager[0].soldBy})` : 
-            'Выбранный менеджер';
-        
-        statsSection.innerHTML = `
-            <div class="stats-header">
-                <h3>👷 Продажи менеджера: ${managerInfo}</h3>
-            </div>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value">${salesByManager.length}</div>
-                    <div class="stat-label">Всего продаж</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${salesByManager.reduce((sum, sale) => sum + sale.price, 0).toLocaleString('ru-RU')} ₽</div>
-                    <div class="stat-label">Общая выручка</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${Object.keys(gamesMap).length}</div>
-                    <div class="stat-label">Игр</div>
-                </div>
-            </div>
-        `;
-        
-        displaySearchResults(filteredAccounts, 'по менеджеру');
-        return;
-    }
-    
-    // Если выбрана игра, фильтруем по игре + менеджеру
-    const game = games.find(g => g.id === gameId);
-    if (!game) {
-        showNotification('Игра не найдена', 'error');
-        return;
-    }
-    
-    const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
-    
-    if (managerFilter) {
-        // Фильтруем продажи по менеджеру
-        const salesByManager = sales.filter(sale => 
-            sale.soldBy === managerFilter && 
-            sale.accountId && 
-            gameAccounts.some(acc => acc.id === sale.accountId)
-        );
-        
-        const accountIds = [...new Set(salesByManager.map(sale => sale.accountId))];
-        const filteredAccounts = gameAccounts.filter(acc => accountIds.includes(acc.id));
-        
-        if (filteredAccounts.length === 0) {
-            document.getElementById('searchResults').innerHTML = `
-                <div class="empty">
-                    <h3>У менеджера нет продаж по игре "${game.name}"</h3>
-                </div>
-            `;
-            
-            const statsSection = document.getElementById('statsSection');
-            statsSection.style.display = 'block';
-            statsSection.innerHTML = `
-                <div class="stats-header">
-                    <h3>🎮 ${game.name} - нет продаж у выбранного менеджера</h3>
-                </div>
-            `;
-            
-            showNotification(`У менеджера нет продаж по игре "${game.name}"`, 'info');
-            return;
-        }
-        
-        // Показываем статистику
-        const managerName = salesByManager[0]?.soldByName || 'Выбранный менеджер';
-        const statsSection = document.getElementById('statsSection');
-        statsSection.style.display = 'block';
-        statsSection.innerHTML = `
-            <div class="stats-header">
-                <h3>👷 ${managerName} - ${game.name}</h3>
-            </div>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value">${salesByManager.length}</div>
-                    <div class="stat-label">Продаж в игре</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${salesByManager.reduce((sum, sale) => sum + sale.price, 0).toLocaleString('ru-RU')} ₽</div>
-                    <div class="stat-label">Выручка в игре</div>
-                </div>
-            </div>
-        `;
-        
-        displaySearchResults(filteredAccounts, game.name);
-    } else {
-        // Если менеджер не выбран, показываем все продажи по игре
-        searchByGame();
-    }
-}
-
-// Обновим функцию clearManagerSearch чтобы очищала и фильтр менеджера
-function clearManagerSearch() {
-    document.getElementById('managerGame').selectedIndex = 0;
-    document.getElementById('managerLogin').value = '';
-    
-    // Очищаем фильтр менеджера
-    const filterManager = document.getElementById('filterManager');
-    if (filterManager) {
-        filterManager.selectedIndex = 0;
-    }
-    
-    document.getElementById('statsSection').style.display = 'none';
-    document.getElementById('searchResults').innerHTML = '';
-    showNotification('Поиск очищен', 'info');
-}
-
 async function deleteSale(saleId) {
     if (confirm('Удалить запись о продаже? Это действие нельзя отменить.')) {
         sales = sales.filter(sale => sale.id !== saleId);
@@ -3791,14 +4143,6 @@ function closeSaleModal() {
         modal.style.display = 'none';
         content.classList.remove('fade-out');
     }, 300);
-}
-
-function clearManagerSearch() {
-    document.getElementById('managerGame').selectedIndex = 0;
-    document.getElementById('managerLogin').value = '';
-    document.getElementById('statsSection').style.display = 'none';
-    document.getElementById('searchResults').innerHTML = '';
-    showNotification('Поиск очищен', 'info');
 }
 
 // ============================================
@@ -3848,45 +4192,46 @@ function displayReportResults(salesData, startDate, endDate) {
         return;
     }
     
-    const salesWithProfit = salesData.map(sale => {
-        const account = accounts.find(acc => acc.id === sale.accountId);
-        if (!account) {
-            return { ...sale, cost: 0, profit: sale.price, profitMargin: 100 };
+    // Получаем список уникальных аккаунтов из продаж
+    const uniqueAccountIds = [...new Set(salesData.map(sale => sale.accountId))];
+    
+    // Считаем сумму закупа только для аккаунтов, которые были проданы в этот период
+    let totalPurchaseAmount = 0;
+    
+    uniqueAccountIds.forEach(accountId => {
+        const account = accounts.find(acc => acc.id === accountId);
+        if (account && account.purchaseAmount) {
+            totalPurchaseAmount += account.purchaseAmount;
         }
-        
-        // ВАЖНО: Делим закуп аккаунта на ЕГО позиции, не на все позиции в системе!
-        const totalPositionsForThisAccount = 
-            account.positions.p2_ps4 + 
-            account.positions.p3_ps4 + 
-            account.positions.p2_ps5 + 
-            account.positions.p3_ps5;
-        
-        const costPerPosition = totalPositionsForThisAccount > 0 
-            ? (account.purchaseAmount || 0) / totalPositionsForThisAccount 
-            : 0;
-        
-        const profit = sale.price - costPerPosition;
-        const profitMargin = sale.price > 0 ? (profit / sale.price) * 100 : 0;
-        
-        return {
-            ...sale,
-            cost: costPerPosition,
-            profit: profit,
-            profitMargin: profitMargin
-        };
     });
     
-    const totalRevenue = salesWithProfit.reduce((sum, sale) => sum + sale.price, 0);
-    const totalCost = salesWithProfit.reduce((sum, sale) => sum + sale.cost, 0);
-    const totalProfit = salesWithProfit.reduce((sum, sale) => sum + sale.profit, 0);
-    const totalSales = salesWithProfit.length;
+    // Общая статистика
+    const totalRevenue = salesData.reduce((sum, sale) => sum + sale.price, 0);
+    const totalSales = salesData.length;
     const avgSale = totalRevenue / totalSales;
-    const avgProfit = totalProfit / totalSales;
-    const totalProfitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
     
-    // Исправленная верстка с нормальными отступами
+    // Чистая прибыль по новой формуле: выручка минус закуп
+    const netProfit = totalRevenue - totalPurchaseAmount;
+    
+    // Статистика по играм
+    const gamesStats = {};
+    salesData.forEach(sale => {
+        if (!gamesStats[sale.gameName]) {
+            gamesStats[sale.gameName] = {
+                sales: 0,
+                revenue: 0
+            };
+        }
+        gamesStats[sale.gameName].sales += 1;
+        gamesStats[sale.gameName].revenue += sale.price;
+    });
+    
+    // Сортируем игры по выручке
+    const sortedGames = Object.entries(gamesStats)
+        .sort(([,a], [,b]) => b.revenue - a.revenue);
+    
     reportResults.innerHTML = `
-        <!-- Секция статистики с правильным классом -->
+        <!-- Секция статистики -->
         <div class="report-stats-section">
             <h2 style="margin-bottom: 30px; color: white !important; text-align: center;">
                 📊 Отчет за период: ${startDate} - ${endDate}
@@ -3898,18 +4243,14 @@ function displayReportResults(salesData, startDate, endDate) {
                     <div class="stat-label">Общая выручка</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${formatNumber(totalCost)} ₽</div>
-                    <div class="stat-label">Себестоимость</div>
+                    <div class="stat-value">${formatNumber(totalPurchaseAmount)} ₽</div>
+                    <div class="stat-label">Сумма закупа</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value" style="color: ${totalProfit >= 0 ? '#4ade80' : '#f87171'}">
-                        ${formatNumber(totalProfit)} ₽
+                    <div class="stat-value" style="color: ${netProfit >= 0 ? '#4ade80' : '#f87171'}">
+                        ${formatNumber(netProfit)} ₽
                     </div>
                     <div class="stat-label">Чистая прибыль</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${totalProfitMargin.toFixed(1)}%</div>
-                    <div class="stat-label">Рентабельность</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${totalSales}</div>
@@ -3919,18 +4260,24 @@ function displayReportResults(salesData, startDate, endDate) {
                     <div class="stat-value">${formatNumber(avgSale)} ₽</div>
                     <div class="stat-label">Средний чек</div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-value">${formatNumber(totalRevenue / Math.max(totalPurchaseAmount, 1))}x</div>
+                    <div class="stat-label">Окупаемость</div>
+                    <div class="stat-sub">(Выручка / Закуп)</div>
+                </div>
             </div>
         </div>
         
-        <!-- Остальная часть отчёта -->
+        <!-- Статистика по играм -->
         <div class="section">
             <h3 style="margin-bottom: 25px;">🎮 Статистика по играм</h3>
-            ${getGamesStatsHTML(salesWithProfit)}
+            ${getGamesStatsHTML(salesData, sortedGames)}
         </div>
         
+        <!-- Подробный список продаж -->
         <div class="section">
-            <h3 style="margin-bottom: 25px;">💰 Все продажи</h3>
-            ${getSalesListHTML(salesWithProfit)}
+            <h3 style="margin-bottom: 25px;">💰 Все продажи (${totalSales})</h3>
+            ${getSalesListHTML(salesData)}
         </div>
     `;
 }
@@ -4009,33 +4356,30 @@ function generatePositionsHTML(account, positionType, positionName, positionLabe
 }
 
 // Новая функция для отображения статистики по играм
-function getGamesStatsHTML(salesWithProfit) {
-    const gamesStats = {};
-    
-    salesWithProfit.forEach(sale => {
-        if (!gamesStats[sale.gameName]) {
-            gamesStats[sale.gameName] = {
-                revenue: 0,
-                cost: 0,
-                profit: 0,
-                sales: 0
-            };
-        }
-        gamesStats[sale.gameName].revenue += sale.price;
-        gamesStats[sale.gameName].cost += sale.cost;
-        gamesStats[sale.gameName].profit += sale.profit;
-        gamesStats[sale.gameName].sales += 1;
-    });
-    
-    const sortedGames = Object.entries(gamesStats)
-        .sort(([,a], [,b]) => b.profit - a.profit);
-    
+function getGamesStatsHTML(salesData, sortedGames) {
     if (sortedGames.length === 0) {
         return '<div class="empty">Нет данных по играм</div>';
     }
     
+    // Рассчитываем закуп по каждой игре
+    const gamePurchases = {};
+    salesData.forEach(sale => {
+        const account = accounts.find(acc => acc.id === sale.accountId);
+        if (account) {
+            if (!gamePurchases[account.gameName]) {
+                gamePurchases[account.gameName] = 0;
+            }
+            // Добавляем долю закупа аккаунта (один раз за аккаунт)
+            if (!gamePurchases[`${account.gameName}_${account.id}_counted`]) {
+                gamePurchases[account.gameName] += (account.purchaseAmount || 0);
+                gamePurchases[`${account.gameName}_${account.id}_counted`] = true;
+            }
+        }
+    });
+    
     return sortedGames.map(([gameName, stats]) => {
-        const gameProfitMargin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : 0;
+        const gamePurchaseAmount = gamePurchases[gameName] || 0;
+        const gameProfit = stats.revenue - gamePurchaseAmount;
         
         return `
             <div class="game-stat-card" style="
@@ -4058,9 +4402,9 @@ function getGamesStatsHTML(salesWithProfit) {
                     <span style="
                         font-weight: 700;
                         font-size: 1.2em;
-                        color: ${stats.profit >= 0 ? '#10b981' : '#ef4444'};
+                        color: ${gameProfit >= 0 ? '#10b981' : '#ef4444'};
                     ">
-                        ${stats.profit.toFixed(0)} ₽ прибыли
+                        ${gameProfit.toFixed(0)} ₽ прибыли
                     </span>
                 </div>
                 
@@ -4087,33 +4431,21 @@ function getGamesStatsHTML(salesWithProfit) {
                         border-radius: 8px;
                         border: 1px solid #e2e8f0;
                     ">
-                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Себестоимость</div>
-                        <div style="font-weight: 700; font-size: 1.2em; color: #1e293b;">
-                            ${stats.cost.toFixed(0)} ₽
+                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Закуп</div>
+                        <div style="font-weight: 700; font-size: 1.2em; color: #ef4444;">
+                            ${gamePurchaseAmount.toFixed(0)} ₽
                         </div>
                     </div>
                     
                     <div style="
-                        background: ${stats.profit >= 0 ? '#f0fdf4' : '#fef2f2'};
+                        background: ${gameProfit >= 0 ? '#f0fdf4' : '#fef2f2'};
                         padding: 15px;
                         border-radius: 8px;
-                        border: 1px solid ${stats.profit >= 0 ? '#d1fae5' : '#fecaca'};
+                        border: 1px solid ${gameProfit >= 0 ? '#d1fae5' : '#fecaca'};
                     ">
                         <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Прибыль</div>
-                        <div style="font-weight: 700; font-size: 1.2em; color: ${stats.profit >= 0 ? '#10b981' : '#ef4444'};">
-                            ${stats.profit.toFixed(0)} ₽
-                        </div>
-                    </div>
-                    
-                    <div style="
-                        background: #f8fafc;
-                        padding: 15px;
-                        border-radius: 8px;
-                        border: 1px solid #e2e8f0;
-                    ">
-                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Рентабельность</div>
-                        <div style="font-weight: 700; font-size: 1.2em; color: #1e293b;">
-                            ${gameProfitMargin.toFixed(1)}%
+                        <div style="font-weight: 700; font-size: 1.2em; color: ${gameProfit >= 0 ? '#10b981' : '#ef4444'};">
+                            ${gameProfit.toFixed(0)} ₽
                         </div>
                     </div>
                     
@@ -4128,6 +4460,18 @@ function getGamesStatsHTML(salesWithProfit) {
                             ${stats.sales}
                         </div>
                     </div>
+                    
+                    <div style="
+                        background: #f8fafc;
+                        padding: 15px;
+                        border-radius: 8px;
+                        border: 1px solid #e2e8f0;
+                    ">
+                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Средний чек</div>
+                        <div style="font-weight: 700; font-size: 1.2em; color: #1e293b;">
+                            ${(stats.revenue / stats.sales).toFixed(0)} ₽
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -4135,10 +4479,17 @@ function getGamesStatsHTML(salesWithProfit) {
 }
 
 // Новая функция для отображения списка продаж
-function getSalesListHTML(salesWithProfit) {
-    if (salesWithProfit.length === 0) {
+function getSalesListHTML(salesData) {
+    if (salesData.length === 0) {
         return '<div class="empty">Нет продаж</div>';
     }
+    
+    // Сортируем по дате (новые сверху)
+    const sortedSales = [...salesData].sort((a, b) => {
+        const dateA = new Date(a.datetime || a.timestamp || 0);
+        const dateB = new Date(b.datetime || b.timestamp || 0);
+        return dateB - dateA;
+    });
     
     return `
         <div style="
@@ -4156,34 +4507,47 @@ function getSalesListHTML(salesWithProfit) {
                         top: 0;
                         z-index: 10;
                     ">
-                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Игра</th>
-                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Позиция</th>
-                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Аккаунт</th>
-                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Цена</th>
-                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Прибыль</th>
                         <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Дата</th>
+                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Игра</th>
+                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Аккаунт</th>
+                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Позиция</th>
+                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Цена</th>
+                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Менеджер</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${salesWithProfit.map(sale => `
+                    ${sortedSales.map(sale => {
+                        // Получаем сумму закупа для этого аккаунта
+                        const account = accounts.find(acc => acc.id === sale.accountId);
+                        const purchaseAmount = account ? (account.purchaseAmount || 0) : 0;
+                        const profit = sale.price - purchaseAmount;
+                        
+                        return `
                         <tr style="
                             border-bottom: 1px solid #e2e8f0;
                             transition: background 0.2s;
                         ">
-                            <td style="padding: 12px 15px;">${sale.gameName}</td>
-                            <td style="padding: 12px 15px;">${sale.positionName}</td>
-                            <td style="padding: 12px 15px;">${sale.accountLogin}</td>
-                            <td style="padding: 12px 15px; font-weight: 600;">${sale.price} ₽</td>
-                            <td style="
-                                padding: 12px 15px; 
-                                font-weight: 600;
-                                color: ${sale.profit >= 0 ? '#10b981' : '#ef4444'};
-                            ">
-                                ${sale.profit.toFixed(0)} ₽
+                            <td style="padding: 12px 15px; color: #64748b;">
+                                ${sale.datetime || sale.date || new Date(sale.timestamp).toLocaleDateString('ru-RU')}
                             </td>
-                            <td style="padding: 12px 15px; color: #64748b;">${sale.datetime || sale.date || ''}</td>
+                            <td style="padding: 12px 15px;">${sale.gameName || 'Неизвестно'}</td>
+                            <td style="padding: 12px 15px;">${sale.accountLogin}</td>
+                            <td style="padding: 12px 15px;">${sale.positionName}</td>
+                            <td style="padding: 12px 15px; font-weight: 600; color: #1e293b;">
+                                ${sale.price} ₽
+                                ${purchaseAmount > 0 ? `
+                                    <div style="font-size: 0.85em; color: #64748b;">
+                                        Закуп: ${purchaseAmount} ₽
+                                    </div>
+                                ` : ''}
+                            </td>
+                            <td style="padding: 12px 15px;">
+                                ${sale.soldByName || sale.soldBy || 'Неизвестно'}
+                                ${sale.managerRole === 'admin' ? ' 👑' : ' 👷'}
+                            </td>
                         </tr>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </tbody>
             </table>
         </div>
@@ -4817,55 +5181,51 @@ function deleteComment(accountId, commentId) {
     return false;
 }
 
-// Функция для отображения модального окна с комментариями
 function showAccountComments(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return;
     
-    // Создаем модальное окно для комментариев
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'commentsModal';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="modal-content" style="max-width: 500px;">
             <span class="close" onclick="document.getElementById('commentsModal').remove()">&times;</span>
             
-            <h2 style="margin-bottom: 20px; color: #2d3748; display: flex; align-items: center; gap: 10px;">
-                <span>💬</span>
-                Комментарии к аккаунту: ${account.psnLogin}
-            </h2>
+            <h3 style="margin-bottom: 15px;">
+                💬 Комментарии к ${account.psnLogin}
+            </h3>
             
-            <div id="commentsList" style="flex: 1; overflow-y: auto; margin-bottom: 20px; padding-right: 10px;">
-                ${renderCommentsList(account.comments || [], account.id)}
+            <div id="commentsList" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;">
+                ${(account.comments && account.comments.length > 0) ? 
+                    account.comments.map(c => `
+                        <div style="margin-bottom: 10px; padding: 10px; background: #f8fafc; border-radius: 8px;">
+                            <div style="font-weight: 600;">${c.author}</div>
+                            <div style="font-size: 12px; color: #64748b;">${c.date} ${c.time}</div>
+                            <div>${c.text}</div>
+                        </div>
+                    `).join('') 
+                    : '<div style="text-align: center; color: #94a3b8;">Нет комментариев</div>'
+                }
             </div>
             
-            <div style="border-top: 1px solid #e2e8f0; padding-top: 20px;">
+            <div>
                 <textarea id="newCommentText" 
-                          placeholder="Введите комментарий..." 
+                          placeholder="Добавить комментарий..." 
                           rows="3"
-                          style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
-                <div style="display: flex; gap: 10px; margin-top: 15px;">
-                    <button class="btn btn-secondary" onclick="document.getElementById('commentsModal').remove()" style="flex: 1;">
-                        Закрыть
-                    </button>
-                    <button class="btn btn-primary" onclick="submitComment(${account.id})" style="flex: 2;">
-                        <span style="margin-right: 8px;">📝</span>
-                        Добавить комментарий
-                    </button>
-                </div>
+                          style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;"></textarea>
+                <button onclick="submitComment(${account.id})" 
+                        style="width: 100%; padding: 10px; background: #4361ee; color: white; border: none; border-radius: 5px; margin-top: 10px;">
+                    Добавить
+                </button>
             </div>
         </div>
     `;
     
     document.body.appendChild(modal);
     modal.style.display = 'block';
-    
-    // Автофокус на поле ввода
-    setTimeout(() => {
-        const textarea = document.getElementById('newCommentText');
-        if (textarea) textarea.focus();
-    }, 100);
 }
+
 
 
 // Функция для отправки комментария

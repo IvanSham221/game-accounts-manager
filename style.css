@@ -3035,3 +3035,262 @@ body.dark-theme .burger-btn:hover {
     font-weight: 600;
     animation: pulse 2s infinite;
 }
+
+/* ============================================
+   СТИЛИ ДЛЯ КОМПАКТНОЙ СТАТИСТИКИ
+   ============================================ */
+
+/* Кнопка показа статистики */
+#showStatsBtn {
+    margin-left: 10px;
+    background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+    border: none;
+    color: white;
+}
+
+#showStatsBtn:hover {
+    background: linear-gradient(135deg, #0284c7 0%, #075985 100%);
+    transform: translateY(-1px);
+}
+
+/* Компактная статистика */
+.compact-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.compact-stat-card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.compact-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.compact-stat-card.main-stat {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 2px solid #e2e8f0;
+}
+
+.compact-stat-card.free-positions {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-color: #bbf7d0;
+}
+
+.compact-stat-card.sold-positions {
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border-color: #fecaca;
+}
+
+.compact-stat-value {
+    font-size: 1.8em;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 5px;
+}
+
+.compact-stat-card.free-positions .compact-stat-value {
+    color: #10b981;
+}
+
+.compact-stat-card.sold-positions .compact-stat-value {
+    color: #ef4444;
+}
+
+.compact-stat-label {
+    font-size: 0.85em;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* Детализация по позициям */
+.position-stats-section {
+    background: #f8fafc;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    margin: 20px 0;
+}
+
+.position-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .position-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.platform-stats {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.platform-title {
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e2e8f0;
+    text-align: center;
+    font-size: 1.1em;
+}
+
+.position-type-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.position-stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.position-type-label {
+    font-weight: 600;
+    color: #475569;
+    font-size: 0.95em;
+}
+
+.position-numbers {
+    font-weight: 700;
+    font-size: 1.1em;
+}
+
+.total-positions {
+    color: #1e293b;
+}
+
+.separator {
+    color: #94a3b8;
+    margin: 0 4px;
+}
+
+/* Заголовок статистики */
+.stats-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.stats-header h3 {
+    margin: 0;
+    color: #2d3748;
+    font-size: 1.3em;
+}
+
+/* Темная тема */
+.dark-theme .compact-stat-card {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+.dark-theme .compact-stat-card.main-stat {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-color: #334155;
+}
+
+.dark-theme .compact-stat-card.free-positions {
+    background: linear-gradient(135deg, #064e3b 0%, #022c22 100%);
+    border-color: #065f46;
+}
+
+.dark-theme .compact-stat-card.sold-positions {
+    background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%);
+    border-color: #991b1b;
+}
+
+.dark-theme .compact-stat-value {
+    color: #f1f5f9;
+}
+
+.dark-theme .compact-stat-label {
+    color: #94a3b8;
+}
+
+.dark-theme .position-stats-section {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.dark-theme .platform-stats {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.dark-theme .platform-title {
+    color: #e2e8f0;
+    border-color: #334155;
+}
+
+.dark-theme .position-stat-item {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.dark-theme .position-type-label {
+    color: #cbd5e1;
+}
+
+.dark-theme .total-positions {
+    color: #f1f5f9;
+}
+
+.dark-theme .separator {
+    color: #64748b;
+}
+
+.dark-theme .stats-legend {
+    background: #1e293b;
+    border-color: #334155;
+    color: #94a3b8;
+}
+
+/* Гарантируем что аккаунты идут строго один под другим */
+.accounts-grid-horizontal {
+    display: block !important;
+    width: 100%;
+}
+
+.account-simple {
+    display: block !important;
+    width: 100% !important;
+    float: none !important;
+    clear: both !important;
+    margin-bottom: 15px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+}
+
+/* Убираем все гриды и флексы, которые могут создавать колонки */
+#searchResults {
+    display: block !important;
+    column-count: 1 !important;
+    columns: 1 !important;
+}
+
+#searchResults > * {
+    display: block !important;
+    width: 100% !important;
+}
