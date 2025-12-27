@@ -927,37 +927,14 @@ function initPage(currentPage) {
             break;
             
         case 'reports.html':
-            // Устанавливаем даты по умолчанию
-            const endDate = new Date();
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - 30);
-            
-            const startInput = document.getElementById('startDate');
-            const endInput = document.getElementById('endDate');
-            if (startInput && endInput) {
-                startInput.value = startDate.toISOString().split('T')[0];
-                endInput.value = endDate.toISOString().split('T')[0];
-            }
+            setTimeout(() => {
+                generateReport();
+            }, 500);
             break;
             
         case 'workers-stats.html':
-            // Устанавливаем даты по умолчанию
-            const endDate2 = new Date();
-            const startDate2 = new Date();
-            startDate2.setDate(startDate2.getDate() - 30);
-            
-            const startInput2 = document.getElementById('statsStartDate');
-            const endInput2 = document.getElementById('statsEndDate');
-            if (startInput2 && endInput2) {
-                startInput2.value = startDate2.toISOString().split('T')[0];
-                endInput2.value = endDate2.toISOString().split('T')[0];
-            }
-            
-            // Загружаем статистику
             setTimeout(() => {
-                if (typeof generateWorkersStats === 'function') {
-                    generateWorkersStats();
-                }
+                generateWorkersStats();
             }, 500);
             break;
             
@@ -4308,29 +4285,9 @@ function closeSaleModal() {
 // ============================================
 
 function generateReport() {
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-    
-    if (!startDate || !endDate) {
-        showNotification('Выберите начальную и конечную дату', 'warning');
-        return;
-    }
-    
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
-    
-    if (start > end) {
-        showNotification('Начальная дата не может быть больше конечной', 'error');
-        return;
-    }
-    
-    const periodSales = sales.filter(sale => {
-        const saleDate = new Date(sale.timestamp);
-        return saleDate >= start && saleDate <= end;
-    });
-    
-    displayReportResults(periodSales, startDate, endDate);
+    // Просто показываем полную статистику за всё время
+    displayReportResults(sales, 'все время', 'все время');
+    showNotification('Показана статистика за всё время 📊', 'info');
 }
 
 function generateFullReport() {
@@ -4343,32 +4300,29 @@ function displayReportResults(salesData, startDate, endDate) {
     if (salesData.length === 0) {
         reportResults.innerHTML = `
             <div class="section">
-                <h2>📊 Отчет за период: ${startDate} - ${endDate}</h2>
-                <div class="empty">Нет продаж за выбранный период</div>
+                <h2>📊 Отчет за всё время</h2>
+                <div class="empty">
+                    <div style="font-size: 3em; margin-bottom: 15px;">📊</div>
+                    <h3>Нет продаж</h3>
+                    <p>Пока не было совершено ни одной продажи</p>
+                </div>
             </div>
         `;
         return;
     }
     
-    // Получаем список уникальных аккаунтов из продаж
-    const uniqueAccountIds = [...new Set(salesData.map(sale => sale.accountId))];
-    
-    // Считаем сумму закупа только для аккаунтов, которые были проданы в этот период
+    // СУММА ЗАКУПА ВСЕХ АККАУНТОВ В СИСТЕМЕ
     let totalPurchaseAmount = 0;
-    
-    uniqueAccountIds.forEach(accountId => {
-        const account = accounts.find(acc => acc.id === accountId);
-        if (account && account.purchaseAmount) {
-            totalPurchaseAmount += account.purchaseAmount;
-        }
+    accounts.forEach(account => {
+        totalPurchaseAmount += account.purchaseAmount || 0;
     });
     
-    // Общая статистика
+    // Общая выручка из продаж
     const totalRevenue = salesData.reduce((sum, sale) => sum + sale.price, 0);
     const totalSales = salesData.length;
-    const avgSale = totalRevenue / totalSales;
+    const avgSale = totalSales > 0 ? totalRevenue / totalSales : 0;
     
-    // Чистая прибыль по новой формуле: выручка минус закуп
+    // Чистая прибыль
     const netProfit = totalRevenue - totalPurchaseAmount;
     
     // Статистика по играм
@@ -4392,7 +4346,7 @@ function displayReportResults(salesData, startDate, endDate) {
         <!-- Секция статистики -->
         <div class="report-stats-section">
             <h2 style="margin-bottom: 30px; color: white !important; text-align: center;">
-                📊 Отчет за период: ${startDate} - ${endDate}
+                📊 Отчет за всё время
             </h2>
             
             <div class="stats-grid">
@@ -4419,9 +4373,8 @@ function displayReportResults(salesData, startDate, endDate) {
                     <div class="stat-label">Средний чек</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${formatNumber(totalRevenue / Math.max(totalPurchaseAmount, 1))}x</div>
+                    <div class="stat-value">${totalPurchaseAmount > 0 ? (totalRevenue / totalPurchaseAmount).toFixed(2) + 'x' : '0x'}</div>
                     <div class="stat-label">Окупаемость</div>
-                    <div class="stat-sub">(Выручка / Закуп)</div>
                 </div>
             </div>
         </div>
@@ -4519,25 +4472,32 @@ function getGamesStatsHTML(salesData, sortedGames) {
         return '<div class="empty">Нет данных по играм</div>';
     }
     
-    // Рассчитываем закуп по каждой игре
+    // Рассчитываем закуп по каждой игре (ВСЕХ аккаунтов этой игры)
     const gamePurchases = {};
-    salesData.forEach(sale => {
-        const account = accounts.find(acc => acc.id === sale.accountId);
-        if (account) {
+    
+    // Считаем ВСЕ аккаунты каждой игры
+    accounts.forEach(account => {
+        if (account.gameName && account.gameName !== 'Свободный') {
             if (!gamePurchases[account.gameName]) {
                 gamePurchases[account.gameName] = 0;
             }
-            // Добавляем долю закупа аккаунта (один раз за аккаунт)
-            if (!gamePurchases[`${account.gameName}_${account.id}_counted`]) {
-                gamePurchases[account.gameName] += (account.purchaseAmount || 0);
-                gamePurchases[`${account.gameName}_${account.id}_counted`] = true;
-            }
+            gamePurchases[account.gameName] += (account.purchaseAmount || 0);
         }
     });
     
     return sortedGames.map(([gameName, stats]) => {
         const gamePurchaseAmount = gamePurchases[gameName] || 0;
         const gameProfit = stats.revenue - gamePurchaseAmount;
+        
+        // Найдем сколько всего аккаунтов у этой игры
+        const gameAccounts = accounts.filter(acc => acc.gameName === gameName);
+        const totalGameAccounts = gameAccounts.length;
+        
+        // Сколько аккаунтов продано
+        const soldAccounts = [...new Set(salesData
+            .filter(sale => sale.gameName === gameName)
+            .map(sale => sale.accountId)
+        )].length;
         
         return `
             <div class="game-stat-card" style="
@@ -4562,7 +4522,7 @@ function getGamesStatsHTML(salesData, sortedGames) {
                         font-size: 1.2em;
                         color: ${gameProfit >= 0 ? '#10b981' : '#ef4444'};
                     ">
-                        ${gameProfit.toFixed(0)} ₽ прибыли
+                        ${gameProfit.toFixed(0)} ₽ ${gameProfit >= 0 ? 'прибыли' : 'убытка'}
                     </span>
                 </div>
                 
@@ -4589,7 +4549,7 @@ function getGamesStatsHTML(salesData, sortedGames) {
                         border-radius: 8px;
                         border: 1px solid #e2e8f0;
                     ">
-                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Закуп</div>
+                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Закуп (всех акк.)</div>
                         <div style="font-weight: 700; font-size: 1.2em; color: #ef4444;">
                             ${gamePurchaseAmount.toFixed(0)} ₽
                         </div>
@@ -4629,6 +4589,43 @@ function getGamesStatsHTML(salesData, sortedGames) {
                         <div style="font-weight: 700; font-size: 1.2em; color: #1e293b;">
                             ${(stats.revenue / stats.sales).toFixed(0)} ₽
                         </div>
+                    </div>
+                    
+                    <div style="
+                        background: #eff6ff;
+                        padding: 15px;
+                        border-radius: 8px;
+                        border: 1px solid #dbeafe;
+                    ">
+                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Аккаунты</div>
+                        <div style="font-weight: 700; font-size: 1.2em; color: #2563eb;">
+                            ${totalGameAccounts} всего
+                        </div>
+                        <div style="color: #64748b; font-size: 0.8em;">
+                            ${soldAccounts} продано
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Прогресс-бар продаж -->
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #f1f5f9;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9em; color: #64748b;">
+                        <span>Прогресс продаж:</span>
+                        <span>${soldAccounts}/${totalGameAccounts} (${totalGameAccounts > 0 ? Math.round((soldAccounts / totalGameAccounts) * 100) : 0}%)</span>
+                    </div>
+                    <div style="
+                        width: 100%;
+                        height: 8px;
+                        background: #e2e8f0;
+                        border-radius: 4px;
+                        overflow: hidden;
+                    ">
+                        <div style="
+                            width: ${totalGameAccounts > 0 ? (soldAccounts / totalGameAccounts) * 100 : 0}%;
+                            height: 100%;
+                            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+                            border-radius: 4px;
+                        "></div>
                     </div>
                 </div>
             </div>
@@ -4844,38 +4841,13 @@ document.addEventListener('keydown', function(e) {
 // ============================================
 
 function generateWorkersStats() {
-    const startDate = document.getElementById('statsStartDate').value;
-    const endDate = document.getElementById('statsEndDate').value;
-    
-    if (!startDate || !endDate) {
-        showNotification('Выберите начальную и конечную дату', 'warning');
-        return;
-    }
-    
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
-    
-    if (start > end) {
-        showNotification('Начальная дата не может быть больше конечной', 'error');
-        return;
-    }
-    
-    // Фильтруем продажи по периоду
-    const periodSales = sales.filter(sale => {
-        const saleDate = new Date(sale.timestamp);
-        return saleDate >= start && saleDate <= end;
-    });
-    
-    displayWorkersStatsPage(periodSales, startDate, endDate);
+    // Показываем статистику за всё время
+    displayWorkersStatsPage(sales, 'все время', 'все время');
+    showNotification('Показана статистика работников за всё время 📊', 'info');
 }
 
 function showAllTimeStats() {
-    // Сбрасываем даты на все время
-    document.getElementById('statsStartDate').value = '';
-    document.getElementById('statsEndDate').value = '';
-    
-    // Показываем статистику за все время
+    // Та же функция что и generateWorkersStats
     displayWorkersStatsPage(sales, 'все время', 'все время');
 }
 
@@ -4885,8 +4857,8 @@ function displayWorkersStatsPage(periodSales, startDate, endDate) {
     if (periodSales.length === 0) {
         container.innerHTML = `
             <div class="section">
-                <h2>📊 Статистика работников: ${startDate} - ${endDate}</h2>
-                <div class="empty">Нет продаж за выбранный период</div>
+                <h2>📊 Статистика работников за всё время</h2>
+                <div class="empty">Нет продаж</div>
             </div>
         `;
         return;

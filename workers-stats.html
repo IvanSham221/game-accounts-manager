@@ -8,70 +8,54 @@
 </head>
 <body>
     <div id="mobileMenu" class="mobile-menu">
-    <div class="mobile-menu-header">
-        <div class="user-info-mobile">
-            <div class="user-avatar">👤</div>
-            <div>
-                <div class="user-name" id="mobileUserName"></div>
-                <div class="user-role" id="mobileUserRole"></div>
+        <div class="mobile-menu-header">
+            <div class="user-info-mobile">
+                <div class="user-avatar">👤</div>
+                <div>
+                    <div class="user-name" id="mobileUserName"></div>
+                    <div class="user-role" id="mobileUserRole"></div>
+                </div>
             </div>
+            <button class="close-menu" onclick="toggleMobileMenu()">×</button>
         </div>
-        <button class="close-menu" onclick="toggleMobileMenu()">×</button>
+        
+        <div class="mobile-menu-nav">
+            <!-- Пункты меню будут добавляться скриптом -->
+        </div>
+        
+        <div class="mobile-menu-footer">
+            <button onclick="logout()" class="btn btn-danger btn-block">
+                <span>🚪</span> Выйти
+            </button>
+        </div>
     </div>
-    
-    <div class="mobile-menu-nav">
-        <!-- Пункты меню будут добавляться скриптом -->
-    </div>
-    
-    <div class="mobile-menu-footer">
-        <button onclick="logout()" class="btn btn-danger btn-block">
-            <span>🚪</span> Выйти
+
+    <!-- Бургер-кнопка -->
+    <div class="burger-container">
+        <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
+            <div class="burger-icon">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <!-- Опционально: бейдж с уведомлениями -->
+            <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
+            <!-- Текст при наведении (только на ПК) -->
+            <div class="burger-label">Меню</div>
         </button>
     </div>
-</div>
 
-<!-- Бургер-кнопка -->
-<div class="burger-container">
-    <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
-        <div class="burger-icon">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-        <!-- Опционально: бейдж с уведомлениями -->
-        <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
-        <!-- Текст при наведении (только на ПК) -->
-        <div class="burger-label">Меню</div>
-    </button>
-</div>
+    <!-- Оверлей для закрытия меню -->
+    <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
 
-<!-- Оверлей для закрытия меню -->
-<div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
     <div class="container">
         <h1><span>📈</span><span>Статистика работников</span></h1>
-        <div class="section">
-            <h2>📅 Период статистики</h2>
-            <div class="period-selector">
-                <div class="period-group">
-                    <label for="statsStartDate">С:</label>
-                    <input type="date" id="statsStartDate" class="input">
-                </div>
-                <div class="period-group">
-                    <label for="statsEndDate">По:</label>
-                    <input type="date" id="statsEndDate" class="input">
-                </div>
-                <button onclick="generateWorkersStats()" class="btn btn-primary">Показать статистику</button>
-                <button onclick="showAllTimeStats()" class="btn btn-secondary">За все время</button>
-            </div>
-        </div>
-
+        
+        <!-- Сразу показываем статистику работников -->
         <div id="workersStatsContainer">
-            <!-- Здесь будет загружаться статистика -->
-            <div class="section">
-                <div style="text-align: center; padding: 40px;">
-                    <div class="loading">⏳</div>
-                    <p>Выберите период для отображения статистики</p>
-                </div>
+            <div style="text-align: center; padding: 40px; color: #64748b;">
+                <div style="font-size: 3em; margin-bottom: 15px;">👷</div>
+                <h3>Загружаем статистику работников...</h3>
             </div>
         </div>
     </div>
@@ -81,22 +65,20 @@
     <script src="firebase.js"></script>
     <script src="security.js"></script>
     <script src="script.js?v=20250115"></script>
-    
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Устанавливаем даты по умолчанию (последние 30 дней)
-            const endDate = new Date();
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - 30);
-            
-            document.getElementById('statsStartDate').value = startDate.toISOString().split('T')[0];
-            document.getElementById('statsEndDate').value = endDate.toISOString().split('T')[0];
-            
-            // Загружаем статистику за последние 30 дней
-            setTimeout(() => {
+    document.addEventListener('DOMContentLoaded', function() {
+        // Ждем немного чтобы все загрузилось
+        setTimeout(function() {
+            if (typeof generateWorkersStats === 'function') {
+                console.log('📈 Автоматически загружаем статистику работников...');
                 generateWorkersStats();
-            }, 500);
-        });
-    </script>
+            } else {
+                console.error('❌ Функция generateWorkersStats не найдена!');
+            }
+        }, 800);
+    });
+</script>
+</body>
+</html>
 </body>
 </html>
