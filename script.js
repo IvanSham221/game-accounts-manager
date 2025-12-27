@@ -3285,30 +3285,72 @@ function generateSimplePositionButtons(account, positionType, positionName, posi
         const saleInfo = getPositionSaleInfo(account.id, positionType, i);
         const isSold = !!saleInfo;
         
+        // Форматируем дату продажи в формат ДД/ММ/ГГ
+        let saleDate = '';
+        if (saleInfo) {
+            let dateStr = '';
+            if (saleInfo.datetime) dateStr = saleInfo.datetime;
+            else if (saleInfo.date) dateStr = saleInfo.date;
+            else if (saleInfo.timestamp) dateStr = saleInfo.timestamp;
+            
+            if (dateStr) {
+                try {
+                    const dateObj = new Date(dateStr);
+                    // Формат: ДД/ММ/ГГ
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const year = String(dateObj.getFullYear()).slice(-2); // Последние 2 цифры года
+                    saleDate = `${day}/${month}/${year}`;
+                } catch (e) {
+                    console.warn('Ошибка форматирования даты:', dateStr);
+                }
+            }
+        }
+        
         buttons.push(`
-            <button onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
-                    style="
-                        width: 40px;
-                        height: 40px;
-                        background: ${isSold ? '#ef4444' : '#3b82f6'};
-                        color: white;
-                        border: none;
-                        border-radius: 6px;
-                        font-weight: 600;
-                        font-size: 14px;
-                        cursor: pointer;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        transition: all 0.2s ease;
-                    "
-                    onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.05)'"
-                    onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'"
-                    title="${isSold ? 'Продано' : 'Свободно'}">
-                <div>${i}</div>
-                <div style="font-size: 9px;">${positionLabel}</div>
-            </button>
+            <div style="
+                display: inline-block;
+                text-align: center;
+                margin-right: 8px;
+                margin-bottom: 8px;
+            ">
+                <button onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
+                        style="
+                            width: 40px;
+                            height: 40px;
+                            background: ${isSold ? '#ef4444' : '#3b82f6'};
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            font-weight: 600;
+                            font-size: 14px;
+                            cursor: pointer;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            transition: all 0.2s ease;
+                            margin-bottom: 2px;
+                        "
+                        onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.05)'"
+                        onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'"
+                        title="${isSold ? `Продано: ${saleDate || 'без даты'}` : 'Свободно'}">
+                    <div>${i}</div>
+                    <div style="font-size: 9px;">${positionLabel}</div>
+                </button>
+                
+                ${isSold && saleDate ? `
+                    <div style="
+                        font-size: 8px;
+                        color: #ef4444;
+                        font-weight: 700;
+                        white-space: nowrap;
+                        letter-spacing: -0.2px;
+                    ">
+                        ${saleDate}
+                    </div>
+                ` : ''}
+            </div>
         `);
     }
     
