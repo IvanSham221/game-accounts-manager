@@ -92,6 +92,27 @@ class FirebaseSync {
                 console.log('🔄 Продажи синхронизированы');
             }
         });
+        this.db.ref('gamePrices').on('value', (snapshot) => {
+            if (snapshot.exists()) {
+                try {
+                    const pricesObj = snapshot.val();
+                    const pricesArray = Object.values(pricesObj || {});
+                    localStorage.setItem('gamePrices', JSON.stringify(pricesArray));
+                    console.log('🔄 Ценники синхронизированы:', pricesArray.length);
+                    
+                    // Обновляем UI если на странице ценников
+                    if (window.location.pathname.includes('prices.html')) {
+                        setTimeout(() => {
+                            if (window.pricesManager) {
+                                window.pricesManager.refreshFromFirebase();
+                            }
+                        }, 500);
+                    }
+                } catch (error) {
+                    console.error('❌ Ошибка синхронизации ценников:', error);
+                }
+            }
+        });
     }
 
     // СИНХРОНИЗАЦИЯ ВСЕХ ДАННЫХ ПРИ ЗАГРУЗКЕ
@@ -133,6 +154,14 @@ class FirebaseSync {
                 const salesArray = Object.values(salesObj || {});
                 localStorage.setItem('sales', JSON.stringify(salesArray));
                 console.log('✅ Продажи синхронизированы:', salesArray.length);
+            }
+
+            const pricesSnap = await this.db.ref('gamePrices').once('value');
+            if (pricesSnap.exists()) {
+                const pricesObj = pricesSnap.val();
+                const pricesArray = Object.values(pricesObj || {});
+                localStorage.setItem('gamePrices', JSON.stringify(pricesArray));
+                console.log('✅ Ценники синхронизированы:', pricesArray.length);
             }
             
             console.log('✅ Полная синхронизация завершена');
@@ -241,6 +270,25 @@ window.dataSync = {
             return await firebaseSync.loadDataFromFirebase(dataType);
         } else {
             const data = localStorage.getItem(dataType);
+            return data ? JSON.parse(data) : [];
+        }
+    },
+
+    // СПЕЦИАЛЬНЫЙ МЕТОД ДЛЯ ЦЕННИКОВ
+    savePrices: async (prices) => {
+        if (firebaseSync) {
+            return await firebaseSync.saveDataToFirebase('gamePrices', prices);
+        } else {
+            localStorage.setItem('gamePrices', JSON.stringify(prices));
+            return { success: true, local: true };
+        }
+    },
+    
+    loadPrices: async () => {
+        if (firebaseSync) {
+            return await firebaseSync.loadDataFromFirebase('gamePrices');
+        } else {
+            const data = localStorage.getItem('gamePrices');
             return data ? JSON.parse(data) : [];
         }
     },

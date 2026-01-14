@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ценники игр - Менеджер игровых аккаунтов</title>
+    <link rel="stylesheet" href="style.css?v=20250115">
+</head>
+<body>
+    <!-- Мобильное меню -->
+    <div id="mobileMenu" class="mobile-menu">
+        <div class="mobile-menu-header">
+            <div class="user-info-mobile">
+                <div class="user-avatar">👤</div>
+                <div>
+                    <div class="user-name" id="mobileUserName"></div>
+                    <div class="user-role" id="mobileUserRole"></div>
+                </div>
+            </div>
+            <button class="close-menu" onclick="toggleMobileMenu()">×</button>
+        </div>
+        
+        <div class="mobile-menu-nav">
+            <!-- Пункты меню будут добавляться скриптом -->
+        </div>
+        
+        <div class="mobile-menu-footer">
+            <button onclick="logout()" class="btn btn-danger btn-block">
+                <span>🚪</span> Выйти
+            </button>
+        </div>
+    </div>
+
+    <!-- Бургер-кнопка -->
+    <div class="burger-container">
+        <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
+            <div class="burger-icon">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
+            <div class="burger-label">Меню</div>
+        </button>
+    </div>
+
+    <!-- Оверлей для закрытия меню -->
+    <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
+
+    <div class="container">
+        <h1><span>💰</span><span>Ценники игр</span></h1>
+        
+        <!-- Быстрые действия -->
+        <div class="section quick-actions">
+            <div class="quick-actions-grid">
+                <button onclick="toggleAddGameForm()" class="btn btn-primary">
+                    ➕ Добавить ценник
+                </button>
+                <button onclick="refreshPrices()" class="btn btn-secondary">
+                    🔄 Обновить
+                </button>
+            </div>
+        </div>
+
+        <!-- Форма добавления игры -->
+        <div id="addGameFormSection" class="section" style="display: none;">
+            <h2>🎮 Добавить ценник</h2>
+            <div class="add-game-form">
+                <div class="form-group">
+                    <label for="gameSelect">Игра:</label>
+                    <select id="gameSelect" class="input">
+                        <option value="">Выберите игру...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="gameLanguage">Язык:</label>
+                    <select id="gameLanguage" class="input">
+                        <option value="russian_voice">🎤 Русская озвучка</option>
+                        <option value="russian_subs">📝 Русские субтитры</option>
+                        <option value="english">🇬🇧 Английский язык</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="positionCount">Позиции:</label>
+                    <select id="positionCount" class="input" onchange="updatePriceInputs()">
+                        <option value="4">Все 4 позиции</option>
+                        <option value="ps4_only">Только PS4</option>
+                        <option value="ps5_only">Только PS5</option>
+                        <option value="ps4_p2">Только PS4 П2</option>
+                        <option value="ps4_p3">Только PS4 П3</option>
+                        <option value="ps5_p2">Только PS5 П2</option>
+                        <option value="ps5_p3">Только PS5 П3</option>
+                    </select>
+                </div>
+                
+                <div id="priceInputsContainer" class="price-inputs-grid">
+                    <!-- Поля будут добавляться динамически -->
+                </div>
+                
+                <div class="form-buttons">
+                    <button onclick="addGameToPrices()" class="btn btn-success btn-large">
+                        💾 Сохранить
+                    </button>
+                    <button onclick="toggleAddGameForm()" class="btn btn-secondary">
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Фильтры и поиск -->
+        <div class="section">
+    <div class="search-filters">
+        <div class="search-group" style="flex: 1;">
+            <input type="text" 
+                   id="searchPrices" 
+                   placeholder="🔍 Начните вводить название игры..." 
+                   class="input">
+        </div>
+        
+        <button onclick="showAllPrices()" class="btn btn-secondary" style="white-space: nowrap;">
+            🔄 Показать все
+        </button>
+    </div>
+    
+    <div class="language-filter">
+        <button class="language-filter-btn active" onclick="filterByLanguage('all')">
+            Все языки
+        </button>
+        <button class="language-filter-btn" onclick="filterByLanguage('russian_voice')">
+            🎤 Русская озвучка
+        </button>
+        <button class="language-filter-btn" onclick="filterByLanguage('russian_subs')">
+            📝 Русские субтитры
+        </button>
+        <button class="language-filter-btn" onclick="filterByLanguage('english')">
+            🇬🇧 Английский
+        </button>
+    </div>
+</div>
+
+        <!-- Список ценников -->
+        <div class="section">
+            <h2>🎮 Список ценников</h2>
+            <div id="pricesList" class="prices-grid">
+                <!-- Ценники будут загружены здесь -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования -->
+    <div id="editPriceModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <div id="editPriceContent"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="firebase.js"></script>
+    <script src="security.js"></script>
+    <script src="script.js?v=20250115"></script>
+    <script src="prices.js?v=20250115"></script>
+</body>
+</html>

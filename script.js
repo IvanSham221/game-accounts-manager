@@ -400,6 +400,10 @@ function updateNavigation() {
             <span>📋</span>
             <span class="nav-text">Список аккаунтов</span>
         </button>
+        <button onclick="security.updateSession(); location.href='prices.html'" class="btn ${location.pathname.includes('prices.html') ? 'btn-primary' : 'btn-secondary'}">
+            <span>💰</span>
+            <span class="nav-text">Ценники игр</span>
+        </button>
         <button onclick="security.updateSession(); location.href='free-accounts.html'" class="btn ${location.pathname.includes('free-accounts.html') ? 'btn-primary' : 'btn-secondary'}">
             <span>🆓</span>
             <span class="nav-text">Свободные аккаунты</span>
@@ -545,6 +549,7 @@ function initMobileMenu() {
         { icon: '🎮', text: 'Панель менеджера', page: 'manager.html', id: 'manager' },
         { icon: '➕', text: 'Добавить аккаунт', page: 'add-account.html', id: 'add-account' },
         { icon: '📋', text: 'Список аккаунтов', page: 'accounts.html', id: 'accounts' },
+        { icon: '💰', text: 'Ценники игр', page: 'prices.html', id: 'prices' },
         { icon: '🆓', text: 'Свободные аккаунты', page: 'free-accounts.html', id: 'free-accounts' },
         { icon: '🎯', text: 'Управление играми', page: 'games.html', id: 'games' },
         { icon: '📊', text: 'Отчеты', page: 'reports.html', id: 'reports' },
@@ -3385,23 +3390,75 @@ function generateSimplePositionButtons(account, positionType, positionName, posi
         
         // Форматируем дату продажи в формат ДД/ММ/ГГ
         let saleDate = '';
+        let managerInfo = '';
+        let marketplaceBadge = '';
+        
         if (saleInfo) {
-            let dateStr = '';
-            if (saleInfo.datetime) dateStr = saleInfo.datetime;
-            else if (saleInfo.date) dateStr = saleInfo.date;
-            else if (saleInfo.timestamp) dateStr = saleInfo.timestamp;
-            
-            if (dateStr) {
+            // Дата
+            if (saleInfo.datetime) {
                 try {
-                    const dateObj = new Date(dateStr);
-                    // Формат: ДД/ММ/ГГ
+                    const dateObj = new Date(saleInfo.datetime);
                     const day = String(dateObj.getDate()).padStart(2, '0');
                     const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-                    const year = String(dateObj.getFullYear()).slice(-2); // Последние 2 цифры года
+                    const year = String(dateObj.getFullYear()).slice(-2);
                     saleDate = `${day}/${month}/${year}`;
                 } catch (e) {
-                    console.warn('Ошибка форматирования даты:', dateStr);
+                    console.warn('Ошибка форматирования даты:', saleInfo.datetime);
                 }
+            }
+            
+            // Информация о менеджере
+            if (saleInfo.soldByName) {
+                const managerIcon = saleInfo.managerRole === 'admin' ? '👑' : '👷';
+                managerInfo = `
+                    <div style="
+                        font-size: 9px;
+                        color: ${saleInfo.managerRole === 'admin' ? '#f72585' : '#4361ee'};
+                        font-weight: 700;
+                        margin-top: 2px;
+                    ">
+                        ${saleInfo.soldByName} ${managerIcon}
+                    </div>
+                `;
+            }
+            
+            // Площадка продажи
+            if (saleInfo.marketplace) {
+                const marketplaceColors = {
+                    'telegram': '#0088cc',
+                    'funpay': '#ff6b00',
+                    'avito': '#006cff'
+                };
+                
+                const marketplaceNames = {
+                    'telegram': 'TG',
+                    'funpay': 'FP',
+                    'avito': 'AV'
+                }; 
+                
+                const color = marketplaceColors[saleInfo.marketplace] || '#64748b';
+                const name = marketplaceNames[saleInfo.marketplace] || saleInfo.marketplace.substring(0, 2).toUpperCase();
+                
+                marketplaceBadge = `
+                    <div style="
+                        position: absolute;
+                        top: -8px;
+                        right: -8px;
+                        width: 18px;
+                        height: 18px;
+                        background: ${color};
+                        color: white;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 9px;
+                        font-weight: 700;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                    ">
+                        ${name}
+                    </div>
+                `;
             }
         }
         
@@ -3411,6 +3468,7 @@ function generateSimplePositionButtons(account, positionType, positionName, posi
                 text-align: center;
                 margin-right: 8px;
                 margin-bottom: 8px;
+                position: relative;
             ">
                 <button onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
                         style="
@@ -3429,12 +3487,16 @@ function generateSimplePositionButtons(account, positionType, positionName, posi
                             justify-content: center;
                             transition: all 0.2s ease;
                             margin-bottom: 2px;
+                            position: relative;
                         "
                         onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.05)'"
                         onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'"
-                        title="${isSold ? `Продано: ${saleDate || 'без даты'}` : 'Свободно'}">
+                        title="${isSold ? 
+                            `Продано: ${saleDate || 'без даты'}\nПлощадка: ${saleInfo.marketplace || 'не указана'}\nМенеджер: ${saleInfo.soldByName || 'неизвестно'}` : 
+                            'Свободно'}">
                     <div>${i}</div>
                     <div style="font-size: 9px;">${positionLabel}</div>
+                    ${marketplaceBadge}
                 </button>
                 
                 ${isSold && saleDate ? `
@@ -3447,6 +3509,7 @@ function generateSimplePositionButtons(account, positionType, positionName, posi
                     ">
                         ${saleDate}
                     </div>
+                    ${managerInfo}
                 ` : ''}
             </div>
         `);
@@ -3454,6 +3517,123 @@ function generateSimplePositionButtons(account, positionType, positionName, posi
     
     return buttons.join('');
 }
+
+// В функции displayReportResults добавим статистику по площадкам:
+function getMarketplaceStats(salesData) {
+    const marketplaceStats = {};
+    
+    salesData.forEach(sale => {
+        const marketplace = sale.marketplace || 'other';
+        if (!marketplaceStats[marketplace]) {
+            marketplaceStats[marketplace] = {
+                sales: 0,
+                revenue: 0,
+                avgPrice: 0
+            };
+        }
+        marketplaceStats[marketplace].sales += 1;
+        marketplaceStats[marketplace].revenue += sale.price;
+    });
+    
+    // Рассчитываем средний чек
+    Object.keys(marketplaceStats).forEach(marketplace => {
+        const stats = marketplaceStats[marketplace];
+        stats.avgPrice = stats.sales > 0 ? stats.revenue / stats.sales : 0;
+    });
+    
+    return marketplaceStats;
+}
+
+// Добавим эту статистику в отчеты
+function displayMarketplaceStats(stats) {
+    const sortedMarketplaces = Object.entries(stats)
+        .sort(([,a], [,b]) => b.revenue - a.revenue);
+    
+    if (sortedMarketplaces.length === 0) {
+        return '<div class="empty">Нет данных по площадкам</div>';
+    }
+    
+    return `
+        <div class="section">
+            <h3>🏪 Статистика по площадкам продаж</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
+                ${sortedMarketplaces.map(([marketplace, stat]) => {
+                    const marketplaceName = getMarketplaceName(marketplace);
+                    const marketplaceColor = marketplace === 'telegram' ? '#0088cc' :
+                                            marketplace === 'funpay' ? '#ff6b00' :
+                                            marketplace === 'avito' ? '#006cff' :
+                                            marketplace === 'vk' ? '#4c75a3' : '#64748b';
+                    
+                    return `
+                        <div style="
+                            background: white;
+                            padding: 20px;
+                            border-radius: 10px;
+                            border: 1px solid #e2e8f0;
+                            text-align: center;
+                            border-top: 4px solid ${marketplaceColor};
+                        ">
+                            <div style="font-size: 1.1em; font-weight: 700; color: #2d3748; margin-bottom: 10px;">
+                                ${marketplaceName}
+                            </div>
+                            <div style="font-size: 1.8em; font-weight: 800; color: ${marketplaceColor}; margin: 10px 0;">
+                                ${stat.sales}
+                            </div>
+                            <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">
+                                продаж
+                            </div>
+                            <div style="font-size: 1.4em; font-weight: 700; color: #10b981; margin: 10px 0;">
+                                ${stat.revenue.toLocaleString('ru-RU')} ₽
+                            </div>
+                            <div style="color: #64748b; font-size: 0.85em;">
+                                Средний чек: ${stat.avgPrice.toLocaleString('ru-RU')} ₽
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// Функция для получения названия площадки
+function getMarketplaceName(marketplace) {
+    const names = {
+        'telegram': 'Telegram 📱',
+        'funpay': 'Funpay 🕹️',
+        'avito': 'Avito 🏪',
+    };
+    return names[marketplace] || marketplace;
+}
+
+// Функция для получения списка работников для селекта
+function getWorkersOptions(sale) {
+    const workers = JSON.parse(localStorage.getItem('workers')) || [];
+    const currentUser = security.getCurrentUser();
+    
+    let options = '';
+    
+    // Добавляем всех активных работников
+    workers.filter(w => w.active !== false).forEach(worker => {
+        const selected = sale.soldBy === worker.username ? 'selected' : '';
+        const adminBadge = worker.role === 'admin' ? ' 👑' : ' 👷';
+        options += `<option value="${worker.username}" ${selected}>
+            ${worker.name}${adminBadge}
+        </option>`;
+    });
+    
+    // Добавляем текущего пользователя если он не в списке работников
+    if (currentUser && !workers.find(w => w.username === currentUser.username)) {
+        const selected = sale.soldBy === currentUser.username ? 'selected' : '';
+        const adminBadge = currentUser.role === 'admin' ? ' 👑' : ' 👷';
+        options += `<option value="${currentUser.username}" ${selected}>
+            ${currentUser.name} (текущий)${adminBadge}
+        </option>`;
+    }
+    
+    return options;
+}
+
 // Вспомогательная функция для генерации кнопок позиций
 function generatePositionButtons(account, positionType, positionName, positionLabel) {
     const positionCount = account.positions[positionType] || 0;
@@ -3551,7 +3731,6 @@ function handlePositionClick(accountId, positionType, positionName, positionInde
 // ============================================
 // ОФОРМЛЕНИЕ ПРОДАЖ
 // ============================================
-
 function openSaleModal(accountId, positionType, positionName, positionIndex) {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return;
@@ -3563,6 +3742,9 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
     const now = new Date();
     const currentDate = now.toISOString().split('T')[0];
     const currentTime = now.toTimeString().slice(0, 5);
+    
+    const currentUser = security.getCurrentUser();
+    const isAdmin = currentUser && currentUser.role === 'admin';
     
     const modalContent = document.getElementById('saleModalContent');
     modalContent.innerHTML = `
@@ -3591,6 +3773,13 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
                     font-size: 0.9em;
                 ">${positionName}</span>
             </div>
+            <div class="sale-info-item">
+                <strong>Менеджер:</strong>
+                <span style="font-weight: 600; color: #1e293b;">
+                    ${currentUser ? currentUser.name : 'Неизвестно'}
+                    ${currentUser && currentUser.role === 'admin' ? ' 👑' : ' 👷'}
+                </span>
+            </div>
         </div>
         
         <div class="sale-form">
@@ -3603,7 +3792,45 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
                 ">Цена продажи (₽):</label>
                 <input type="number" id="salePrice" class="sale-input" 
                        placeholder="Введите цену" required 
-                       style="font-size: 18px; font-weight: 600; text-align: center;">
+                       style="font-size: 18px; font-weight: 600; text-align: center;"
+                       oninput="updateCommission()">
+            </div>
+            
+            <!-- НОВОЕ: Выбор площадки продажи с комиссией -->
+            <div>
+                <label for="saleMarketplace" style="
+                    display: block;
+                    margin-bottom: 8px;
+                    font-weight: 600;
+                    color: #2d3748;
+                ">Площадка продажи:</label>
+                <select id="saleMarketplace" class="sale-input" required>
+                    <option value="funpay" selected>Funpay</option>
+                    <option value="telegram">Telegram</option>
+                    <option value="avito">Avito</option>
+                </select>
+            </div>
+            <!-- НОВОЕ: Блок с информацией о комиссии -->
+            <div id="commissionInfo" style="
+                display: none;
+                background: #fef3c7;
+                padding: 15px;
+                border-radius: 10px;
+                border: 1px solid #fbbf24;
+                margin-bottom: 15px;
+                transition: all 0.3s ease;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <strong style="color: #92400e;">💰 Комиссия Funpay (3%):</strong>
+                    <span id="commissionAmount" style="font-weight: 700; color: #dc2626;">0 ₽</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong style="color: #92400e;">✅ Сумма к получению:</strong>
+                    <span id="finalAmount" style="font-weight: 700; color: #16a34a; font-size: 1.1em;">0 ₽</span>
+                </div>
+                <div style="margin-top: 8px; font-size: 0.85em; color: #92400e;">
+                    <small>Комиссия вычитается автоматически, округляется по правилам</small>
+                </div>
             </div>
             
             <div class="datetime-group">
@@ -3661,8 +3888,75 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
     }, 100);
 }
 
+// Функция расчета комиссии Funpay
+function calculateFPCommission(price) {
+    if (!price || price <= 0) return { original: 0, commission: 0, final: 0 };
+    
+    // Вычисляем комиссию (3%)
+    const commission = price * 0.03;
+    
+    // Округляем по правилам:
+    // 1. Берем дробную часть
+    const fractionalPart = commission - Math.floor(commission);
+    
+    // 2. Если дробная часть >= 0.5, округляем вверх
+    // Если дробная часть < 0.5, округляем вниз
+    let roundedCommission;
+    if (fractionalPart >= 0.5) {
+        roundedCommission = Math.ceil(commission);
+    } else {
+        roundedCommission = Math.floor(commission);
+    }
+    
+    // 3. Финальная сумма (цена минус комиссия)
+    const finalAmount = price - roundedCommission;
+    
+    return {
+        original: price,
+        commission: roundedCommission,
+        final: finalAmount,
+        commissionPercent: 3,
+        roundedBy: fractionalPart >= 0.5 ? 'вверх' : 'вниз'
+    };
+}
+
+// Функция обновления отображения комиссии
+function updateCommission() {
+    const priceInput = document.getElementById('salePrice');
+    const marketplaceSelect = document.getElementById('saleMarketplace');
+    const commissionInfo = document.getElementById('commissionInfo');
+    
+    if (!priceInput || !marketplaceSelect || !commissionInfo) return;
+    
+    const price = parseFloat(priceInput.value) || 0;
+    const marketplace = marketplaceSelect.value;
+    
+    // Показываем блок комиссии только для Funpay
+    if (marketplace === 'funpay' && price > 0) {
+        commissionInfo.style.display = 'block';
+        
+        // Рассчитываем комиссию
+        const commissionData = calculateFPCommission(price);
+        
+        // Обновляем отображение
+        document.getElementById('commissionAmount').textContent = 
+            `-${commissionData.commission} ₽`;
+        document.getElementById('finalAmount').textContent = 
+            `${commissionData.final} ₽`;
+        
+        // Подсвечиваем поле цены
+        priceInput.style.borderColor = '#fbbf24';
+        priceInput.style.boxShadow = '0 0 0 3px rgba(251, 191, 36, 0.1)';
+    } else {
+        commissionInfo.style.display = 'none';
+        priceInput.style.borderColor = '';
+        priceInput.style.boxShadow = '';
+    }
+}
+
 async function confirmSaleAndShowData() {
     const salePrice = document.getElementById('salePrice').value;
+    const marketplace = document.getElementById('saleMarketplace').value;
     const saleDate = document.getElementById('saleDate').value;
     const saleTime = document.getElementById('saleTime').value;
     const saleNotes = document.getElementById('saleNotes').value;
@@ -3672,6 +3966,24 @@ async function confirmSaleAndShowData() {
         return;
     }
     
+    let price = parseFloat(salePrice);
+    
+    // ПРОСТОЙ РАСЧЕТ КОМИССИИ ДЛЯ FUNPAY
+    let finalPrice = price;
+    if (marketplace === 'funpay') {
+        // Вычисляем 3%
+        const commission = price * 0.03;
+        
+        // Округляем: >=0.5 → вверх, <0.5 → вниз
+        const roundedCommission = (commission - Math.floor(commission) >= 0.5) 
+            ? Math.ceil(commission) 
+            : Math.floor(commission);
+        
+        finalPrice = price - roundedCommission;
+        
+        console.log(`💰 Funpay: ${price} - ${roundedCommission} = ${finalPrice}`);
+    }
+    
     const saleDateTime = saleDate && saleTime ? `${saleDate} ${saleTime}` : new Date().toLocaleString('ru-RU');
     
     const accountIndex = accounts.findIndex(acc => acc.id === window.currentSaleAccount);
@@ -3679,7 +3991,6 @@ async function confirmSaleAndShowData() {
     
     const positionId = `${window.currentSaleAccount}_${window.currentSalePosition}_${window.currentSalePositionIndex}`;
     
-    // Получаем текущего пользователя
     const currentUser = security.getCurrentUser();
     
     const newSale = {
@@ -3689,7 +4000,8 @@ async function confirmSaleAndShowData() {
         gameName: accounts[accountIndex].gameName,
         positionType: window.currentSalePosition,
         positionName: getPositionName(window.currentSalePosition),
-        price: parseFloat(salePrice),
+        // ТОЛЬКО ФИНАЛЬНАЯ ЦЕНА, КОМИССИЯ МОЛЧА ВЫЧИТАЕТСЯ
+        price: finalPrice,
         date: saleDate || new Date().toISOString().split('T')[0],
         time: saleTime || new Date().toTimeString().slice(0, 5),
         datetime: saleDateTime,
@@ -3697,10 +4009,10 @@ async function confirmSaleAndShowData() {
         timestamp: new Date().toISOString(),
         sold: true,
         positionIndex: window.currentSalePositionIndex,
-        // ДОБАВЛЯЕМ ИНФОРМАЦИЮ О МЕНЕДЖЕРЕ
         soldBy: currentUser ? currentUser.username : 'unknown',
         soldByName: currentUser ? currentUser.name : 'Неизвестно',
-        managerRole: currentUser ? currentUser.role : 'unknown'
+        managerRole: currentUser ? currentUser.role : 'unknown',
+        marketplace: marketplace || 'telegram'
     };
     
     sales.push(newSale);
@@ -4086,6 +4398,8 @@ function closeSaleModalAndRefresh() {
 
 function showSaleDetails(sale) {
     const modalContent = document.getElementById('saleModalContent');
+    const currentUser = security.getCurrentUser();
+    const canChangeManager = security.canChangeSaleManager();
     
     const saleDate = sale.date || new Date(sale.timestamp).toISOString().split('T')[0];
     const saleTime = sale.time || new Date(sale.timestamp).toTimeString().slice(0, 5);
@@ -4106,22 +4420,25 @@ function showSaleDetails(sale) {
                 <strong>Позиция:</strong>
                 <span>${sale.positionName}</span>
             </div>
-            <!-- ДОБАВЛЯЕМ СТРОКУ С МЕНЕДЖЕРОМ -->
-            ${sale.soldByName ? `
-                <div class="sale-info-item">
-                    <strong>Оформил:</strong>
-                    <span style="
-                        background: ${sale.managerRole === 'admin' ? 'linear-gradient(135deg, #f72585 0%, #e63946 100%)' : 'linear-gradient(135deg, #4361ee 0%, #3a56d4 100%)'};
-                        color: white;
-                        padding: 4px 10px;
-                        border-radius: 20px;
-                        font-size: 0.9em;
-                        display: inline-block;
-                    ">
-                        ${sale.soldByName} ${sale.managerRole === 'admin' ? '👑' : '👷'}
-                    </span>
-                </div>
-            ` : ''}
+            <div class="sale-info-item">
+                <strong>Площадка:</strong>
+                <span>${sale.marketplace === 'funpay' ? 'Funpay' : getMarketplaceName(sale.marketplace)}</span>
+            </div>
+            <div class="sale-info-item">
+                <strong>Менеджер:</strong>
+                <span style="
+                    background: ${sale.managerRole === 'admin' ? 
+                        'linear-gradient(135deg, #f72585 0%, #e63946 100%)' : 
+                        'linear-gradient(135deg, #4361ee 0%, #3a56d4 100%)'};
+                    color: white;
+                    padding: 4px 10px;
+                    border-radius: 20px;
+                    font-size: 0.9em;
+                    display: inline-block;
+                ">
+                    ${sale.soldByName} ${sale.managerRole === 'admin' ? '👑' : '👷'}
+                </span>
+            </div>
         </div>
         
         <div class="sale-form">
@@ -4129,6 +4446,27 @@ function showSaleDetails(sale) {
                 <label for="editSalePrice">Цена продажи (₽):</label>
                 <input type="number" id="editSalePrice" class="sale-input" value="${sale.price}" required>
             </div>
+            
+            <div>
+                <label for="editSaleMarketplace">Площадка продажи:</label>
+                <select id="editSaleMarketplace" class="sale-input">
+                    <option value="funpay" ${sale.marketplace === 'funpay' ? 'selected' : ''}>Funpay</option>
+    <option value="telegram" ${sale.marketplace === 'telegram' ? 'selected' : ''}>Telegram</option>
+    <option value="avito" ${sale.marketplace === 'avito' ? 'selected' : ''}>Avito</option>
+                </select>
+            </div>
+            
+            <!-- ПОЛЕ МЕНЕДЖЕРА - ТОЛЬКО ДЛЯ АДМИНА -->
+            ${canChangeManager ? `
+                <div>
+                    <label for="editSaleManager">Менеджер (может менять только админ):</label>
+                    <select id="editSaleManager" class="sale-input">
+                        <option value="">Выберите менеджера</option>
+                        ${getWorkersOptions(sale)}
+                    </select>
+                </div>
+            ` : ''}
+            
             <div class="datetime-group">
                 <div>
                     <label for="editSaleDate">Дата продажи:</label>
@@ -4141,18 +4479,57 @@ function showSaleDetails(sale) {
             </div>
             <div>
                 <label for="editSaleNotes">Примечания:</label>
-                <input type="text" id="editSaleNotes" class="sale-input" value="${sale.notes || ''}" placeholder="Дополнительная информация">
+                <input type="text" id="editSaleNotes" class="sale-input" 
+                       value="${sale.notes || ''}" placeholder="Дополнительная информация">
             </div>
         </div>
         
         <div class="sale-buttons">
             <button class="btn btn-secondary" onclick="closeSaleModal()">Отмена</button>
-            <button class="btn btn-primary" onclick="updateSaleDetails('${sale.id}')">💾 Сохранить изменения</button>
-            <button class="btn btn-danger" onclick="deleteSale('${sale.id}')">🗑️ Удалить продажу</button>
+            <button class="btn btn-primary" onclick="updateSaleDetails('${sale.id}')">
+                💾 Сохранить изменения
+            </button>
+            <button class="btn btn-danger" onclick="deleteSale('${sale.id}')">
+                🗑️ Удалить продажу
+            </button>
         </div>
     `;
     
     openModal('saleModal');
+}
+
+// Функция обновления комиссии при редактировании
+function updateEditCommission() {
+    const priceInput = document.getElementById('editSalePrice');
+    const marketplaceSelect = document.getElementById('editSaleMarketplace');
+    const commissionInfo = document.getElementById('editCommissionInfo');
+    
+    if (!priceInput || !marketplaceSelect || !commissionInfo) return;
+    
+    const price = parseFloat(priceInput.value) || 0;
+    const marketplace = marketplaceSelect.value;
+    
+    // Показываем блок комиссии только для Funpay
+    if (marketplace === 'funpay' && price > 0) {
+        commissionInfo.style.display = 'block';
+        
+        // Рассчитываем комиссию
+        const commissionData = calculateFPCommission(price);
+        
+        // Обновляем отображение
+        document.getElementById('editCommissionAmount').textContent = 
+            `-${commissionData.commission} ₽`;
+        document.getElementById('editFinalAmount').textContent = 
+            `${commissionData.final} ₽`;
+        
+        // Подсвечиваем поле цены
+        priceInput.style.borderColor = '#fbbf24';
+        priceInput.style.boxShadow = '0 0 0 3px rgba(251, 191, 36, 0.1)';
+    } else {
+        commissionInfo.style.display = 'none';
+        priceInput.style.borderColor = '';
+        priceInput.style.boxShadow = '';
+    }
 }
 
 function displayWorkersStats(periodSales) {
@@ -4243,6 +4620,7 @@ function displayWorkersStats(periodSales) {
 
 async function updateSaleDetails(saleId) {
     const salePrice = document.getElementById('editSalePrice').value;
+    const marketplace = document.getElementById('editSaleMarketplace').value;
     const saleDate = document.getElementById('editSaleDate').value;
     const saleTime = document.getElementById('editSaleTime').value;
     const saleNotes = document.getElementById('editSaleNotes').value;
@@ -4252,20 +4630,62 @@ async function updateSaleDetails(saleId) {
         return;
     }
     
+    let price = parseFloat(salePrice);
+    
+    // ТА ЖЕ ПРОСТАЯ ЛОГИКА
+    let finalPrice = price;
+    if (marketplace === 'funpay') {
+        const commission = price * 0.03;
+        const roundedCommission = (commission - Math.floor(commission) >= 0.5) 
+            ? Math.ceil(commission) 
+            : Math.floor(commission);
+        finalPrice = price - roundedCommission;
+    }
+    
     const saleDateTime = saleDate && saleTime ? `${saleDate} ${saleTime}` : '';
+    const currentUser = security.getCurrentUser();
     
     const saleIndex = sales.findIndex(s => s.id === saleId);
     if (saleIndex !== -1) {
-        const currentUser = security.getCurrentUser();
+        const originalSale = sales[saleIndex];
         
-        // Добавляем информацию о том, кто изменил продажу
+        // МЕНЕДЖЕРА МЕНЯЕМ ТОЛЬКО ЕСЛИ АДМИН
+        let newManager = originalSale.soldBy;
+        let newManagerName = originalSale.soldByName;
+        let newManagerRole = originalSale.managerRole;
+        
+        const managerSelect = document.getElementById('editSaleManager');
+        if (managerSelect && security.canChangeSaleManager()) {
+            const newManagerUsername = managerSelect.value;
+            if (newManagerUsername && newManagerUsername !== originalSale.soldBy) {
+                if (newManagerUsername === currentUser.username) {
+                    newManager = currentUser.username;
+                    newManagerName = currentUser.name;
+                    newManagerRole = currentUser.role;
+                } else {
+                    const workers = JSON.parse(localStorage.getItem('workers')) || [];
+                    const worker = workers.find(w => w.username === newManagerUsername);
+                    if (worker) {
+                        newManager = worker.username;
+                        newManagerName = worker.name;
+                        newManagerRole = worker.role;
+                    }
+                }
+            }
+        }
+        
+        // Просто обновляем
         sales[saleIndex] = {
-            ...sales[saleIndex],
-            price: parseFloat(salePrice),
+            ...originalSale,
+            price: finalPrice,
             date: saleDate,
             time: saleTime,
             datetime: saleDateTime,
             notes: saleNotes,
+            marketplace: marketplace || 'telegram',
+            soldBy: newManager,
+            soldByName: newManagerName,
+            managerRole: newManagerRole,
             lastModifiedBy: currentUser ? currentUser.username : 'unknown',
             lastModifiedByName: currentUser ? currentUser.name : 'Неизвестно',
             lastModifiedAt: new Date().toISOString()
@@ -4274,6 +4694,7 @@ async function updateSaleDetails(saleId) {
         await saveToStorage('sales', sales);
         closeSaleModal();
         
+        // Обновляем отображение
         const gameSelect = document.getElementById('managerGame');
         const gameId = parseInt(gameSelect.value);
         if (gameId) {
@@ -4527,7 +4948,20 @@ function displayReportResults(salesData, startDate, endDate) {
         
         <!-- Подробный список продаж -->
         <div class="section">
-            <h3 style="margin-bottom: 25px;">💰 Все продажи (${totalSales})</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0;">💰 Все продажи (${totalSales})</h3>
+                <button class="btn btn-primary btn-small" onclick="generateReport()">
+                    🔄 Обновить список
+                </button>
+            </div>
+            
+            <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <div style="display: flex; align-items: center; gap: 10px; font-size: 0.9em; color: #64748b;">
+                    <span>🗑️</span>
+                    <span>Кликните на иконку корзины чтобы удалить продажу (только свои или если вы админ)</span>
+                </div>
+            </div>
+            
             ${getSalesListHTML(salesData)}
         </div>
     `;
@@ -4786,6 +5220,10 @@ function getSalesListHTML(salesData) {
         return dateB - dateA;
     });
     
+    // Получаем текущего пользователя
+    const currentUser = security.getCurrentUser();
+    const isAdmin = currentUser && currentUser.role === 'admin';
+    
     return `
         <div style="
             max-height: 500px;
@@ -4808,20 +5246,23 @@ function getSalesListHTML(salesData) {
                         <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Позиция</th>
                         <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Цена</th>
                         <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Менеджер</th>
+                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1; width: 50px;">🗑️</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${sortedSales.map(sale => {
-                        // Получаем сумму закупа для этого аккаунта
                         const account = accounts.find(acc => acc.id === sale.accountId);
                         const purchaseAmount = account ? (account.purchaseAmount || 0) : 0;
                         const profit = sale.price - purchaseAmount;
+                        
+                        // Проверяем права на удаление
+                        const canDelete = isAdmin || sale.soldBy === currentUser?.username;
                         
                         return `
                         <tr style="
                             border-bottom: 1px solid #e2e8f0;
                             transition: background 0.2s;
-                        ">
+                        " id="sale-row-${sale.id}">
                             <td style="padding: 12px 15px; color: #64748b;">
                                 ${sale.datetime || sale.date || new Date(sale.timestamp).toLocaleDateString('ru-RU')}
                             </td>
@@ -4840,6 +5281,30 @@ function getSalesListHTML(salesData) {
                                 ${sale.soldByName || sale.soldBy || 'Неизвестно'}
                                 ${sale.managerRole === 'admin' ? ' 👑' : ' 👷'}
                             </td>
+                            <td style="padding: 12px 15px; text-align: center;">
+                                ${canDelete ? `
+                                    <button onclick="deleteSaleFromReports('${sale.id}')" 
+                                            style="
+                                                background: #ef4444;
+                                                color: white;
+                                                border: none;
+                                                width: 30px;
+                                                height: 30px;
+                                                border-radius: 6px;
+                                                cursor: pointer;
+                                                font-size: 16px;
+                                                display: flex;
+                                                align-items: center;
+                                                justify-content: center;
+                                                transition: all 0.2s;
+                                            "
+                                            onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.1)'"
+                                            onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'"
+                                            title="Удалить продажу">
+                                        🗑️
+                                    </button>
+                                ` : '<span style="color: #94a3b8; font-size: 0.9em;">-</span>'}
+                            </td>
                         </tr>
                         `;
                     }).join('')}
@@ -4847,6 +5312,76 @@ function getSalesListHTML(salesData) {
             </table>
         </div>
     `;
+}
+
+// Функция удаления продажи со страницы отчетов
+async function deleteSaleFromReports(saleId) {
+    if (!confirm('Удалить эту продажу из системы? Это действие нельзя отменить.')) {
+        return;
+    }
+    
+    try {
+        // Находим продажу
+        const saleIndex = sales.findIndex(s => s.id === saleId);
+        if (saleIndex === -1) {
+            showNotification('Продажа не найдена', 'error');
+            return;
+        }
+        
+        const sale = sales[saleIndex];
+        
+        // Проверяем права
+        const currentUser = security.getCurrentUser();
+        const isAdmin = currentUser && currentUser.role === 'admin';
+        const isOwner = sale.soldBy === currentUser?.username;
+        
+        if (!isAdmin && !isOwner) {
+            showNotification('Вы не можете удалить эту продажу', 'error');
+            return;
+        }
+        
+        // Удаляем продажу
+        sales.splice(saleIndex, 1);
+        
+        // Сохраняем изменения
+        await saveToStorage('sales', sales);
+        
+        // Плавно удаляем строку из таблицы
+        const row = document.getElementById(`sale-row-${saleId}`);
+        if (row) {
+            row.style.opacity = '0';
+            row.style.transform = 'translateX(-20px)';
+            setTimeout(() => {
+                row.remove();
+                showNotification('Продажа удалена', 'success');
+                
+                // Обновляем общее количество продаж в заголовке
+                const totalSales = sales.length;
+                const header = document.querySelector('.section h3');
+                if (header) {
+                    header.textContent = `💰 Все продажи (${totalSales})`;
+                }
+                
+                // Если таблица стала пустой, обновляем всю страницу отчетов
+                const tbody = row.parentElement;
+                if (tbody && tbody.children.length === 0) {
+                    setTimeout(() => {
+                        generateReport();
+                    }, 300);
+                }
+            }, 300);
+        } else {
+            // Если не нашли строку, просто обновляем отчеты
+            showNotification('Продажа удалена', 'success');
+            setTimeout(() => {
+                generateReport();
+            }, 500);
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка при удалении продажи:', error);
+        showNotification('Ошибка при удалении продажи', 'error');
+    }
 }
 
 // ============================================

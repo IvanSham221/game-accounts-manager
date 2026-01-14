@@ -337,6 +337,12 @@ const SecurityManager = {
                (hasNumbers || hasSpecialChar);
     },
 
+    canChangeSaleManager: function() {
+    const user = this.getCurrentUser();
+    // Только админ может менять менеджера
+    return user && user.role === 'admin';
+},
+
     // Создание безопасного пароля для работника
     generateSecurePassword: function(length = 10) {
         const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
