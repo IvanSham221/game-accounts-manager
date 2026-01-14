@@ -139,9 +139,20 @@ function closeGameModal() {
 
 // Закрытие по клику вне окна
 window.addEventListener('click', function(event) {
-    const modal = document.getElementById('editGameModal');
-    if (event.target === modal) {
-        closeGameModal();
+    // Закрытие модальных окон при клике вне контента
+    const modals = ['editModal', 'editFreeModal', 'saleModal'];
+    
+    modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (modal && event.target === modal) {
+            closeModal(modalId);
+        }
+    });
+    
+    // Закрытие мобильного меню при клике на оверлей
+    const overlay = document.getElementById('menuOverlay');
+    if (overlay && event.target === overlay && overlay.classList.contains('active')) {
+        closeMobileMenu();
     }
 });
         // Дополнительный скрипт для страницы игр

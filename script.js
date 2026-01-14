@@ -216,13 +216,19 @@ function toggleMobileMenu() {
     const overlay = document.getElementById('menuOverlay');
     const burgerBtn = document.querySelector('.burger-btn');
     
-    menu.classList.toggle('active');
-    overlay.classList.toggle('active');
-    burgerBtn.classList.toggle('active');
     if (menu.classList.contains('active')) {
-        document.body.style.overflow = 'hidden';
-    } else {
+        // Закрываем
+        menu.classList.remove('active');
+        overlay.classList.remove('active');
+        burgerBtn.classList.remove('active');
+        document.body.style.cssText = '';
         document.body.style.overflow = 'auto';
+    } else {
+        // Открываем
+        menu.classList.add('active');
+        overlay.classList.add('active');
+        burgerBtn.classList.add('active');
+        document.body.style.overflow = 'hidden';
     }
 }
 
@@ -231,16 +237,27 @@ function closeMobileMenu() {
     const overlay = document.getElementById('menuOverlay');
     const burgerBtn = document.querySelector('.burger-btn');
     
+    const scrollY = document.body.style.top;
+    
     menu.classList.remove('active');
     overlay.classList.remove('active');
     burgerBtn.classList.remove('active');
-    document.body.style.overflow = 'auto';
+    
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.overflow = '';
+    
+    if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+    }
 }
 
+// УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ОТКРЫТИЯ
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'block';
+        // ТОЛЬКО скрываем скролл, не трогаем position
         document.body.style.overflow = 'hidden';
     }
 }
@@ -248,28 +265,9 @@ function openModal(modalId) {
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
-        const content = modal.querySelector('.modal-content');
-        if (content) {
-            content.classList.add('fade-out');
-        }
-        
-        setTimeout(() => {
-            modal.style.display = 'none';
-            document.body.style.overflow = 'auto';
-            if (content) {
-                content.classList.remove('fade-out');
-            }
-        }, 300);
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto'; // ВОССТАНАВЛИВАЕМ СКРОЛЛ
     }
-}
-function closeModal() {
-    closeModal('editModal');
-}
-function closeFreeModal() {
-    closeModal('editFreeModal');
-}
-function closeSaleModal() {
-    closeModal('saleModal');
 }
 
 window.onclick = function(event) {
@@ -2492,10 +2490,6 @@ async function deleteAccount(accountId) {
 // МОДАЛЬНЫЕ ОКНА
 // ============================================
 
-function closeModal() {
-    document.getElementById('editModal').style.display = 'none';
-}
-
 function attachGameToAccount(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return;
@@ -3885,7 +3879,7 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
         </div>
     `;
     
-    openModal('saleModal');
+    openModal('saleModal'); // Используйте общую функцию
     
     // Автофокус на поле цены
     setTimeout(() => {
@@ -4389,7 +4383,7 @@ function copyAccountData() {
 }
 
 function closeSaleModalAndRefresh() {
-    closeSaleModal();
+    closeModal('saleModal'); // Используйте общую функцию
     
     const gameSelect = document.getElementById('managerGame');
     const gameId = parseInt(gameSelect.value);
@@ -4401,6 +4395,7 @@ function closeSaleModalAndRefresh() {
         }
     }
 }
+
 
 function showSaleDetails(sale) {
     const modalContent = document.getElementById('saleModalContent');
@@ -4835,16 +4830,36 @@ function sanitizeHTML(str) {
     return temp.innerHTML;
 }
 
-function closeSaleModal() {
-    const modal = document.getElementById('saleModal');
-    const content = modal.querySelector('.modal-content');
-    
-    content.classList.add('fade-out');
-    
-    setTimeout(() => {
+// УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ЗАКРЫТИЯ ЛЮБОЙ МОДАЛКИ
+function closeAnyModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
         modal.style.display = 'none';
-        content.classList.remove('fade-out');
-    }, 300);
+    }
+    
+    // ВОССТАНАВЛИВАЕМ СКРОЛЛ В ЛЮБОМ СЛУЧАЕ
+    document.body.style.cssText = '';
+    document.body.style.overflow = 'auto';
+    document.body.style.position = 'relative';
+    document.body.style.width = '100%';
+    
+    // На всякий случай - принудительный рефлоу
+    setTimeout(() => {
+        window.scrollTo(window.scrollX, window.scrollY);
+    }, 10);
+}
+
+// ПЕРЕОПРЕДЕЛЯЕМ ВСЕ СУЩЕСТВУЮЩИЕ ФУНКЦИИ
+function closeSaleModal() {
+    closeAnyModal('saleModal');
+}
+
+function closeModal() {
+    closeAnyModal('editModal');
+}
+
+function closeFreeModal() {
+    closeAnyModal('editFreeModal');
 }
 
 // ============================================
