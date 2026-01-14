@@ -3339,38 +3339,44 @@ function toggleShowAllAccounts() {
         текущая_страница: window.location.pathname
     });
     
-    // Обновляем отображение В ЗАВИСИМОСТИ от текущего поиска
-    const gameSelect = document.getElementById('managerGame');
+    // Обновляем отображение ВСЕХ аккаунтов текущей игры
+    const searchInput = document.getElementById('managerGameSearch');
     const loginInput = document.getElementById('managerLogin');
     
-    if (gameSelect && gameSelect.value) {
-        // Если ищем по игре
-        const gameId = parseInt(gameSelect.value);
-        const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
-        const game = games.find(g => g.id === gameId);
-        
-        if (game) {
-            console.log(`🎮 Обновляю поиск по игре "${game.name}"`);
-            displaySearchResults(gameAccounts, game.name);
-        }
-    } else if (loginInput && loginInput.value.trim()) {
-        // Если ищем по логину
-        const loginSearch = loginInput.value.trim().toLowerCase();
-        const foundAccounts = accounts.filter(acc => 
-            acc.psnLogin.toLowerCase().includes(loginSearch)
+    let accountsToShow = [];
+    let searchTitle = '';
+    
+    if (searchInput && searchInput.value.trim()) {
+        // Если был поиск по игре
+        const searchTerm = searchInput.value.trim();
+        const foundGame = games.find(game => 
+            game.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
         
-        console.log(`🔍 Обновляю поиск по логину "${loginSearch}"`);
-        displaySearchResults(foundAccounts, `по логину "${loginSearch}"`);
+        if (foundGame) {
+            accountsToShow = accounts.filter(acc => acc.gameId === foundGame.id);
+            searchTitle = foundGame.name;
+        }
+    } else if (loginInput && loginInput.value.trim()) {
+        // Если был поиск по логину
+        const loginSearch = loginInput.value.trim().toLowerCase();
+        accountsToShow = accounts.filter(acc => 
+            acc.psnLogin.toLowerCase().includes(loginSearch)
+        );
+        searchTitle = `по логину "${loginSearch}"`;
     } else {
-        // Если нет поиска, показываем сообщение
-        document.getElementById('searchResults').innerHTML = `
-            <div class="empty">
-                <h3>Выберите тип поиска</h3>
-                <p>Используйте поиск по игре или по логину</p>
-            </div>
-        `;
+        // Если нет поиска - показываем ВСЕ аккаунты из всех игр
+        accountsToShow = accounts;
+        searchTitle = 'все аккаунты';
+        
+        // Обновляем поле поиска
+        if (searchInput) {
+            searchInput.value = 'Все аккаунты';
+        }
     }
+    
+    console.log(`📊 Показать: ${accountsToShow.length} аккаунтов`);
+    displaySearchResults(accountsToShow, searchTitle);
     
     // Показываем уведомление
     showPremiumNotification(
