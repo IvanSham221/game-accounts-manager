@@ -2,7 +2,7 @@ let games = [];
 let accounts = [];
 let sales = [];
 let currentUser = null;
-let showAllAccounts = false
+let showAllAccounts = false;
 
 function extractProductId(url) {
     if (!url || typeof url !== 'string') return '';
@@ -2585,13 +2585,13 @@ function loadGamesForManager() {
 }
 
 function searchByGame() {
-    const gameSelect = document.getElementById('managerGame');
-    const gameId = parseInt(gameSelect.value);
+    const searchInput = document.getElementById('managerGameSearch');
+    const searchTerm = searchInput.value.trim();
     
-    if (!gameId) {
-        showNotification('Выберите игру для поиска', 'warning');
+    if (!searchTerm) {
+        showNotification('Введите название игры для поиска', 'warning');
         
-        // Скрываем кнопку статистики если игра не выбрана
+        // Скрываем кнопку статистики
         const statsBtn = document.getElementById('showStatsBtn');
         if (statsBtn) {
             statsBtn.style.display = 'none';
@@ -2603,13 +2603,45 @@ function searchByGame() {
         return;
     }
     
-    const game = games.find(g => g.id === gameId);
-    if (!game) {
-        showNotification('Игра не найдена', 'error');
+    // Ищем игру по названию (регистронезависимый поиск)
+    const foundGame = games.find(game => 
+        game.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    if (!foundGame) {
+        showNotification(`Игра "${searchTerm}" не найдена`, 'error');
+        
+        // Предлагаем похожие игры
+        const similarGames = games.filter(game => 
+            game.name.toLowerCase().includes(searchTerm.toLowerCase().substring(0, 3))
+        ).slice(0, 5);
+        
+        if (similarGames.length > 0) {
+            const similarList = similarGames.map(game => game.name).join(', ');
+            showNotification(`Возможно, вы искали: ${similarList}`, 'info');
+        }
+        
+        // Скрываем кнопку статистики
+        const statsBtn = document.getElementById('showStatsBtn');
+        if (statsBtn) {
+            statsBtn.style.display = 'none';
+        }
+        
+        // Очищаем результаты
+        document.getElementById('searchResults').innerHTML = `
+            <div class="empty">
+                <h3>Игра "${searchTerm}" не найдена</h3>
+                ${similarGames.length > 0 ? `
+                    <p>Похожие игры: ${similarList}</p>
+                ` : ''}
+            </div>
+        `;
+        
         return;
     }
     
-    const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
+    // Нашли игру - ищем аккаунты
+    const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
     
     // Показываем кнопку статистики только если есть аккаунты
     const statsBtn = document.getElementById('showStatsBtn');
@@ -2617,24 +2649,27 @@ function searchByGame() {
         if (gameAccounts.length > 0) {
             statsBtn.style.display = 'inline-block';
             statsBtn.textContent = `📊 Статистика (${gameAccounts.length} акк.)`;
+            statsBtn.setAttribute('data-game-id', foundGame.id);
         } else {
             statsBtn.style.display = 'none';
         }
     }
     
-    // ВАЖНО: НЕ показываем статистику автоматически!
-    // Просто скрываем старую статистику если она была
+    // Скрываем старую статистику
     document.getElementById('statsSection').style.display = 'none';
     
     // Показываем результаты поиска
-    displaySearchResults(gameAccounts, game.name);
+    displaySearchResults(gameAccounts, foundGame.name);
+    
+    // Обновляем поле поиска полным названием игры
+    searchInput.value = foundGame.name;
     
     // Если нет аккаунтов - показываем сообщение
     if (gameAccounts.length === 0) {
-        showNotification(`По игре "${game.name}" не найдено аккаунтов`, 'info');
+        showNotification(`По игре "${foundGame.name}" не найдено аккаунтов`, 'info');
         document.getElementById('searchResults').innerHTML = `
             <div class="empty">
-                <h3>По игре "${game.name}" не найдено аккаунтов</h3>
+                <h3>По игре "${foundGame.name}" не найдено аккаунтов</h3>
                 <p>Добавьте аккаунты для этой игры</p>
             </div>
         `;
@@ -2646,21 +2681,25 @@ function searchByGame() {
 // ============================================
 
 function showGameStats() {
-    const gameSelect = document.getElementById('managerGame');
-    const gameId = parseInt(gameSelect.value);
+    const searchInput = document.getElementById('managerGameSearch');
+    const searchTerm = searchInput.value.trim();
     
-    if (!gameId) {
-        showNotification('Выберите игру для просмотра статистики', 'warning');
+    if (!searchTerm) {
+        showNotification('Введите название игры для просмотра статистики', 'warning');
         return;
     }
     
-    const game = games.find(g => g.id === gameId);
-    if (!game) {
+    // Ищем игру по названию
+    const foundGame = games.find(game => 
+        game.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    if (!foundGame) {
         showNotification('Игра не найдена', 'error');
         return;
     }
     
-    const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
+    const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
     
     if (gameAccounts.length === 0) {
         showNotification('Нет аккаунтов для этой игры', 'info');
@@ -2671,7 +2710,7 @@ function showGameStats() {
     const stats = calculateGameStats(gameAccounts);
     
     // Показываем статистику
-    displayGameStats(game.name, stats);
+    displayGameStats(foundGame.name, stats);
     
     // Прокручиваем к статистике
     const statsSection = document.getElementById('statsSection');
@@ -3011,10 +3050,10 @@ function getPositionSaleInfo(accountId, positionType, positionIndex) {
 function displaySearchResults(accountsList, gameName) {
     const resultsContainer = document.getElementById('searchResults');
     
-    if (accountsList.length === 0) {
+    if (!accountsList || accountsList.length === 0) {
         resultsContainer.innerHTML = `
             <div class="empty">
-                <h3>По игре "${gameName}" не найдено аккаунтов</h3>
+                <h3>По запросу "${gameName}" не найдено аккаунтов</h3>
             </div>
         `;
         return;
@@ -3044,13 +3083,20 @@ function displaySearchResults(accountsList, gameName) {
     
     // Фильтруем аккаунты в зависимости от настройки
     let filteredAccounts = accountsList;
+    let hiddenCount = 0;
+    
     if (!showAllAccounts) {
         // Скрываем полностью проданные
         filteredAccounts = accountsList.filter(account => !isAccountFullySold(account));
+        hiddenCount = accountsList.length - filteredAccounts.length;
     }
     
-    // Считаем скрытые
-    const hiddenCount = accountsList.length - filteredAccounts.length;
+    console.log('📊 Отображение результатов:', {
+        всего: accountsList.length,
+        показано: filteredAccounts.length,
+        скрыто: hiddenCount,
+        showAllAccounts: showAllAccounts
+    });
     
     // Генерируем HTML
     let html = '';
@@ -3086,7 +3132,10 @@ function displaySearchResults(accountsList, gameName) {
                             display: flex;
                             align-items: center;
                             gap: 8px;
-                        ">
+                            transition: all 0.3s ease;
+                        "
+                        onmouseover="this.style.opacity='0.9'; this.style.transform='translateY(-2px)'"
+                        onmouseout="this.style.opacity='1'; this.style.transform='translateY(0)'">
                     ${showAllAccounts ? '👁️' : '👁️‍🗨️'}
                     ${showAllAccounts ? 'Скрыть проданные' : 'Показать все'}
                 </button>
@@ -3105,22 +3154,30 @@ function displaySearchResults(accountsList, gameName) {
                 border: 1px solid #e2e8f0;
                 color: #64748b;
             ">
-                <div style="font-size: 3em; margin-bottom: 10px;">👻</div>
-                <h3 style="color: #64748b; margin-bottom: 10px;">Все аккаунты проданы</h3>
-                <p>Все позиции по этой игре полностью распроданы</p>
-                <button onclick="toggleShowAllAccounts()" 
-                        style="
-                            background: #3b82f6;
-                            color: white;
-                            border: none;
-                            padding: 10px 20px;
-                            border-radius: 8px;
-                            font-weight: 600;
-                            margin-top: 15px;
-                            cursor: pointer;
-                        ">
-                    👁️‍🗨️ Показать проданные
-                </button>
+                <div style="font-size: 3em; margin-bottom: 10px;">${showAllAccounts ? '🏁' : '👻'}</div>
+                <h3 style="color: #64748b; margin-bottom: 10px;">
+                    ${showAllAccounts ? 'Все аккаунты проданы' : 'Все доступные аккаунты проданы'}
+                </h3>
+                <p>${showAllAccounts ? 'По данному запросу все аккаунты полностью распроданы' : 'Все свободные позиции по этому запросу уже проданы'}</p>
+                
+                ${!showAllAccounts ? `
+                    <button onclick="toggleShowAllAccounts()" 
+                            style="
+                                background: #3b82f6;
+                                color: white;
+                                border: none;
+                                padding: 10px 20px;
+                                border-radius: 8px;
+                                font-weight: 600;
+                                margin-top: 15px;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                            "
+                            onmouseover="this.style.opacity='0.9'; this.style.transform='translateY(-2px)'"
+                            onmouseout="this.style.opacity='1'; this.style.transform='translateY(0)'">
+                        👁️‍🗨️ Показать проданные аккаунты
+                    </button>
+                ` : ''}
             </div>
         `;
     } else {
@@ -3138,8 +3195,12 @@ function displaySearchResults(accountsList, gameName) {
                     padding: 20px;
                     width: 100%;
                     position: relative;
-                    ${isSold ? 'opacity: 0.8;' : ''}
-                ">
+                    ${isSold ? 'opacity: 0.9;' : ''}
+                    transition: all 0.3s ease;
+                "
+                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.05)'">
+                    
                     ${isSold ? `
                         <div style="
                             position: absolute;
@@ -3152,6 +3213,7 @@ function displaySearchResults(accountsList, gameName) {
                             font-size: 12px;
                             font-weight: 700;
                             box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+                            z-index: 1;
                         ">
                             ПРОДАНО
                         </div>
@@ -3166,6 +3228,9 @@ function displaySearchResults(accountsList, gameName) {
                             ${isSold ? 'text-decoration: line-through;' : ''}
                         ">
                             ${account.psnLogin}
+                            <span style="font-size: 0.8em; color: #64748b; margin-left: 10px;">
+                                ${account.gameName || 'Свободный'}
+                            </span>
                         </div>
                         
                         ${commentsCount > 0 ? `
@@ -3182,7 +3247,10 @@ function displaySearchResults(accountsList, gameName) {
                                         display: flex;
                                         align-items: center;
                                         gap: 5px;
-                                    ">
+                                        transition: all 0.3s ease;
+                                    "
+                                    onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.05)'"
+                                    onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'">
                                 💬 ${commentsCount}
                             </button>
                         ` : `
@@ -3198,7 +3266,10 @@ function displaySearchResults(accountsList, gameName) {
                                         display: flex;
                                         align-items: center;
                                         gap: 5px;
-                                    ">
+                                        transition: all 0.3s ease;
+                                    "
+                                    onmouseover="this.style.background='#f1f5f9'; this.style.transform='scale(1.05)'"
+                                    onmouseout="this.style.background='#f8fafc'; this.style.transform='scale(1)'">
                                 💬 Добавить
                             </button>
                         `}
@@ -3255,22 +3326,49 @@ function displaySearchResults(accountsList, gameName) {
 }
 
 function toggleShowAllAccounts() {
+    // Переключаем флаг
     showAllAccounts = !showAllAccounts;
     
-    // Обновляем отображение
-    const gameSelect = document.getElementById('managerGame');
-    const gameId = parseInt(gameSelect.value);
+    console.log('🔄 Переключение показа аккаунтов:', {
+        showAllAccounts: showAllAccounts,
+        текущая_страница: window.location.pathname
+    });
     
-    if (gameId) {
+    // Обновляем отображение В ЗАВИСИМОСТИ от текущего поиска
+    const gameSelect = document.getElementById('managerGame');
+    const loginInput = document.getElementById('managerLogin');
+    
+    if (gameSelect && gameSelect.value) {
+        // Если ищем по игре
+        const gameId = parseInt(gameSelect.value);
         const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
         const game = games.find(g => g.id === gameId);
+        
         if (game) {
+            console.log(`🎮 Обновляю поиск по игре "${game.name}"`);
             displaySearchResults(gameAccounts, game.name);
         }
+    } else if (loginInput && loginInput.value.trim()) {
+        // Если ищем по логину
+        const loginSearch = loginInput.value.trim().toLowerCase();
+        const foundAccounts = accounts.filter(acc => 
+            acc.psnLogin.toLowerCase().includes(loginSearch)
+        );
+        
+        console.log(`🔍 Обновляю поиск по логину "${loginSearch}"`);
+        displaySearchResults(foundAccounts, `по логину "${loginSearch}"`);
+    } else {
+        // Если нет поиска, показываем сообщение
+        document.getElementById('searchResults').innerHTML = `
+            <div class="empty">
+                <h3>Выберите тип поиска</h3>
+                <p>Используйте поиск по игре или по логину</p>
+            </div>
+        `;
     }
     
     // Показываем уведомление
-    showNotification(
+    showPremiumNotification(
         showAllAccounts ? 'Показаны все аккаунты' : 'Скрыты проданные аккаунты',
         'info'
     );

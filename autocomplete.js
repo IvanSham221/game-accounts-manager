@@ -28,13 +28,117 @@ class AutoComplete {
     }
 
     setupAllSelects() {
-        console.log('🔧 Настройка автодополнения для полей...');
-        
-        // Ждем полной загрузки DOM
-        setTimeout(() => {
-            this.convertSelects();
-        }, 100);
+    console.log('🔧 Настройка автодополнения для полей...');
+    
+    // Ждем полной загрузки DOM
+    setTimeout(() => {
+        this.convertSelects();
+        this.setupSearchField(); // Добавляем обработку поля поиска
+    }, 100);
+}
+
+setupSearchField() {
+    // Находим поле поиска в менеджере
+    const searchInput = document.getElementById('managerGameSearch');
+    if (searchInput && !searchInput.classList.contains('autocomplete-converted')) {
+        this.setupSearchAutocomplete(searchInput);
+        searchInput.classList.add('autocomplete-converted');
     }
+}
+
+setupSearchAutocomplete(inputElement) {
+    if (!inputElement) return;
+    
+    console.log(`🔧 Настройка автодополнения для поиска: ${inputElement.id}`);
+    
+    // Создаем контейнер
+    const container = document.createElement('div');
+    container.className = 'autocomplete-wrapper';
+    container.style.position = 'relative';
+    container.style.width = '100%';
+    
+    // Перемещаем input в контейнер
+    inputElement.parentNode.insertBefore(container, inputElement);
+    container.appendChild(inputElement);
+    
+    // Создаем выпадающий список
+    const dropdown = document.createElement('div');
+    dropdown.className = 'autocomplete-dropdown';
+    dropdown.id = `${inputElement.id}_dropdown`;
+    
+    Object.assign(dropdown.style, {
+        display: 'none',
+        position: 'absolute',
+        top: '100%',
+        left: '0',
+        right: '0',
+        zIndex: '9999',
+        backgroundColor: 'white',
+        border: '1px solid #e2e8f0',
+        borderTop: 'none',
+        borderRadius: '0 0 8px 8px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        maxHeight: '300px',
+        overflowY: 'auto',
+        boxSizing: 'border-box'
+    });
+    
+    container.appendChild(dropdown);
+    
+    // Настраиваем обработчики
+    this.setupSearchHandlers(inputElement, dropdown);
+}
+
+setupSearchHandlers(input, dropdown) {
+    // Фокус на поле ввода
+    input.addEventListener('focus', () => {
+        if (input.value.trim() === '' && this.games.length > 0) {
+            this.showAllGames(dropdown);
+        }
+        dropdown.style.display = 'block';
+        input.style.borderBottomLeftRadius = '0';
+        input.style.borderBottomRightRadius = '0';
+    });
+    
+    // Ввод текста
+    input.addEventListener('input', (e) => {
+        this.searchGames(e.target.value, dropdown);
+        dropdown.style.display = 'block';
+    });
+    
+    // Клик на элемент автодополнения
+    dropdown.addEventListener('click', (e) => {
+        const item = e.target.closest('.autocomplete-item');
+        if (item) {
+            const gameName = item.dataset.gameName;
+            
+            input.value = gameName;
+            dropdown.style.display = 'none';
+            input.style.borderBottomLeftRadius = '';
+            input.style.borderBottomRightRadius = '';
+            
+            // Автоматически запускаем поиск при выборе игры
+            setTimeout(() => searchByGame(), 300);
+        }
+    });
+    
+    // Закрытие по клику вне
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.autocomplete-wrapper')) {
+            dropdown.style.display = 'none';
+            input.style.borderBottomLeftRadius = '';
+            input.style.borderBottomRightRadius = '';
+        }
+    });
+    
+    // Поиск по Enter
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            dropdown.style.display = 'none';
+            searchByGame();
+        }
+    });
+}
 
     convertSelects() {
         // Преобразуем ТОЛЬКО основные select которые еще не были преобразованы

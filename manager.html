@@ -54,9 +54,11 @@
             <div class="search-container">
                 <div class="search-group">
                     <label>Поиск по игре:</label>
-                    <select id="managerGame" class="input">
-                        <option value="">Выберите игру</option>
-                    </select>
+                    <input type="text" 
+                        id="managerGameSearch" 
+                        placeholder="Начните вводить название игры..." 
+                        class="input autocomplete-input"
+                        style="width: 100%;">
                     <button onclick="searchByGame()" class="btn btn-primary">Найти по игре</button>
                     <button onclick="showGameStats()" class="btn btn-info" id="showStatsBtn" style="display: none;">📊 Показать статистику</button>
                 </div>
