@@ -4909,6 +4909,40 @@ function displayReportResults(salesData, startDate, endDate) {
     const sortedGames = Object.entries(gamesStats)
         .sort(([,a], [,b]) => b.revenue - a.revenue);
     
+    // НОВОЕ: Статистика по площадкам
+    const marketplaceStats = {};
+    salesData.forEach(sale => {
+        const marketplace = sale.marketplace || 'unknown';
+        if (!marketplaceStats[marketplace]) {
+            marketplaceStats[marketplace] = {
+                sales: 0,
+                revenue: 0
+            };
+        }
+        marketplaceStats[marketplace].sales += 1;
+        marketplaceStats[marketplace].revenue += sale.price;
+    });
+    
+    // Сортируем площадки по выручке
+    const sortedMarketplaces = Object.entries(marketplaceStats)
+        .sort(([,a], [,b]) => b.revenue - a.revenue);
+    
+    // Функция для названия площадки
+    function getMarketplaceDisplayName(marketplace) {
+        if (marketplace === 'funpay') return 'Funpay';
+        if (marketplace === 'telegram') return 'Telegram';
+        if (marketplace === 'avito') return 'Avito';
+        return marketplace;
+    }
+    
+    // Функция для цвета площадки
+    function getMarketplaceColor(marketplace) {
+        if (marketplace === 'funpay') return '#ff6b00';
+        if (marketplace === 'telegram') return '#0088cc';
+        if (marketplace === 'avito') return '#006cff';
+        return '#64748b';
+    }
+    
     reportResults.innerHTML = `
         <!-- Секция статистики -->
         <div class="report-stats-section">
@@ -4946,12 +4980,75 @@ function displayReportResults(salesData, startDate, endDate) {
             </div>
         </div>
         
+        <!-- НОВОЕ: Статистика по площадкам -->
+        <div class="section">
+            <h3 style="margin-bottom: 25px;">🏪 Продажи по площадкам</h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 20px;">
+                ${sortedMarketplaces.map(([marketplace, stats]) => {
+                const percent = totalRevenue > 0 ? ((stats.revenue / totalRevenue) * 100).toFixed(1) : 0;
+                
+                return `
+                    <div style="
+                        background: white;
+                        padding: 20px;
+                        border-radius: 10px;
+                        border: 1px solid #e2e8f0;
+                        border-top: 4px solid ${getMarketplaceColor(marketplace)};
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+                    ">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                            <div style="font-weight: 700; color: #2d3748; font-size: 1.1em;">
+                                ${getMarketplaceDisplayName(marketplace)}
+                            </div>
+                            <div style="
+                                background: ${getMarketplaceColor(marketplace)};
+                                color: white;
+                                padding: 3px 10px;
+                                border-radius: 20px;
+                                font-size: 0.85em;
+                                font-weight: 600;
+                            ">
+                                ${stats.sales} продаж
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 10px;">
+                            <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">
+                                Выручка
+                            </div>
+                            <div style="font-size: 1.6em; font-weight: 800; color: #10b981;">
+                                ${formatNumber(stats.revenue)} ₽
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            display: flex;
+                            justify-content: space-between;
+                            margin-top: 15px;
+                            padding-top: 15px;
+                            border-top: 1px solid #f1f5f9;
+                            color: #64748b;
+                            font-size: 0.85em;
+                        ">
+                            <div>
+                                ${percent}% от общей выручки
+                            </div>
+                            <div>
+                                Средний чек: ${stats.sales > 0 ? formatNumber(stats.revenue / stats.sales) : 0} ₽
+                            </div>
+                        </div>
+                    </div>
+                `;
+                }).join('')}
+            </div>
+        </div>
+        
         <!-- Статистика по играм -->
         <div class="section">
             <h3 style="margin-bottom: 25px;">🎮 Статистика по играм</h3>
             ${getGamesStatsHTML(salesData, sortedGames)}
         </div>
-        
         <!-- Подробный список продаж -->
         <div class="section">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
