@@ -3,21 +3,28 @@
 const SecurityManager = {
     // Простое хеширование паролей (в продакшене используйте bcrypt или аналоги)
     hashPassword: function(password) {
-        if (!password) return '';
-        
-        // Используем более сложное хеширование с солью
-        const salt = '@PSHub_2025';
-        let hash = 0;
-        
-        for (let i = 0; i < password.length; i++) {
-            const char = password.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char + salt.charCodeAt(i % salt.length);
-            hash = hash & hash; // Преобразуем в 32-битное целое
-        }
-        
-        // Добавляем дополнительное хеширование
-        hash = hash.toString(36) + salt.length + password.length;
-        return hash;
+        if (!password || typeof password !== 'string') {
+        return '';
+    }
+    
+    // ПРОСТОЙ И СТАБИЛЬНЫЙ алгоритм
+    // 1. Используем фиксированную соль
+    const salt = '@PSHub_Fixed_Salt_2025';
+    
+    // 2. Создаем простой хеш (один и тот же для одинаковых паролей)
+    let hash = 0;
+    
+    // Добавляем соль в начало пароля
+    const saltedPassword = salt + password;
+    
+    for (let i = 0; i < saltedPassword.length; i++) {
+        const char = saltedPassword.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = Math.abs(hash & hash); // Всегда положительный
+    }
+    
+    // 3. Консистентное форматирование
+    return 'pshub_' + hash.toString(36) + '_' + password.length;
     },
 
     // Создание хеша для нового пользователя
