@@ -5,8 +5,127 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Управление работниками</title>
     <link rel="stylesheet" href="style.css?v=20250115">
+    <style>
+        .worker-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .worker-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .worker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .worker-info {
+            flex: 1;
+        }
+        
+        .worker-name {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+        
+        .worker-details {
+            color: #64748b;
+            font-size: 0.9em;
+        }
+        
+        .worker-status {
+            text-align: right;
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .status-admin {
+            background: linear-gradient(135deg, #f72585 0%, #e63946 100%);
+            color: white;
+        }
+        
+        .worker-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .stat-item {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #2d3748;
+        }
+        
+        .stat-label {
+            font-size: 0.8em;
+            color: #64748b;
+        }
+        
+        .debug-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .debug-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 12px 15px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .debug-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 16px rgba(255, 71, 87, 0.4);
+        }
+    </style>
 </head>
 <body>
+    <!-- Мобильное меню -->
     <div id="mobileMenu" class="mobile-menu">
         <div class="mobile-menu-header">
             <div class="user-info-mobile">
@@ -29,7 +148,7 @@
             </button>
         </div>
     </div>
-
+  
     <!-- Бургер-кнопка -->
     <div class="burger-container">
         <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
@@ -38,9 +157,9 @@
                 <span></span>
                 <span></span>
             </div>
-            <!-- Опционально: бейдж с уведомлениями -->
-            <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
-            <!-- Текст при наведении (только на ПК) -->
+            <!-- Бейдж с уведомлениями -->
+            <div class="burger-badge" id="menuBadge" style="display: none;">0</div>
+            <!-- Текст при наведении -->
             <div class="burger-label">Меню</div>
         </button>
     </div>
@@ -51,40 +170,102 @@
     <div class="container">
         <h1><span>👑</span><span>Управление работниками</span></h1>
         
-        <!-- Прямо показываем контент, без проверки админа -->
-        <div id="adminContent">
-            <!-- Форма добавления работника -->
-            <div class="section">
-                <h2>➕ Добавить работника</h2>
-                <div class="form-grid">
-                    <input type="text" id="workerName" placeholder="Имя работника" class="input" required>
-                    <input type="text" id="workerLogin" placeholder="Логин" class="input" required>
-                    <input type="password" id="workerPassword" placeholder="Пароль" class="input" required>
-                    <input type="password" id="workerConfirmPassword" placeholder="Подтвердите пароль" class="input" required>
-                    
-                    <div style="grid-column: 1 / -1; padding: 10px;">
-                        <label style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" id="workerActive" checked>
-                            <span>Аккаунт активен</span>
-                        </label>
-                    </div>
-                    
-                    <button onclick="addWorker()" class="btn btn-success" style="grid-column: 1 / -1;">
-                        Добавить работника
-                    </button>
+        <!-- Форма добавления работника -->
+        <div class="section">
+            <h2>➕ Добавить работника</h2>
+            <div class="form-grid">
+                <div>
+                    <label for="workerName" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                        Имя работника:
+                    </label>
+                    <input type="text" id="workerName" placeholder="Иван Иванов" class="input" required>
                 </div>
+                
+                <div>
+                    <label for="workerLogin" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                        Логин для входа:
+                    </label>
+                    <input type="text" id="workerLogin" placeholder="ivanov" class="input" required>
+                </div>
+                
+                <div>
+                    <label for="workerPassword" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                        Пароль:
+                    </label>
+                    <input type="password" id="workerPassword" placeholder="Минимум 4 символа" class="input" required>
+                </div>
+                
+                <div>
+                    <label for="workerConfirmPassword" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                        Подтвердите пароль:
+                    </label>
+                    <input type="password" id="workerConfirmPassword" placeholder="Повторите пароль" class="input" required>
+                </div>
+                
+                <div style="grid-column: 1 / -1; padding: 15px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="workerActive" checked style="width: 18px; height: 18px;">
+                        <span style="font-weight: 600; color: #2d3748;">Аккаунт активен</span>
+                    </label>
+                    <div style="color: #64748b; font-size: 0.9em; margin-top: 5px;">
+                        Неактивные работники не смогут войти в систему
+                    </div>
+                </div>
+                
+                <button onclick="addWorker()" class="btn btn-success" style="grid-column: 1 / -1; padding: 15px;">
+                    <span style="margin-right: 10px;">👷</span>
+                    Добавить работника
+                </button>
             </div>
+        </div>
 
-            <!-- Список работников -->
-            <div class="section">
-                <h2>📋 Список работников</h2>
-                <div id="workersList" class="list">
-                    <div class="empty">Загрузка...</div>
+        <!-- Список работников -->
+        <div class="section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">📋 Список работников</h2>
+                <button onclick="refreshWorkers()" class="btn btn-primary btn-small">
+                    <span style="margin-right: 5px;">🔄</span>
+                    Обновить
+                </button>
+            </div>
+            
+            <div id="workersList" class="list">
+                <div class="empty">Загрузка работников...</div>
+            </div>
+        </div>
+        
+        <!-- Инструменты отладки -->
+        <div class="section" style="background: #f8f9fa; border: 1px solid #dee2e6;">
+            <h3>🛠️ Инструменты отладки</h3>
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                <button onclick="forceSyncWorkers()" class="btn btn-primary">
+                    🔄 Принудительная синхронизация
+                </button>
+                
+                <button onclick="checkWorkersStatus()" class="btn btn-info">
+                    🔍 Проверить статус
+                </button>
+                
+                <button onclick="backupWorkers()" class="btn btn-success">
+                    💾 Создать бэкап
+                </button>
+            </div>
+            
+            <div id="debugInfo" style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #dee2e6; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">
+                <div style="color: #6c757d; text-align: center;">
+                    Здесь будет информация отладки
                 </div>
             </div>
         </div>
     </div>
+    
+    <!-- Кнопка дебага -->
+    <div class="debug-panel">
+        <button onclick="showDebugInfo()" class="debug-btn">🐛 Дебаг</button>
+    </div>
 
+    <!-- Подключение скриптов -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="firebase.js"></script>
@@ -92,36 +273,80 @@
     <script src="script.js?v=20250115"></script>
     
     <script>
+        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
         document.addEventListener('DOMContentLoaded', function() {
-            // Простая проверка авторизации
+            console.log('=== ИНИЦИАЛИЗАЦИЯ WORKERS.HTML ===');
+            
+            // Проверка авторизации
             const user = security.getCurrentUser();
             if (!user) {
                 window.location.href = 'login.html';
                 return;
             }
             
-            // Просто инициализируем меню
-            initMobileMenu();
+            // Только администратор может видеть эту страницу
+            if (user.role !== 'admin') {
+                document.body.innerHTML = `
+                    <div class="container">
+                        <div style="text-align: center; padding: 100px 20px;">
+                            <h1 style="color: #ef4444;">⛔ Доступ запрещен</h1>
+                            <p>Только администратор может управлять работниками</p>
+                            <button onclick="window.location.href='manager.html'" class="btn btn-primary">
+                                Вернуться на главную
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
             
-            // Загружаем работников сразу
+            // Инициализация
+            initMobileMenu();
             loadWorkers();
+            setupWorkersListener();
+            
+            // Начинаем мониторинг
+            startWorkersMonitoring();
         });
         
-        // Загрузка работников (простая версия)
+        // ==================== РАБОТНИКИ ====================
+        let workers = [];
+        let workersListener = null;
+        
+        // Загрузить работников
         function loadWorkers() {
+            console.log('🔄 Загружаю работников...');
+            
             try {
-                const workersStr = localStorage.getItem('workers');
-                let workers = workersStr ? JSON.parse(workersStr) : [];
+                // 1. Пробуем из localStorage
+                const localWorkers = JSON.parse(localStorage.getItem('workers') || '[]');
                 
-                // Если нет работников в хранилище, создаем пустой массив
-                if (!workersStr) {
-                    localStorage.setItem('workers', JSON.stringify([]));
+                // 2. Если пусто, пробуем загрузить из Firebase
+                if (localWorkers.length === 0 && window.dataSync && window.dataSync.loadData) {
+                    console.log('📂 Нет локальных данных, загружаю из Firebase...');
+                    window.dataSync.loadData('workers').then(firebaseWorkers => {
+                        if (firebaseWorkers && firebaseWorkers.length > 0) {
+                            workers = firebaseWorkers;
+                            localStorage.setItem('workers', JSON.stringify(workers));
+                            displayWorkers();
+                            console.log(`✅ Загружено ${workers.length} работников из Firebase`);
+                        } else {
+                            workers = localWorkers;
+                            displayWorkers();
+                        }
+                    }).catch(error => {
+                        console.error('❌ Ошибка загрузки из Firebase:', error);
+                        workers = localWorkers;
+                        displayWorkers();
+                    });
+                } else {
+                    workers = localWorkers;
+                    displayWorkers();
+                    console.log(`📊 Локально: ${workers.length} работников`);
                 }
                 
-                displayWorkers(workers);
-                
             } catch (error) {
-                console.error('Ошибка загрузки работников:', error);
+                console.error('❌ Ошибка загрузки работников:', error);
                 document.getElementById('workersList').innerHTML = `
                     <div class="empty">
                         <div style="color: #f72585; margin-bottom: 10px;">❌ Ошибка загрузки</div>
@@ -131,8 +356,8 @@
             }
         }
         
-        // Отображение работников
-        function displayWorkers(workers) {
+        // Отобразить работников
+        function displayWorkers() {
             const workersList = document.getElementById('workersList');
             
             if (!workers || workers.length === 0) {
@@ -146,185 +371,586 @@
                 return;
             }
             
-            workersList.innerHTML = workers.map(worker => `
-                <div class="item" style="margin-bottom: 15px; padding: 20px; border-radius: 10px; background: rgba(255,255,255,0.8); border: 1px solid #eee;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
-                        <div>
-                            <strong>${worker.name || worker.username || 'Без имени'}</strong>
-                            <div style="color: #666; font-size: 0.9em; margin-top: 5px;">
-                                Логин: ${worker.username || 'Не указан'} | 
-                                Добавлен: ${worker.created || 'Не указано'}
+            // Получаем статистику продаж для каждого работника
+            const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+            const workerStats = {};
+            
+            sales.forEach(sale => {
+                if (sale.soldBy && sale.soldBy !== 'unknown') {
+                    if (!workerStats[sale.soldBy]) {
+                        workerStats[sale.soldBy] = {
+                            sales: 0,
+                            revenue: 0,
+                            lastSale: null
+                        };
+                    }
+                    workerStats[sale.soldBy].sales++;
+                    workerStats[sale.soldBy].revenue += sale.price;
+                    
+                    const saleDate = new Date(sale.datetime || sale.timestamp);
+                    if (!workerStats[sale.soldBy].lastSale || saleDate > new Date(workerStats[sale.soldBy].lastSale)) {
+                        workerStats[sale.soldBy].lastSale = sale.datetime || sale.timestamp;
+                    }
+                }
+            });
+            
+            workersList.innerHTML = workers.map(worker => {
+                const stats = workerStats[worker.username] || { sales: 0, revenue: 0, lastSale: null };
+                const isAdmin = worker.role === 'admin';
+                const isActive = worker.active !== false;
+                const avgCheck = stats.sales > 0 ? Math.round(stats.revenue / stats.sales) : 0;
+                
+                return `
+                    <div class="worker-card">
+                        <div class="worker-header">
+                            <div class="worker-info">
+                                <div class="worker-name">
+                                    ${worker.name}
+                                    ${worker.createdBy ? `<span style="font-size: 0.8em; color: #64748b;"> (добавил: ${worker.createdBy})</span>` : ''}
+                                </div>
+                                <div class="worker-details">
+                                    Логин: <strong>${worker.username}</strong> • 
+                                    Добавлен: ${worker.created || 'Не указано'} •
+                                    ID: ${worker.id || 'N/A'}
+                                </div>
+                            </div>
+                            
+                            <div class="worker-status">
+                                <div class="status-badge ${isAdmin ? 'status-admin' : (isActive ? 'status-active' : 'status-inactive')}">
+                                    ${isAdmin ? '👑 Администратор' : (isActive ? '✅ Активен' : '❌ Неактивен')}
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <span style="padding: 4px 10px; border-radius: 20px; font-size: 0.85em; background: ${(worker.active !== false) ? '#e8f5e9' : '#ffebee'}; color: ${(worker.active !== false) ? '#2e7d32' : '#c62828'};">
-                                ${(worker.active !== false) ? '✅ Активен' : '❌ Неактивен'}
-                            </span>
+                        
+                        ${stats.sales > 0 ? `
+                            <div class="worker-stats">
+                                <div class="stat-item">
+                                    <div class="stat-value">${stats.sales}</div>
+                                    <div class="stat-label">Продаж</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${stats.revenue} ₽</div>
+                                    <div class="stat-label">Выручка</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${avgCheck} ₽</div>
+                                    <div class="stat-label">Средний чек</div>
+                                </div>
+                                ${stats.lastSale ? `
+                                    <div class="stat-item">
+                                        <div class="stat-value">${new Date(stats.lastSale).toLocaleDateString('ru-RU')}</div>
+                                        <div class="stat-label">Последняя продажа</div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                            ${!isAdmin ? `
+                                <button class="btn btn-small ${isActive ? 'btn-warning' : 'btn-success'}" 
+                                        onclick="toggleWorker('${worker.username}', ${isActive ? 'false' : 'true'})">
+                                    ${isActive ? 'Деактивировать' : 'Активировать'}
+                                </button>
+                                
+                                <button class="btn btn-primary btn-small" onclick="resetWorkerPassword('${worker.username}')">
+                                    🔑 Сбросить пароль
+                                </button>
+                            ` : ''}
+                            
+                            ${!isAdmin ? `
+                                <button class="btn btn-danger btn-small" onclick="deleteWorker('${worker.username}')">
+                                    🗑️ Удалить
+                                </button>
+                            ` : ''}
                         </div>
                     </div>
-                    
-                    <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
-                        <button class="btn btn-small ${(worker.active !== false) ? 'btn-warning' : 'btn-success'}" 
-                                onclick="toggleWorker('${worker.username}', ${(worker.active !== false) ? 'false' : 'true'})">
-                            ${(worker.active !== false) ? 'Деактивировать' : 'Активировать'}
-                        </button>
-                        <button class="btn btn-danger btn-small" 
-                                onclick="deleteWorker('${worker.username}')">
-                            Удалить
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
         
         // Добавить работника
-        function addWorker() {
+        async function addWorker() {
+            console.log('=== НАЧАЛО ДОБАВЛЕНИЯ РАБОТНИКА ===');
+            
             const name = document.getElementById('workerName').value.trim();
-            const username = document.getElementById('workerLogin').value.trim();
+            const username = document.getElementById('workerLogin').value.trim().toLowerCase();
             const password = document.getElementById('workerPassword').value;
             const confirmPassword = document.getElementById('workerConfirmPassword').value;
             const active = document.getElementById('workerActive').checked;
             
             // Валидация
             if (!name || !username || !password) {
-                alert('Заполните все поля');
+                showDebugInfo('❌ Заполните все поля!', 'error');
                 return;
             }
             
             if (password !== confirmPassword) {
-                alert('Пароли не совпадают');
+                showDebugInfo('❌ Пароли не совпадают!', 'error');
                 return;
             }
             
             if (password.length < 4) {
-                alert('Пароль должен быть минимум 4 символа');
+                showDebugInfo('❌ Пароль должен быть минимум 4 символа!', 'error');
                 return;
             }
             
-            // Загружаем существующих работников
-            let workers = [];
-            try {
-                const workersStr = localStorage.getItem('workers');
-                workers = workersStr ? JSON.parse(workersStr) : [];
-            } catch (e) {
-                console.error('Ошибка чтения работников:', e);
-                workers = [];
-            }
-            
-            // Проверяем уникальность логина
+            // Проверяем уникальность
             if (workers.find(w => w.username === username)) {
-                alert('Такой логин уже существует');
+                showDebugInfo('❌ Работник с таким логином уже существует!', 'error');
                 return;
             }
             
-            // Добавляем нового работника
+            // Проверяем права
+            const currentUser = security.getCurrentUser();
+            if (!currentUser || currentUser.role !== 'admin') {
+                showDebugInfo('❌ Только администратор может добавлять работников!', 'error');
+                return;
+            }
+            
+            // Создаем работника
             const newWorker = {
+                id: Date.now(),
                 name: name,
                 username: username,
-                password: security.hashPassword(password), // Хешируем пароль
+                password: security.hashPassword(password),
+                role: 'worker',
                 active: active,
-                created: new Date().toLocaleString('ru-RU'),
-                role: 'worker'
+                created: new Date().toLocaleDateString('ru-RU'),
+                createdBy: currentUser.name || currentUser.username,
+                timestamp: new Date().toISOString(),
+                lastUpdated: new Date().toISOString()
             };
             
+            console.log('🆕 Новый работник:', newWorker);
+            
+            // Добавляем в массив
             workers.push(newWorker);
             
+            // 1. Сохраняем в localStorage
+            localStorage.setItem('workers', JSON.stringify(workers));
+            console.log('✅ Сохранено в localStorage');
+            
+            // 2. Сохраняем в Firebase ВРУЧНУЮ
             try {
-                // Сохраняем в localStorage
-                localStorage.setItem('workers', JSON.stringify(workers));
+                const db = firebase.database();
                 
-                // Очищаем форму
-                document.getElementById('workerName').value = '';
-                document.getElementById('workerLogin').value = '';
-                document.getElementById('workerPassword').value = '';
-                document.getElementById('workerConfirmPassword').value = '';
+                // Сохраняем отдельного работника
+                await db.ref('workers/' + username).set(newWorker);
+                console.log('✅ Работник сохранен в Firebase под ключом:', username);
                 
-                // Обновляем список
-                loadWorkers();
+                // Дополнительно: сохраняем весь массив для надежности
+                const workersObj = {};
+                workers.forEach(w => {
+                    workersObj[w.username] = w;
+                });
                 
-                // Показываем уведомление
-                alert(`Работник "${name}" добавлен!`);
+                await db.ref('workers').set(workersObj);
+                console.log('✅ Весь массив сохранен в Firebase');
+                
+                showDebugInfo(`✅ Работник "${name}" успешно добавлен и синхронизирован! 👷`, 'success');
                 
             } catch (error) {
-                console.error('❌ Ошибка сохранения:', error);
-                alert('Ошибка сохранения работника');
+                console.error('❌ Ошибка Firebase:', error);
+                showDebugInfo(`⚠️ Работник "${name}" добавлен локально (Firebase ошибка)`, 'warning');
             }
+            
+            // Очищаем форму
+            document.getElementById('workerName').value = '';
+            document.getElementById('workerLogin').value = '';
+            document.getElementById('workerPassword').value = '';
+            document.getElementById('workerConfirmPassword').value = '';
+            
+            // Обновляем список
+            displayWorkers();
+            
+            // Запускаем мониторинг сохранности
+            monitorWorkerPresence(username, name);
         }
         
         // Изменить статус работника
-        function toggleWorker(username, active) {
+        async function toggleWorker(username, active) {
             if (!confirm(`${active ? 'Активировать' : 'Деактивировать'} работника?`)) {
-                return;
-            }
-            
-            let workers = [];
-            try {
-                const workersStr = localStorage.getItem('workers');
-                workers = workersStr ? JSON.parse(workersStr) : [];
-            } catch (e) {
-                console.error('Ошибка чтения работников:', e);
-                alert('Ошибка чтения данных');
                 return;
             }
             
             const workerIndex = workers.findIndex(w => w.username === username);
             
             if (workerIndex === -1) {
-                alert('Работник не найден');
+                showDebugInfo('❌ Работник не найден', 'error');
                 return;
             }
             
             workers[workerIndex].active = active;
+            workers[workerIndex].lastUpdated = new Date().toISOString();
             
+            // Сохраняем локально
+            localStorage.setItem('workers', JSON.stringify(workers));
+            
+            // Сохраняем в Firebase
             try {
-                localStorage.setItem('workers', JSON.stringify(workers));
-                loadWorkers();
-                alert(`Статус работника изменен!`);
+                await firebase.database().ref('workers/' + username).update({
+                    active: active,
+                    lastUpdated: new Date().toISOString()
+                });
+                
+                showDebugInfo(`✅ Статус работника изменен!`, 'success');
+                displayWorkers();
+                
             } catch (error) {
-                console.error('❌ Ошибка сохранения:', error);
-                alert('Ошибка сохранения');
+                console.error('❌ Ошибка Firebase:', error);
+                showDebugInfo('⚠️ Статус изменен локально', 'warning');
+                displayWorkers();
+            }
+        }
+        
+        // Сбросить пароль работника
+        function resetWorkerPassword(username) {
+            const worker = workers.find(w => w.username === username);
+            if (!worker) return;
+            
+            const newPassword = prompt('Введите новый пароль (минимум 4 символа):');
+            
+            if (!newPassword || newPassword.length < 4) {
+                showDebugInfo('❌ Пароль должен быть минимум 4 символа', 'error');
+                return;
+            }
+            
+            if (confirm(`Сбросить пароль для ${worker.name}?`)) {
+                const workerIndex = workers.findIndex(w => w.username === username);
+                
+                workers[workerIndex].password = security.hashPassword(newPassword);
+                workers[workerIndex].lastUpdated = new Date().toISOString();
+                
+                // Сохраняем локально
+                localStorage.setItem('workers', JSON.stringify(workers));
+                
+                // Сохраняем в Firebase
+                firebase.database().ref('workers/' + username).update({
+                    password: security.hashPassword(newPassword),
+                    lastUpdated: new Date().toISOString()
+                }).then(() => {
+                    showDebugInfo('✅ Пароль успешно сброшен! 🔑', 'success');
+                    displayWorkers();
+                }).catch(error => {
+                    console.error('❌ Ошибка Firebase:', error);
+                    showDebugInfo('⚠️ Пароль сброшен локально', 'warning');
+                    displayWorkers();
+                });
             }
         }
         
         // Удалить работника
-        function deleteWorker(username) {
-            if (!confirm('Удалить этого работника?')) {
+        async function deleteWorker(username) {
+            const worker = workers.find(w => w.username === username);
+            if (!worker) return;
+            
+            if (worker.role === 'admin') {
+                showDebugInfo('❌ Нельзя удалить администратора!', 'error');
                 return;
             }
             
-            let workers = [];
-            try {
-                const workersStr = localStorage.getItem('workers');
-                workers = workersStr ? JSON.parse(workersStr) : [];
-            } catch (e) {
-                console.error('Ошибка чтения работников:', e);
-                alert('Ошибка чтения данных');
+            if (!confirm(`Удалить работника "${worker.name}"?\nЭто действие нельзя отменить.`)) {
                 return;
             }
             
+            // Удаляем из массива
             workers = workers.filter(w => w.username !== username);
             
+            // Сохраняем локально
+            localStorage.setItem('workers', JSON.stringify(workers));
+            
+            // Удаляем из Firebase
             try {
-                localStorage.setItem('workers', JSON.stringify(workers));
-                loadWorkers();
-                alert(`Работник удален!`);
+                await firebase.database().ref('workers/' + username).remove();
+                showDebugInfo(`✅ Работник "${worker.name}" удален!`, 'success');
+                displayWorkers();
+                
             } catch (error) {
-                console.error('❌ Ошибка удаления:', error);
-                alert('Ошибка удаления');
+                console.error('❌ Ошибка Firebase:', error);
+                showDebugInfo('⚠️ Работник удален локально', 'warning');
+                displayWorkers();
             }
         }
         
-        // Инициализация мобильного меню
+        // Обновить список работников
+        function refreshWorkers() {
+            console.log('🔄 Принудительное обновление работников...');
+            
+            if (window.dataSync && window.dataSync.loadData) {
+                window.dataSync.loadData('workers').then(firebaseWorkers => {
+                    if (firebaseWorkers && firebaseWorkers.length > 0) {
+                        workers = firebaseWorkers;
+                        localStorage.setItem('workers', JSON.stringify(workers));
+                        displayWorkers();
+                        showDebugInfo(`✅ Загружено ${workers.length} работников из Firebase`, 'success');
+                    } else {
+                        showDebugInfo('ℹ️ В Firebase нет данных о работниках', 'info');
+                    }
+                }).catch(error => {
+                    console.error('❌ Ошибка загрузки:', error);
+                    showDebugInfo('❌ Ошибка загрузки из Firebase', 'error');
+                });
+            } else {
+                loadWorkers();
+                showDebugInfo('ℹ️ Обновлено из localStorage', 'info');
+            }
+        }
+        
+        // ==================== ИНСТРУМЕНТЫ ОТЛАДКИ ====================
+        
+        // Принудительная синхронизация
+        async function forceSyncWorkers() {
+            showDebugInfo('🔄 Начинаю принудительную синхронизацию...', 'info');
+            
+            try {
+                const db = firebase.database();
+                const workersObj = {};
+                
+                workers.forEach(w => {
+                    workersObj[w.username] = w;
+                });
+                
+                await db.ref('workers').set(workersObj);
+                showDebugInfo(`✅ ${workers.length} работников синхронизированы с Firebase`, 'success');
+                
+            } catch (error) {
+                showDebugInfo(`❌ Ошибка: ${error.message}`, 'error');
+            }
+        }
+        
+        // Проверить статус
+        function checkWorkersStatus() {
+            const localCount = workers.length;
+            
+            firebase.database().ref('workers').once('value').then(snap => {
+                const fbData = snap.val() || {};
+                const fbCount = Object.keys(fbData).length;
+                
+                const info = `
+                    <strong>📊 Статус синхронизации:</strong><br>
+                    📁 Локально: ${localCount} работников<br>
+                    🔥 Firebase: ${fbCount} работников<br>
+                    ${localCount === fbCount ? '✅ Синхронизация в порядке' : '⚠️ Расхождение в данных!'}
+                    <br><br>
+                    <strong>Локальные работники (${localCount}):</strong><br>
+                    ${workers.map(w => `• ${w.name} (${w.username}) - ${w.active ? '✅' : '❌'}`).join('<br>') || 'Нет работников'}
+                `;
+                
+                showDebugInfo(info, 'info');
+            }).catch(error => {
+                showDebugInfo(`❌ Ошибка проверки Firebase: ${error.message}`, 'error');
+            });
+        }
+        
+        // Создать бэкап
+        function backupWorkers() {
+            const backup = {
+                date: new Date().toISOString(),
+                count: workers.length,
+                workers: workers
+            };
+            
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `workers_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            
+            showDebugInfo(`✅ Бэкап создан (${workers.length} работников)`, 'success');
+        }
+        
+        // Показать информацию отладки
+        function showDebugInfo(message, type = 'info') {
+            const debugInfo = document.getElementById('debugInfo');
+            const time = new Date().toLocaleTimeString();
+            
+            let color = '#6c757d';
+            if (type === 'success') color = '#28a745';
+            if (type === 'error') color = '#dc3545';
+            if (type === 'warning') color = '#ffc107';
+            if (type === 'info') color = '#17a2b8';
+            
+            debugInfo.innerHTML = `
+                <div style="color: ${color}; margin-bottom: 5px;">
+                    <strong>[${time}]</strong> ${message}
+                </div>
+                ${debugInfo.innerHTML}
+            `;
+            
+            // Автоочистка через 30 секунд
+            setTimeout(() => {
+                const divs = debugInfo.querySelectorAll('div');
+                if (divs.length > 10) {
+                    debugInfo.removeChild(divs[divs.length - 1]);
+                }
+            }, 30000);
+        }
+        
+        // Мониторинг сохранности работника
+        function monitorWorkerPresence(username, name) {
+            console.log(`👁️ Начинаю мониторинг работника ${username}...`);
+            
+            // Проверяем каждые 2 секунды в течение 30 секунд
+            let checks = 0;
+            const interval = setInterval(() => {
+                checks++;
+                const currentWorkers = JSON.parse(localStorage.getItem('workers') || '[]');
+                const exists = currentWorkers.find(w => w.username === username);
+                
+                console.log(`[${checks}] Проверка: ${username} - ${exists ? '✅ есть' : '❌ нет'}`);
+                
+                if (!exists) {
+                    console.error(`🚨 РАБОТНИК ${username} ПРОПАЛ!`);
+                    showDebugInfo(`🚨 РАБОТНИК "${name}" ПРОПАЛ ИЗ СПИСКА!`, 'error');
+                    
+                    // Пытаемся восстановить
+                    if (workers.find(w => w.username === username)) {
+                        localStorage.setItem('workers', JSON.stringify(workers));
+                        console.log('🔄 Работник восстановлен из памяти');
+                    }
+                }
+                
+                if (checks >= 15) { // 30 секунд
+                    clearInterval(interval);
+                    console.log('👁️ Мониторинг завершен');
+                }
+            }, 2000);
+        }
+        
+        // Начать мониторинг работников
+        function startWorkersMonitoring() {
+            // Мониторим изменения каждые 5 секунд
+            setInterval(() => {
+                const currentWorkers = JSON.parse(localStorage.getItem('workers') || '[]');
+                const currentCount = currentWorkers.length;
+                
+                if (currentCount !== workers.length) {
+                    console.log(`📈 Изменение количества работников: было ${workers.length}, стало ${currentCount}`);
+                    
+                    if (currentCount < workers.length) {
+                        // Кто-то пропал
+                        const lostWorkers = workers.filter(w => 
+                            !currentWorkers.find(cw => cw.username === w.username)
+                        );
+                        
+                        if (lostWorkers.length > 0) {
+                            console.warn('🚨 Потерянные работники:', lostWorkers.map(w => w.username));
+                            showDebugInfo(`🚨 Потеряно ${lostWorkers.length} работников!`, 'error');
+                        }
+                    }
+                    
+                    // Обновляем наш массив
+                    workers = currentWorkers;
+                }
+            }, 5000);
+        }
+        
+        // Настроить слушатель работников
+        function setupWorkersListener() {
+            try {
+                // Отключаем старый слушатель если есть
+                if (workersListener) {
+                    firebase.database().ref('workers').off('value', workersListener);
+                }
+                
+                // Включаем новый слушатель с задержкой
+                workersListener = firebase.database().ref('workers').on('value', (snapshot) => {
+                    console.log('👂 Firebase слушатель сработал');
+                    
+                    // Добавляем задержку 5 секунд
+                    setTimeout(() => {
+                        if (snapshot.exists()) {
+                            const workersObj = snapshot.val();
+                            const firebaseWorkers = Object.values(workersObj || {});
+                            
+                            console.log(`🔄 Получено ${firebaseWorkers.length} работников из Firebase`);
+                            
+                            // Объединяем данные вместо замены
+                            const localWorkers = JSON.parse(localStorage.getItem('workers') || '[]');
+                            const mergedWorkers = mergeWorkers(localWorkers, firebaseWorkers);
+                            
+                            // Сохраняем объединенный список
+                            localStorage.setItem('workers', JSON.stringify(mergedWorkers));
+                            workers = mergedWorkers;
+                            
+                            // Обновляем UI
+                            displayWorkers();
+                            
+                            showDebugInfo(`🔄 Синхронизировано ${mergedWorkers.length} работников`, 'info');
+                        }
+                    }, 5000); // Задержка 5 секунд
+                });
+                
+                console.log('✅ Слушатель работников настроен (с задержкой)');
+                
+            } catch (error) {
+                console.error('❌ Ошибка настройки слушателя:', error);
+            }
+        }
+        
+        // Объединить работников
+        function mergeWorkers(localWorkers, firebaseWorkers) {
+            const workerMap = new Map();
+            
+            // Добавляем локальных работников
+            localWorkers.forEach(worker => {
+                if (worker.username) {
+                    workerMap.set(worker.username, worker);
+                }
+            });
+            
+            // Добавляем/обновляем из Firebase
+            firebaseWorkers.forEach(fbWorker => {
+                if (fbWorker.username) {
+                    const existingWorker = workerMap.get(fbWorker.username);
+                    
+                    if (existingWorker) {
+                        // Объединяем, сохраняя локальные пароли
+                        workerMap.set(fbWorker.username, {
+                            ...fbWorker,
+                            password: existingWorker.password || fbWorker.password,
+                            active: existingWorker.active !== undefined ? existingWorker.active : fbWorker.active,
+                            lastSynced: new Date().toISOString()
+                        });
+                    } else {
+                        // Добавляем нового
+                        workerMap.set(fbWorker.username, {
+                            ...fbWorker,
+                            lastSynced: new Date().toISOString()
+                        });
+                    }
+                }
+            });
+            
+            return Array.from(workerMap.values());
+        }
+        
+        // Показать детальную информацию отладки
+        function showDebugInfo() {
+            console.log('=== DEBUG ИНФОРМАЦИЯ ===');
+            console.log('Количество работников:', workers.length);
+            console.log('workers массив:', workers);
+            console.log('localStorage workers:', JSON.parse(localStorage.getItem('workers') || '[]'));
+            
+            firebase.database().ref('workers').once('value').then(snap => {
+                const fbData = snap.val() || {};
+                console.log('Firebase workers:', fbData);
+                console.log('Количество в Firebase:', Object.keys(fbData).length);
+            });
+        }
+        
+        // ==================== МОБИЛЬНОЕ МЕНЮ ====================
+        
         function initMobileMenu() {
             const user = security.getCurrentUser();
             if (!user) return;
             
-            // Обновляем информацию пользователя в меню
-            document.getElementById('mobileUserName').textContent = user.name || user.username;
+            document.getElementById('mobileUserName').textContent = user.name;
             document.getElementById('mobileUserRole').textContent = 
                 user.role === 'admin' ? 'Администратор 👑' : 'Работник 👷';
             
-            // Пункты меню
+            const currentPage = window.location.pathname.split('/').pop();
             const menuItems = [
                 { icon: '🎮', text: 'Панель менеджера', page: 'manager.html' },
                 { icon: '➕', text: 'Добавить аккаунт', page: 'add-account.html' },
@@ -342,11 +968,9 @@
             
             menuItems.forEach(item => {
                 const menuItem = document.createElement('a');
-                menuItem.className = 'mobile-menu-item';
+                menuItem.className = `mobile-menu-item ${currentPage === item.page ? 'active' : ''}`;
                 menuItem.href = item.page;
-                menuItem.onclick = function() {
-                    toggleMobileMenu();
-                };
+                menuItem.onclick = closeMobileMenu;
                 
                 menuItem.innerHTML = `
                     <span style="margin-right: 15px; font-size: 1.3rem;">${item.icon}</span>
@@ -357,7 +981,6 @@
             });
         }
         
-        // Переключение мобильного меню
         function toggleMobileMenu() {
             const menu = document.getElementById('mobileMenu');
             const overlay = document.getElementById('menuOverlay');
@@ -374,7 +997,17 @@
             }
         }
         
-        // Выход из системы
+        function closeMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            const overlay = document.getElementById('menuOverlay');
+            const burgerBtn = document.querySelector('.burger-btn');
+            
+            menu.classList.remove('active');
+            overlay.classList.remove('active');
+            burgerBtn.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+        
         function logout() {
             security.logout();
         }

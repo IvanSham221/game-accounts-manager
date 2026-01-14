@@ -27,14 +27,41 @@ class FirebaseSync {
     // ИНИЦИАЛИЗАЦИЯ ВСЕХ СЛУШАТЕЛЕЙ
     initAllSync() {
         // Слушатель для работников
+        /*
         this.db.ref('workers').on('value', (snapshot) => {
-            if (snapshot.exists()) {
-                const workersObj = snapshot.val();
-                const workersArray = Object.values(workersObj || {});
-                localStorage.setItem('workers', JSON.stringify(workersArray));
-                console.log('🔄 Работники синхронизированы');
+    if (snapshot.exists()) {
+        try {
+            const workersObj = snapshot.val();
+            const firebaseWorkers = Object.values(workersObj || {});
+            
+            // Получаем текущих локальных работников
+            const localWorkersStr = localStorage.getItem('workers');
+            const localWorkers = localWorkersStr ? JSON.parse(localWorkersStr) : [];
+            
+            console.log('🔄 Получены работники из Firebase:', firebaseWorkers.length);
+            console.log('📁 Локальные работники:', localWorkers.length);
+            
+            // СЛИЯНИЕ данных, а не перезапись!
+            const mergedWorkers = mergeWorkers(localWorkers, firebaseWorkers);
+            
+            // Сохраняем объединенный список
+            localStorage.setItem('workers', JSON.stringify(mergedWorkers));
+            
+            // Обновляем UI если на странице работников
+            if (window.location.pathname.includes('workers.html')) {
+                setTimeout(() => {
+                    if (typeof loadWorkers === 'function') {
+                        loadWorkers();
+                    }
+                }, 500);
             }
-        });
+            
+        } catch (error) {
+            console.error('❌ Ошибка синхронизации работников:', error);
+        }
+    }
+});
+*/
 
         // Слушатель для игр
         this.db.ref('games').on('value', (snapshot) => {
@@ -234,6 +261,45 @@ window.dataSync = {
 
 // firebase.js - ДОБАВЬТЕ эту функцию в конец файла после window.dataSync
 
+
+function mergeWorkers(localWorkers, firebaseWorkers) {
+    const mergedMap = new Map();
+    
+    // Сначала добавляем всех локальных работников
+    localWorkers.forEach(worker => {
+        if (worker.username) {
+            mergedMap.set(worker.username, worker);
+        }
+    });
+    
+    // Затем добавляем/обновляем из Firebase
+    firebaseWorkers.forEach(fbWorker => {
+        if (fbWorker.username) {
+            const existingWorker = mergedMap.get(fbWorker.username);
+            
+            if (existingWorker) {
+                // Объединяем данные, сохраняя локальные изменения
+                mergedMap.set(fbWorker.username, {
+                    ...fbWorker,
+                    // Сохраняем локальный пароль если он есть
+                    password: existingWorker.password || fbWorker.password,
+                    // Сохраняем локальный статус если он есть
+                    active: existingWorker.active !== undefined ? existingWorker.active : fbWorker.active,
+                    // Обновляем метку времени
+                    lastSynced: new Date().toISOString()
+                });
+            } else {
+                // Добавляем нового работника из Firebase
+                mergedMap.set(fbWorker.username, {
+                    ...fbWorker,
+                    lastSynced: new Date().toISOString()
+                });
+            }
+        }
+    });
+    
+    return Array.from(mergedMap.values());
+}
 // Функция для обновления UI при изменении данных
 function setupDataListeners() {
     if (!firebaseSync) return;
