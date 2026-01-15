@@ -8,7 +8,15 @@ const firebaseConfig = {
     messagingSenderId: "720773477998",
     appId: "1:720773477998:web:3d3c61747c42833f7f987f"
 };
+// firebase.js - В НАЧАЛЕ ФАЙЛА ПОСЛЕ firebaseConfig
+console.log('🛠️ Инициализация Firebase...');
 
+// Проверяем доступность Firebase
+console.log('Firebase доступен?', typeof firebase !== 'undefined');
+if (typeof firebase !== 'undefined') {
+    console.log('Версия Firebase:', firebase.SDK_VERSION);
+    console.log('Приложение инициализировано:', firebase.apps.length > 0);
+}
 try {
     if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
@@ -175,45 +183,71 @@ class FirebaseSync {
 
     // СОХРАНЕНИЕ ДАННЫХ В FIREBASE
     async saveDataToFirebase(dataType, data) {
-        try {
-            const dataObj = {};
-            
-            if (Array.isArray(data)) {
-                // Если массив, преобразуем в объект с ключами по id
-                data.forEach(item => {
-                    if (item.id) {
-                        dataObj[item.id] = item;
-                    } else if (item.username) { // для работников
-                        dataObj[item.username] = item;
-                    } else {
-                        // Генерируем ключ если нет id
-                        const key = Date.now() + Math.random();
-                        dataObj[key] = item;
-                    }
-                });
-            } else if (typeof data === 'object') {
-                // Если объект, используем как есть
-                Object.assign(dataObj, data);
-            }
-            
-            // Сохраняем в Firebase
-            await this.db.ref(dataType).set(dataObj);
-            
-            // Также сохраняем локально
-            localStorage.setItem(dataType, JSON.stringify(data));
-            
-            console.log(`✅ Данные "${dataType}" сохранены в Firebase`);
-            return { success: true, synced: true };
-            
-        } catch (error) {
-            console.error(`❌ Ошибка сохранения "${dataType}" в Firebase:`, error);
-            
-            // Сохраняем локально как запасной вариант
-            localStorage.setItem(dataType, JSON.stringify(data));
-            
-            return { success: true, local: true, error: error.message };
-        }
+    console.log(`💾 СОХРАНЕНИЕ в Firebase: ${dataType}`, data.length || data);
+    
+    // Проверяем подключение
+    if (!this.db) {
+        console.error('❌ Firebase Database не доступен');
+        throw new Error('Firebase Database не инициализирован');
     }
+    
+    try {
+        const dataObj = {};
+        
+        if (Array.isArray(data)) {
+            // Преобразуем массив в объект для Firebase
+            data.forEach(item => {
+                const key = item.id || item.username || Date.now() + Math.random();
+                dataObj[key] = item;
+            });
+        } else if (typeof data === 'object') {
+            // Уже объект
+            Object.assign(dataObj, data);
+        } else {
+            throw new Error('Неподдерживаемый формат данных');
+        }
+        
+        console.log(`📤 Отправляем в Firebase (${dataType}):`, Object.keys(dataObj).length, 'записей');
+        
+        // Сохраняем в Firebase
+        const startTime = Date.now();
+        await this.db.ref(dataType).set(dataObj);
+        const endTime = Date.now();
+        
+        console.log(`✅ Данные "${dataType}" сохранены в Firebase за ${endTime - startTime}ms`);
+        
+        // Также сохраняем локально
+        localStorage.setItem(dataType, JSON.stringify(data));
+        
+        return { success: true, synced: true, local: true };
+        
+    } catch (error) {
+        console.error(`❌ ОШИБКА сохранения "${dataType}" в Firebase:`, error);
+        
+        // Подробная диагностика ошибки
+        if (error.code) {
+            console.error(`Код ошибки Firebase: ${error.code}`, error.message);
+            
+            // Распространенные ошибки Firebase
+            if (error.code === 'PERMISSION_DENIED') {
+                console.error('❌ НЕТ ПРАВ ДОСТУПА к Firebase. Проверьте правила базы данных!');
+            } else if (error.code === 'NETWORK_ERROR') {
+                console.error('🌐 ОШИБКА СЕТИ. Проверьте подключение к интернету.');
+            }
+        }
+        
+        // Сохраняем локально как запасной вариант
+        localStorage.setItem(dataType, JSON.stringify(data));
+        
+        return { 
+            success: true, 
+            local: true, 
+            error: error.message,
+            code: error.code,
+            synced: false
+        };
+    }
+}
 
     // ЗАГРУЗКА ДАННЫХ ИЗ FIREBASE
     async loadDataFromFirebase(dataType) {
@@ -292,6 +326,96 @@ class ChangeMonitor {
             const filteredAccounts = localAccounts.filter(acc => acc.id != removedAccountId);
             localStorage.setItem('accounts', JSON.stringify(filteredAccounts));
         });
+
+        // firebase.js - ДОБАВЬТЕ этот код после других слушателей
+
+// СЛУШАТЕЛЬ ДЛЯ ПРОДАЖ С ПРИНУДИТЕЛЬНЫМ ОБНОВЛЕНИЕМ
+this.db.ref('sales').on('value', (snapshot) => {
+    if (snapshot.exists()) {
+        try {
+            const salesObj = snapshot.val();
+            const salesArray = Object.values(salesObj || {});
+            
+            console.log('🔄 Продажи синхронизированы из Firebase:', salesArray.length);
+            
+            // Сохраняем локально
+            localStorage.setItem('sales', JSON.stringify(salesArray));
+            
+            // Обновляем глобальную переменную
+            if (typeof window.sales !== 'undefined') {
+                window.sales = salesArray;
+                console.log('📊 Продажи обновлены в памяти:', window.sales.length);
+            }
+            
+            // Если мы на странице отчетов или менеджера - обновляем UI
+            setTimeout(() => {
+                const currentPage = window.location.pathname.split('/').pop();
+                
+                if (currentPage === 'reports.html') {
+                    if (typeof generateFullReport === 'function') {
+                        generateFullReport();
+                    }
+                    if (typeof showNotification === 'function') {
+                        showNotification('Отчет обновлен с сервера', 'info', 2000);
+                    }
+                }
+                
+                if (currentPage === 'manager.html') {
+                    // Обновляем результаты поиска если что-то искали
+                    const searchInput = document.getElementById('managerGameSearch');
+                    if (searchInput && searchInput.value.trim()) {
+                        setTimeout(() => {
+                            searchByGame();
+                        }, 500);
+                    }
+                    
+                    // Обновляем статистику если открыта
+                    const statsSection = document.getElementById('statsSection');
+                    if (statsSection && statsSection.style.display !== 'none') {
+                        setTimeout(() => {
+                            if (typeof showGameStats === 'function') {
+                                showGameStats();
+                            }
+                        }, 500);
+                    }
+                }
+                
+                if (currentPage === 'workers-stats.html') {
+                    if (typeof generateWorkersStats === 'function') {
+                        setTimeout(() => {
+                            generateWorkersStats();
+                        }, 500);
+                    }
+                }
+                
+            }, 300);
+            
+        } catch (error) {
+            console.error('❌ Ошибка синхронизации продаж:', error);
+        }
+    } else {
+        console.log('📊 Нет продаж в Firebase');
+        localStorage.setItem('sales', JSON.stringify([]));
+        if (typeof window.sales !== 'undefined') {
+            window.sales = [];
+        }
+    }
+});
+
+// МОНИТОРИНГ ИЗМЕНЕНИЙ ПРОДАЖ В РЕАЛЬНОМ ВРЕМЕНИ
+this.db.ref('sales').on('child_added', (snapshot) => {
+    const newSale = snapshot.val();
+    console.log(`🆕 Новая продажа в Firebase: ${newSale.accountLogin} за ${newSale.price} ₽`);
+});
+
+this.db.ref('sales').on('child_changed', (snapshot) => {
+    const updatedSale = snapshot.val();
+    console.log(`✏️ Продажа обновлена в Firebase: ${updatedSale.accountLogin}`);
+});
+
+this.db.ref('sales').on('child_removed', (snapshot) => {
+    console.log(`🗑️ Продажа удалена из Firebase: ${snapshot.key}`);
+});
     }
 }
 
@@ -510,6 +634,97 @@ function setupDataListeners() {
             console.log('🔄 Продажи синхронизированы:', salesArray.length);
         }
     });
+}
+
+// firebase.js - ЗАМЕНИТЕ КОНЕЧНЫЙ БЛОК
+
+// Глобальный объект для отладки
+window.firebaseDebug = {
+    isInitialized: false,
+    lastError: null,
+    syncStatus: 'pending'
+};
+
+try {
+    console.log('🔄 Инициализация FirebaseSync...');
+    
+    // Проверяем, что Firebase загружен
+    if (typeof firebase === 'undefined') {
+        throw new Error('Firebase не загружен! Проверьте подключение скриптов.');
+    }
+    
+    // Проверяем, что приложение инициализировано
+    if (!firebase.apps.length) {
+        console.log('⚠️ Приложение Firebase не инициализировано, инициализируем...');
+        firebase.initializeApp(firebaseConfig);
+    }
+    
+    console.log('✅ Firebase приложение инициализировано');
+    
+    // Инициализируем синхронизацию
+    firebaseSync = new FirebaseSync();
+    window.firebaseDebug.isInitialized = true;
+    window.firebaseDebug.syncStatus = 'active';
+    
+    console.log('✅ FirebaseSync создан');
+    
+    // Тест подключения
+    testFirebaseConnection();
+    
+} catch (error) {
+    console.error('❌ КРИТИЧЕСКАЯ ОШИБКА инициализации Firebase:', error);
+    window.firebaseDebug.lastError = error.message;
+    window.firebaseDebug.syncStatus = 'error';
+    
+    // Показываем ошибку пользователю
+    if (typeof showNotification === 'function') {
+        setTimeout(() => {
+            showNotification(`Firebase ошибка: ${error.message}`, 'error', 5000);
+        }, 1000);
+    }
+}
+
+// Функция тестирования подключения
+async function testFirebaseConnection() {
+    try {
+        console.log('🔍 Тестируем подключение к Firebase...');
+        
+        const db = firebase.database();
+        const testRef = db.ref('connection_test');
+        
+        // Пробуем записать тестовые данные
+        await testRef.set({
+            timestamp: Date.now(),
+            userAgent: navigator.userAgent,
+            test: true
+        });
+        
+        console.log('✅ Запись в Firebase успешна');
+        
+        // Читаем обратно
+        const snapshot = await testRef.once('value');
+        console.log('✅ Чтение из Firebase успешно:', snapshot.val());
+        
+        // Удаляем тестовые данные
+        await testRef.remove();
+        
+        window.firebaseDebug.connectionTest = 'passed';
+        console.log('🎉 Firebase полностью работоспособен!');
+        
+    } catch (error) {
+        console.error('❌ Тест подключения к Firebase провален:', error);
+        window.firebaseDebug.connectionTest = 'failed';
+        window.firebaseDebug.connectionError = error.message;
+    }
+}
+
+// Экспортируем объект для отладки
+if (typeof window !== 'undefined') {
+    window.firebaseDebug = window.firebaseDebug || {
+        isInitialized: false,
+        lastError: null,
+        syncStatus: 'unknown'
+    };
 }
 
 // Запускаем слушатели после инициализации

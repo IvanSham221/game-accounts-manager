@@ -717,10 +717,7 @@ h3 {
 }
 
 .platform-section {
-    background: linear-gradient(135deg, rgba(67, 97, 238, 0.05) 0%, rgba(114, 9, 183, 0.05) 100%);
-    padding: 20px;
-    border-radius: 10px;
-    border: 1px solid rgba(67, 97, 238, 0.1);
+    margin-bottom: 15px;
 }
 
 .platform-title {
@@ -3929,4 +3926,879 @@ html, body {
     overflow-y: auto !important;
     overflow-x: hidden !important;
     position: relative !important;
+}
+
+/* ==================== СТИЛИ ДЛЯ СТРАНИЦЫ ЗАКУПА ==================== */
+
+/* Критические позиции */
+.critical-list {
+    margin-top: 20px;
+}
+
+.critical-games-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+}
+
+.critical-game-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    border: 2px solid #fee2e2;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 15px;
+}
+
+.critical-game-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.15);
+}
+
+.critical-game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.critical-game-header h3 {
+    margin: 0 0 8px 0;
+    color: #1e293b;
+    font-size: 1.2em;
+}
+
+.critical-count {
+    background: #ef4444;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+.critical-positions {
+    margin: 15px 0;
+}
+
+.critical-position {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #fef2f2;
+    border-radius: 8px;
+    border-left: 3px solid #ef4444;
+}
+
+.position-name {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.position-stats {
+    font-weight: 700;
+}
+
+.position-stats .free {
+    color: #ef4444;
+}
+
+.position-stats .total {
+    color: #64748b;
+}
+
+.critical-game-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid #fee2e2;
+}
+
+.sold-percentage {
+    color: #64748b;
+    font-size: 0.9em;
+}
+
+/* Рекомендации по закупу */
+.procurement-grid {
+    margin-top: 20px;
+}
+
+.recommendations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.recommendation-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.recommendation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.recommendation-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+    color: #2d3748;
+}
+
+.recommendations-count {
+    background: #3b82f6;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+.recommendation-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.recommendation-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border-left: 3px solid;
+    background: #f8fafc;
+}
+
+.recommendation-item.add {
+    border-left-color: #10b981;
+    background: #f0fdf4;
+}
+
+.recommendation-item.restock {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.recommendation-item.maintain {
+    border-left-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.recommendation-type {
+    font-weight: 600;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.recommendation-details {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.recommendation-quantity {
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 1.1em;
+}
+
+.recommendation-reason {
+    font-size: 0.85em;
+    color: #64748b;
+    text-align: right;
+    max-width: 150px;
+}
+
+.recommendation-actions {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #f1f5f9;
+    text-align: center;
+}
+
+/* Статистика по играм */
+.filter-bar {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.filter-bar .input {
+    min-width: 200px;
+}
+
+.games-stats-container {
+    margin-top: 20px;
+}
+
+.games-stats-table {
+    overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.games-stats-table table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 800px;
+}
+
+.games-stats-table th {
+    background: #f8fafc;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    position: sticky;
+    top: 0;
+}
+
+.games-stats-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.games-stats-table tr:hover {
+    background: #f8fafc;
+}
+
+.games-stats-table tr.critical-row {
+    background: #fef2f2;
+}
+
+.games-stats-table tr.critical-row:hover {
+    background: #fee2e2;
+}
+
+.critical-badge {
+    margin-left: 8px;
+    color: #ef4444;
+    font-size: 0.9em;
+}
+
+.free-positions, .sold-positions {
+    font-weight: 700;
+}
+
+.free-positions {
+    color: #10b981;
+}
+
+.sold-positions {
+    color: #3b82f6;
+}
+
+.percentage {
+    color: #94a3b8;
+    font-size: 0.9em;
+    margin-left: 4px;
+}
+
+.critical-count {
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.9em;
+}
+
+.critical-count.highlight {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.profit {
+    font-weight: 700;
+}
+
+.profit.positive {
+    color: #10b981;
+}
+
+.profit.negative {
+    color: #ef4444;
+}
+
+.stats-summary {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+    padding: 20px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    flex-wrap: wrap;
+}
+
+.summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.summary-item span {
+    color: #64748b;
+    font-size: 0.9em;
+}
+
+.summary-item strong {
+    font-size: 1.3em;
+    color: #1e293b;
+}
+
+.summary-item strong.critical {
+    color: #ef4444;
+}
+
+/* Модальное окно с деталями */
+.game-stats-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.positions-details {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.position-detail {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.position-detail.critical {
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.position-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.position-name {
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 1.1em;
+}
+
+.position-status {
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+}
+
+.position-status.critical {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.position-status.ok {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.position-stats-bar {
+    margin: 15px 0;
+}
+
+.stats-bar {
+    display: flex;
+    height: 30px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+.sold-bar {
+    background: #3b82f6;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9em;
+    font-weight: 600;
+    transition: width 0.3s ease;
+}
+
+.free-bar {
+    background: #10b981;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9em;
+    font-weight: 600;
+    transition: width 0.3s ease;
+}
+
+.position-recommendation {
+    padding: 10px 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border-left: 3px solid #3b82f6;
+    font-size: 0.9em;
+    color: #475569;
+}
+
+.financial-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 20px 0;
+    padding: 20px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.financial-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.financial-item:last-child {
+    border-bottom: none;
+}
+
+.financial-item strong.expense {
+    color: #ef4444;
+}
+
+.financial-item strong.revenue {
+    color: #10b981;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+    justify-content: flex-end;
+}
+
+/* Экспорт данных */
+.export-options {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .critical-games-list,
+    .recommendations-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .games-stats-table {
+        font-size: 0.9em;
+    }
+    
+    .games-stats-table th,
+    .games-stats-table td {
+        padding: 10px 12px;
+    }
+    
+    .stats-summary {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .export-options {
+        flex-direction: column;
+    }
+    
+    .export-options .btn {
+        width: 100%;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+    }
+    
+    .modal-actions .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}
+
+/* Темная тема */
+body.dark-theme .critical-game-card {
+    background: #1e293b;
+    border-color: #7f1d1d;
+}
+
+body.dark-theme .critical-position {
+    background: #450a0a;
+    border-left-color: #ef4444;
+}
+
+body.dark-theme .recommendation-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-theme .recommendation-item {
+    background: #0f172a;
+}
+
+body.dark-theme .games-stats-table th {
+    background: #0f172a;
+    color: #cbd5e1;
+}
+
+body.dark-theme .games-stats-table tr {
+    border-color: #334155;
+}
+
+body.dark-theme .games-stats-table tr:hover {
+    background: #1e293b;
+}
+
+body.dark-theme .games-stats-table tr.critical-row {
+    background: #450a0a;
+}
+
+body.dark-theme .games-stats-table tr.critical-row:hover {
+    background: #7f1d1d;
+}
+
+body.dark-theme .stats-summary {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-theme .position-detail {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-theme .position-detail.critical {
+    border-color: #7f1d1d;
+    background: #450a0a;
+}
+
+body.dark-theme .financial-stats {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-theme .position-recommendation {
+    background: #0f172a;
+    border-left-color: #3b82f6;
+    color: #cbd5e1;
+}
+
+/* Стили для критических позиций */
+.game-meta {
+    display: flex;
+    gap: 15px;
+    margin-top: 8px;
+    font-size: 0.9em;
+    color: #64748b;
+}
+
+.game-meta span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.platform-section:last-child {
+    margin-bottom: 0;
+}
+
+.platform-label {
+    margin-bottom: 8px;
+}
+
+.platform-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.platform-badge.ps4 {
+    background: #3b82f6;
+    color: white;
+}
+
+.platform-badge.ps5 {
+    background: #8b5cf6;
+    color: white;
+}
+
+.critical-position {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.critical-position.ps4 {
+    background: #eff6ff;
+    border-left: 3px solid #3b82f6;
+}
+
+.critical-position.ps5 {
+    background: #f5f3ff;
+    border-left: 3px solid #8b5cf6;
+}
+
+.position-name {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.position-stats {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.free-count {
+    font-weight: 700;
+    color: #ef4444;
+    font-size: 1.1em;
+}
+
+.total-count {
+    color: #64748b;
+    font-size: 0.9em;
+}
+
+.warning-badge {
+    background: #fee2e2;
+    color: #dc2626;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+.last-check {
+    color: #64748b;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.critical-summary {
+    margin-top: 20px;
+    padding: 15px;
+    background: #fee2e2;
+    border-radius: 10px;
+    text-align: center;
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.critical-summary strong {
+    font-size: 1.1em;
+}
+
+/* Умная система закупа */
+.game-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #f1f5f9;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    color: #64748b;
+}
+
+.game-priority {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.priority-badge {
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.critical-game-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.critical-game-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, 
+        var(--priority-color, #dc2626) 0%, 
+        rgba(220, 38, 38, 0.2) 100%
+    );
+}
+
+.position-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.demand-score {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.critical-position.exhausted {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-left-color: #dc2626;
+}
+
+.free-count.exhausted {
+    color: #dc2626;
+    font-weight: 700;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.sales-count {
+    color: #64748b;
+    font-size: 0.85em;
+}
+
+.risk-analysis {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.risk-bar {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 5px;
+}
+
+.risk-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.risk-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8em;
+    color: #64748b;
+}
+
+.summary-stats {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.summary-stats span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.summary-stats strong {
+    font-size: 1.3em;
+}
+
+.priority-legend {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85em;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 12px;
+}
+
+.legend-item.critical {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.legend-item.high {
+    background: #ffedd5;
+    color: #ea580c;
+}
+
+.legend-item.medium {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.legend-item.low {
+    background: #ecfccb;
+    color: #65a30d;
 }

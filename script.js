@@ -406,6 +406,10 @@ function updateNavigation() {
             <span>🆓</span>
             <span class="nav-text">Свободные аккаунты</span>
         </button>
+        <button onclick="security.updateSession(); location.href='procurement.html'" class="btn ${location.pathname.includes('procurement.html') ? 'btn-primary' : 'btn-secondary'}">
+        <span>📦</span>
+        <span class="nav-text">Управление закупом</span>
+        </button>
         <button onclick="security.updateSession(); location.href='games.html'" class="btn ${location.pathname.includes('games.html') ? 'btn-primary' : 'btn-secondary'}">
             <span>🎯</span>
             <span class="nav-text">Управление играми</span>
@@ -549,6 +553,7 @@ function initMobileMenu() {
         { icon: '📋', text: 'Список аккаунтов', page: 'accounts.html', id: 'accounts' },
         { icon: '💰', text: 'Ценники игр', page: 'prices.html', id: 'prices' },
         { icon: '🆓', text: 'Свободные аккаунты', page: 'free-accounts.html', id: 'free-accounts' },
+        { icon: '📦', text: 'Управление закупом', page: 'procurement.html', id: 'procurement' },
         { icon: '🎯', text: 'Управление играми', page: 'games.html', id: 'games' },
         { icon: '📊', text: 'Отчеты', page: 'reports.html', id: 'reports' },
         { icon: '📈', text: 'Статистика работников', page: 'workers-stats.html', id: 'workers-stats' },
@@ -4563,14 +4568,10 @@ async function confirmSaleAndShowData() {
     // ПРОСТОЙ РАСЧЕТ КОМИССИИ ДЛЯ FUNPAY
     let finalPrice = price;
     if (marketplace === 'funpay') {
-        // Вычисляем 3%
         const commission = price * 0.03;
-        
-        // Округляем: >=0.5 → вверх, <0.5 → вниз
         const roundedCommission = (commission - Math.floor(commission) >= 0.5) 
             ? Math.ceil(commission) 
             : Math.floor(commission);
-        
         finalPrice = price - roundedCommission;
         
         console.log(`💰 Funpay: ${price} - ${roundedCommission} = ${finalPrice}`);
@@ -4607,10 +4608,43 @@ async function confirmSaleAndShowData() {
         marketplace: marketplace || 'telegram'
     };
     
-    sales.push(newSale);
-    await saveToStorage('sales', sales);
-    
-    showAccountDataAfterSale(window.currentSaleAccount);
+    // ВАЖНО: Сохраняем через dataSync, который должен синхронизировать с Firebase
+    try {
+        console.log('💾 Сохраняем продажу с синхронизацией...');
+        
+        // Добавляем в локальный массив
+        sales.push(newSale);
+        
+        // Сохраняем с синхронизацией
+        const result = await window.dataSync.saveData('sales', sales);
+        
+        if (result.synced) {
+            console.log('✅ Продажа синхронизирована с Firebase');
+            
+            // Отправляем уведомление о новой продаже через Firebase
+            if (firebaseSync && firebaseSync.db) {
+                firebaseSync.db.ref('sales').child(positionId).set(newSale).then(() => {
+                    console.log('📢 Уведомление о новой продаже отправлено в Firebase');
+                });
+            }
+            
+            showAccountDataAfterSale(window.currentSaleAccount);
+            
+        } else if (result.local) {
+            console.log('⚠️ Продажа сохранена только локально');
+            showAccountDataAfterSale(window.currentSaleAccount);
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка при сохранении продажи:', error);
+        
+        // Сохраняем локально как запасной вариант
+        sales.push(newSale);
+        localStorage.setItem('sales', JSON.stringify(sales));
+        
+        showNotification('Продажа сохранена локально (Firebase недоступен)', 'warning');
+        showAccountDataAfterSale(window.currentSaleAccount);
+    }
 }
 
 function getPositionName(positionType) {
@@ -5284,21 +5318,36 @@ async function updateSaleDetails(saleId) {
             lastModifiedAt: new Date().toISOString()
         };
         
-        await saveToStorage('sales', sales);
-        closeSaleModal();
-        
-        // Обновляем отображение
-        const gameSelect = document.getElementById('managerGame');
-        const gameId = parseInt(gameSelect.value);
-        if (gameId) {
-            const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
-            const game = games.find(g => g.id === gameId);
-            if (game) {
-                displaySearchResults(gameAccounts, game.name);
+        // Сохраняем с синхронизацией
+        try {
+            await saveToStorage('sales', sales);
+            
+            // Отправляем уведомление об обновлении
+            if (firebaseSync && firebaseSync.db) {
+                firebaseSync.db.ref('sales').child(saleId).set(sales[saleIndex]).then(() => {
+                    console.log('✅ Изменения продажи синхронизированы');
+                });
             }
+            
+            closeSaleModal();
+            
+            // Обновляем отображение
+            const gameSelect = document.getElementById('managerGame');
+            const gameId = parseInt(gameSelect.value);
+            if (gameId) {
+                const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
+                const game = games.find(g => g.id === gameId);
+                if (game) {
+                    displaySearchResults(gameAccounts, game.name);
+                }
+            }
+            
+            showNotification('Данные продажи обновлены и синхронизированы! 💾', 'success');
+            
+        } catch (error) {
+            console.error('❌ Ошибка синхронизации продажи:', error);
+            showNotification('Данные сохранены локально', 'warning');
         }
-        
-        showNotification('Данные продажи обновлены! 💾', 'success');
     }
 }
 
