@@ -5005,8 +5005,14 @@ function showSaleDetails(sale) {
     // При редактировании показываем текущую цену (уже с вычтенной комиссией)
     const displayPrice = sale.price;
 
+    // Скрытое поле для хранения оригинальной площадки
+    const originalMarketplace = sale.marketplace || 'telegram';
+    
     modalContent.innerHTML = `
         <h2>💰 Редактировать продажу</h2>
+        
+        <!-- Скрытое поле для оригинальной площадки -->
+        <input type="hidden" id="originalMarketplace" value="${originalMarketplace}">
         
         <div class="sale-info">
             <div class="sale-info-item">
@@ -5047,11 +5053,33 @@ function showSaleDetails(sale) {
             <div>
                 <label for="editSaleMarketplace">Площадка продажи:</label>
                 <select id="editSaleMarketplace" class="sale-input" ${isAdmin ? '' : 'disabled'}>
-                    <option value="funpay" ${sale.marketplace === 'funpay' ? 'selected' : ''}>Funpay</option>
-                    <option value="telegram" ${sale.marketplace === 'telegram' ? 'selected' : ''}>Telegram</option>
-                    <option value="avito" ${sale.marketplace === 'avito' ? 'selected' : ''}>Avito</option>
+                    <option value="funpay" ${sale.marketplace === 'funpay' ? 'selected' : ''}>Funpay (комиссия 3%)</option>
+                    <option value="telegram" ${sale.marketplace === 'telegram' ? 'selected' : ''}>Telegram (без комиссии)</option>
+                    <option value="avito" ${sale.marketplace === 'avito' ? 'selected' : ''}>Avito (без комиссии)</option>
                 </select>
                 ${!isAdmin ? '<div style="font-size: 0.85em; color: #64748b; margin-top: 5px;">Только админ может менять площадку</div>' : ''}
+            </div>
+            
+            <!-- Блок комиссии для Funpay -->
+            <div id="editCommissionInfo" style="
+                display: ${sale.marketplace === 'funpay' ? 'block' : 'none'};
+                background: #fef3c7;
+                padding: 15px;
+                border-radius: 10px;
+                border: 1px solid #fbbf24;
+                margin-bottom: 15px;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <strong style="color: #92400e;">💰 Комиссия Funpay (3%):</strong>
+                    <span id="editCommissionAmount" style="font-weight: 700; color: #dc2626;">0 ₽</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong style="color: #92400e;">✅ Оригинальная цена (до комиссии):</strong>
+                    <span id="editOriginalAmount" style="font-weight: 700; color: #16a34a; font-size: 1.1em;">${sale.originalPrice || sale.price} ₽</span>
+                </div>
+                <div style="margin-top: 8px; font-size: 0.85em; color: #92400e;">
+                    <small>При редактировании комиссия не пересчитывается автоматически</small>
+                </div>
             </div>
             
             <!-- ПОЛЕ МЕНЕДЖЕРА - ТОЛЬКО ДЛЯ АДМИНА -->
@@ -5094,6 +5122,21 @@ function showSaleDetails(sale) {
         </div>
     `;
     
+    // Если продажа с Funpay - показываем оригинальную цену
+    if (sale.marketplace === 'funpay' && sale.originalPrice) {
+        document.getElementById('editCommissionAmount').textContent = 
+            `-${sale.commission || 0} ₽`;
+        document.getElementById('editOriginalAmount').textContent = 
+            `${sale.originalPrice} ₽`;
+    }
+    
+    // Добавляем обработчик изменения цены/площадки
+    document.getElementById('editSalePrice').addEventListener('input', updateEditCommission);
+    document.getElementById('editSaleMarketplace').addEventListener('change', updateEditCommission);
+    
+    // Вызываем для начального расчета
+    updateEditCommission();
+    
     openModal('saleModal');
 }
 
@@ -5118,8 +5161,8 @@ function updateEditCommission() {
         // Обновляем отображение
         document.getElementById('editCommissionAmount').textContent = 
             `-${commissionData.commission} ₽`;
-        document.getElementById('editFinalAmount').textContent = 
-            `${commissionData.final} ₽`;
+        document.getElementById('editOriginalAmount').textContent = 
+            `${commissionData.original} ₽`;
         
         // Подсвечиваем поле цены
         priceInput.style.borderColor = '#fbbf24';
@@ -5219,9 +5262,11 @@ function displayWorkersStats(periodSales) {
 
 async function updateSaleDetails(saleId) {
     const salePrice = document.getElementById('editSalePrice').value;
+    const marketplaceSelect = document.getElementById('editSaleMarketplace');
     const saleDate = document.getElementById('editSaleDate').value;
     const saleTime = document.getElementById('editSaleTime').value;
     const saleNotes = document.getElementById('editSaleNotes').value;
+    const originalMarketplace = document.getElementById('originalMarketplace')?.value || 'telegram';
     
     if (!salePrice) {
         showNotification('Введите цену продажи', 'warning');
@@ -5231,11 +5276,36 @@ async function updateSaleDetails(saleId) {
     let finalPrice = parseFloat(salePrice);
     
     // ВАЖНО: ПРИ РЕДАКТИРОВАНИИ НЕ ПЕРЕСЧИТЫВАЕМ КОМИССИЮ!
-    // Берём оригинальную площадку из скрытого поля
-    const originalMarketplace = document.getElementById('originalMarketplace')?.value || 'telegram';
+    // Только если админ меняет площадку
+    let newMarketplace = originalMarketplace;
+    let originalPrice = finalPrice;
+    let commission = 0;
+    
+    const currentUser = security.getCurrentUser();
+    const isAdmin = currentUser && currentUser.role === 'admin';
+    
+    // Если админ меняет площадку
+    if (isAdmin && marketplaceSelect) {
+        newMarketplace = marketplaceSelect.value;
+        
+        // Если меняем НА Funpay - рассчитываем комиссию
+        if (newMarketplace === 'funpay' && originalMarketplace !== 'funpay') {
+            const commissionData = calculateFPCommission(finalPrice);
+            commission = commissionData.commission;
+            // Оставляем цену как есть (она уже введена как финальная)
+        }
+        // Если меняем С Funpay на другую площадку - убираем комиссию
+        else if (newMarketplace !== 'funpay' && originalMarketplace === 'funpay') {
+            // Находим оригинальную цену
+            const saleIndex = sales.findIndex(s => s.id === saleId);
+            if (saleIndex !== -1 && sales[saleIndex].originalPrice) {
+                originalPrice = sales[saleIndex].originalPrice;
+                commission = 0;
+            }
+        }
+    }
     
     const saleDateTime = saleDate && saleTime ? `${saleDate} ${saleTime}` : '';
-    const currentUser = security.getCurrentUser();
     
     const saleIndex = sales.findIndex(s => s.id === saleId);
     if (saleIndex === -1) return;
@@ -5267,18 +5337,22 @@ async function updateSaleDetails(saleId) {
         }
     }
     
-    // Обновляем продажу, НЕ МЕНЯЯ marketplace и НЕ ПЕРЕСЧИТЫВАЯ КОМИССИЮ
+    // Обновляем продажу
     sales[saleIndex] = {
         ...originalSale,
-        price: finalPrice, // Это уже цена после комиссии
+        price: finalPrice,
+        originalPrice: newMarketplace === 'funpay' ? originalPrice : null,
+        commission: newMarketplace === 'funpay' ? commission : 0,
+        commissionPercent: newMarketplace === 'funpay' ? 3 : 0,
+        marketplace: newMarketplace,
         date: saleDate,
         time: saleTime,
         datetime: saleDateTime,
         notes: saleNotes,
-        // marketplace НЕ меняем! Оставляем originalMarketplace
         soldBy: newManager,
         soldByName: newManagerName,
         managerRole: newManagerRole,
+        commissionApplied: newMarketplace === 'funpay',
         lastModifiedBy: currentUser ? currentUser.username : 'unknown',
         lastModifiedByName: currentUser ? currentUser.name : 'Неизвестно',
         lastModifiedAt: new Date().toISOString()
@@ -5287,13 +5361,6 @@ async function updateSaleDetails(saleId) {
     // Сохраняем с синхронизацией
     try {
         await saveToStorage('sales', sales);
-        
-        // Отправляем уведомление об обновлении
-        if (firebase && firebase.database) {
-            firebase.database().ref('sales').child(saleId).set(sales[saleIndex]).then(() => {
-                console.log('✅ Изменения продажи синхронизированы');
-            });
-        }
         
         closeSaleModal();
         
