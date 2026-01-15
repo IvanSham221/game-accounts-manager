@@ -4350,17 +4350,23 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
             Оформить продажу
         </h2>
         
-        <div class="sale-info">
-            <div class="sale-info-item">
-                <strong>Аккаунт:</strong>
+        <div class="sale-info" style="
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border: 1px solid #e2e8f0;
+        ">
+            <div class="sale-info-item" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <strong style="color: #64748b;">Аккаунт:</strong>
                 <span style="font-weight: 600; color: #1e293b;">${account.psnLogin}</span>
             </div>
-            <div class="sale-info-item">
-                <strong>Игра:</strong>
+            <div class="sale-info-item" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <strong style="color: #64748b;">Игра:</strong>
                 <span style="font-weight: 600; color: #1e293b;">${account.gameName}</span>
             </div>
-            <div class="sale-info-item">
-                <strong>Позиция:</strong>
+            <div class="sale-info-item" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <strong style="color: #64748b;">Позиция:</strong>
                 <span style="
                     font-weight: 600; 
                     color: white;
@@ -4370,8 +4376,8 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
                     font-size: 0.9em;
                 ">${positionName}</span>
             </div>
-            <div class="sale-info-item">
-                <strong>Менеджер:</strong>
+            <div class="sale-info-item" style="display: flex; justify-content: space-between;">
+                <strong style="color: #64748b;">Менеджер:</strong>
                 <span style="font-weight: 600; color: #1e293b;">
                     ${currentUser ? currentUser.name : 'Неизвестно'}
                     ${currentUser && currentUser.role === 'admin' ? ' 👑' : ' 👷'}
@@ -4379,7 +4385,7 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
             </div>
         </div>
         
-        <div class="sale-form">
+        <div class="sale-form" style="display: grid; gap: 20px;">
             <div>
                 <label for="salePrice" style="
                     display: block;
@@ -4389,11 +4395,10 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
                 ">Цена продажи (₽):</label>
                 <input type="number" id="salePrice" class="sale-input" 
                        placeholder="Введите цену" required 
-                       style="font-size: 18px; font-weight: 600; text-align: center;"
+                       style="font-size: 18px; font-weight: 600; text-align: center; width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;"
                        oninput="updateCommission()">
             </div>
             
-            <!-- НОВОЕ: Выбор площадки продажи с комиссией -->
             <div>
                 <label for="saleMarketplace" style="
                     display: block;
@@ -4401,13 +4406,14 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
                     font-weight: 600;
                     color: #2d3748;
                 ">Площадка продажи:</label>
-                <select id="saleMarketplace" class="sale-input" required>
-                    <option value="funpay" selected>Funpay</option>
-                    <option value="telegram">Telegram</option>
-                    <option value="avito">Avito</option>
+                <select id="saleMarketplace" class="sale-input" required onchange="updateCommission()"
+                        style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                    <option value="funpay" selected>Funpay (комиссия 3%)</option>
+                    <option value="telegram">Telegram (без комиссии)</option>
+                    <option value="avito">Avito (без комиссии)</option>
                 </select>
             </div>
-            <!-- НОВОЕ: Блок с информацией о комиссии -->
+            
             <div id="commissionInfo" style="
                 display: none;
                 background: #fef3c7;
@@ -4422,15 +4428,15 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
                     <span id="commissionAmount" style="font-weight: 700; color: #dc2626;">0 ₽</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <strong style="color: #92400e;">✅ Сумма к получению:</strong>
+                    <strong style="color: #92400e;">✅ Сумма к получению (после комиссии):</strong>
                     <span id="finalAmount" style="font-weight: 700; color: #16a34a; font-size: 1.1em;">0 ₽</span>
                 </div>
                 <div style="margin-top: 8px; font-size: 0.85em; color: #92400e;">
-                    <small>Комиссия вычитается автоматически, округляется по правилам</small>
+                    <small>Комиссия вычитается автоматически и записывается в базу</small>
                 </div>
             </div>
             
-            <div class="datetime-group">
+            <div class="datetime-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
                     <label for="saleDate" style="
                         display: block;
@@ -4438,7 +4444,8 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
                         font-weight: 600;
                         color: #2d3748;
                     ">Дата продажи:</label>
-                    <input type="date" id="saleDate" class="sale-input" value="${currentDate}">
+                    <input type="date" id="saleDate" class="sale-input" value="${currentDate}"
+                           style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;">
                 </div>
                 <div>
                     <label for="saleTime" style="
@@ -4447,7 +4454,8 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
                         font-weight: 600;
                         color: #2d3748;
                     ">Время продажи:</label>
-                    <input type="time" id="saleTime" class="sale-input" value="${currentTime}">
+                    <input type="time" id="saleTime" class="sale-input" value="${currentTime}"
+                           style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;">
                 </div>
             </div>
             
@@ -4459,96 +4467,37 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
                     color: #2d3748;
                 ">Примечания:</label>
                 <input type="text" id="saleNotes" class="sale-input" 
-                       placeholder="Дополнительная информация (необязательно)">
+                       placeholder="Дополнительная информация (необязательно)"
+                       style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;">
             </div>
         </div>
         
-        <div class="sale-buttons">
+        <div class="sale-buttons" style="
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        ">
             <button class="btn btn-secondary" onclick="closeSaleModal()" 
-                    style="padding: 12px 24px; min-width: 120px;">
+                    style="flex: 1; padding: 14px; background: #64748b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
                 Отмена
             </button>
             <button class="btn btn-success" onclick="confirmSaleAndShowData()"
-                    style="padding: 12px 24px; min-width: 180px; font-weight: 600;">
+                    style="flex: 2; padding: 14px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
                 <span style="margin-right: 8px;">✅</span>
                 Подтвердить продажу
             </button>
         </div>
     `;
     
-    openModal('saleModal'); // Используйте общую функцию
+    openModal('saleModal');
     
     // Автофокус на поле цены
     setTimeout(() => {
         const priceInput = document.getElementById('salePrice');
         if (priceInput) priceInput.focus();
     }, 100);
-}
-
-// Функция расчета комиссии Funpay
-function calculateFPCommission(price) {
-    if (!price || price <= 0) return { original: 0, commission: 0, final: 0 };
-    
-    // Вычисляем комиссию (3%)
-    const commission = price * 0.03;
-    
-    // Округляем по правилам:
-    // 1. Берем дробную часть
-    const fractionalPart = commission - Math.floor(commission);
-    
-    // 2. Если дробная часть >= 0.5, округляем вверх
-    // Если дробная часть < 0.5, округляем вниз
-    let roundedCommission;
-    if (fractionalPart >= 0.5) {
-        roundedCommission = Math.ceil(commission);
-    } else {
-        roundedCommission = Math.floor(commission);
-    }
-    
-    // 3. Финальная сумма (цена минус комиссия)
-    const finalAmount = price - roundedCommission;
-    
-    return {
-        original: price,
-        commission: roundedCommission,
-        final: finalAmount,
-        commissionPercent: 3,
-        roundedBy: fractionalPart >= 0.5 ? 'вверх' : 'вниз'
-    };
-}
-
-// Функция обновления отображения комиссии
-function updateCommission() {
-    const priceInput = document.getElementById('salePrice');
-    const marketplaceSelect = document.getElementById('saleMarketplace');
-    const commissionInfo = document.getElementById('commissionInfo');
-    
-    if (!priceInput || !marketplaceSelect || !commissionInfo) return;
-    
-    const price = parseFloat(priceInput.value) || 0;
-    const marketplace = marketplaceSelect.value;
-    
-    // Показываем блок комиссии только для Funpay
-    if (marketplace === 'funpay' && price > 0) {
-        commissionInfo.style.display = 'block';
-        
-        // Рассчитываем комиссию
-        const commissionData = calculateFPCommission(price);
-        
-        // Обновляем отображение
-        document.getElementById('commissionAmount').textContent = 
-            `-${commissionData.commission} ₽`;
-        document.getElementById('finalAmount').textContent = 
-            `${commissionData.final} ₽`;
-        
-        // Подсвечиваем поле цены
-        priceInput.style.borderColor = '#fbbf24';
-        priceInput.style.boxShadow = '0 0 0 3px rgba(251, 191, 36, 0.1)';
-    } else {
-        commissionInfo.style.display = 'none';
-        priceInput.style.borderColor = '';
-        priceInput.style.boxShadow = '';
-    }
 }
 
 async function confirmSaleAndShowData() {
@@ -4565,16 +4514,16 @@ async function confirmSaleAndShowData() {
     
     let price = parseFloat(salePrice);
     
-    // ПРОСТОЙ РАСЧЕТ КОМИССИИ ДЛЯ FUNPAY
+    // РАСЧЕТ КОМИССИИ ТОЛЬКО ДЛЯ НОВЫХ ПРОДАЖ
     let finalPrice = price;
+    let commissionData = null;
+    
     if (marketplace === 'funpay') {
-        const commission = price * 0.03;
-        const roundedCommission = (commission - Math.floor(commission) >= 0.5) 
-            ? Math.ceil(commission) 
-            : Math.floor(commission);
-        finalPrice = price - roundedCommission;
+        // Рассчитываем комиссию
+        commissionData = calculateFPCommission(price);
+        finalPrice = commissionData.final;
         
-        console.log(`💰 Funpay: ${price} - ${roundedCommission} = ${finalPrice}`);
+        console.log(`💰 Funpay комиссия: ${price} - ${commissionData.commission} = ${finalPrice}`);
     }
     
     const saleDateTime = saleDate && saleTime ? `${saleDate} ${saleTime}` : new Date().toLocaleString('ru-RU');
@@ -4586,6 +4535,7 @@ async function confirmSaleAndShowData() {
     
     const currentUser = security.getCurrentUser();
     
+    // СОЗДАЕМ ЗАПИСЬ О ПРОДАЖЕ С ИНФОРМАЦИЕЙ О КОМИССИИ
     const newSale = {
         id: positionId,
         accountId: window.currentSaleAccount,
@@ -4593,8 +4543,10 @@ async function confirmSaleAndShowData() {
         gameName: accounts[accountIndex].gameName,
         positionType: window.currentSalePosition,
         positionName: getPositionName(window.currentSalePosition),
-        // ТОЛЬКО ФИНАЛЬНАЯ ЦЕНА, КОМИССИЯ МОЛЧА ВЫЧИТАЕТСЯ
-        price: finalPrice,
+        price: finalPrice, // Цена после комиссии
+        originalPrice: marketplace === 'funpay' ? price : null, // Оригинальная цена (только для Funpay)
+        commission: marketplace === 'funpay' ? commissionData?.commission || 0 : 0,
+        commissionPercent: marketplace === 'funpay' ? 3 : 0,
         date: saleDate || new Date().toISOString().split('T')[0],
         time: saleTime || new Date().toTimeString().slice(0, 5),
         datetime: saleDateTime,
@@ -4605,46 +4557,71 @@ async function confirmSaleAndShowData() {
         soldBy: currentUser ? currentUser.username : 'unknown',
         soldByName: currentUser ? currentUser.name : 'Неизвестно',
         managerRole: currentUser ? currentUser.role : 'unknown',
-        marketplace: marketplace || 'telegram'
+        marketplace: marketplace || 'telegram',
+        // Флаг, что комиссия уже учтена
+        commissionApplied: marketplace === 'funpay'
     };
     
-    // ВАЖНО: Сохраняем через dataSync, который должен синхронизировать с Firebase
+    console.log('💾 Создана новая продажа с комиссией:', newSale);
+    
+    // Шаг 1: Добавляем в локальный массив
+    sales.push(newSale);
+    console.log('📱 Добавлено в локальный массив продаж. Всего:', sales.length);
+    
+    // Шаг 2: Сохраняем локально
+    localStorage.setItem('sales', JSON.stringify(sales));
+    console.log('💾 Сохранено в localStorage');
+    
+    // Шаг 3: Пытаемся синхронизировать с Firebase
     try {
-        console.log('💾 Сохраняем продажу с синхронизацией...');
+        console.log('☁️ Пытаюсь синхронизировать с Firebase...');
         
-        // Добавляем в локальный массив
-        sales.push(newSale);
-        
-        // Сохраняем с синхронизацией
-        const result = await window.dataSync.saveData('sales', sales);
-        
-        if (result.synced) {
-            console.log('✅ Продажа синхронизирована с Firebase');
+        // Вариант A: Через dataSync
+        if (window.dataSync && window.dataSync.saveData) {
+            console.log('🔄 Использую dataSync.saveData...');
+            const result = await window.dataSync.saveData('sales', sales);
             
-            // Отправляем уведомление о новой продаже через Firebase
-            if (firebaseSync && firebaseSync.db) {
-                firebaseSync.db.ref('sales').child(positionId).set(newSale).then(() => {
-                    console.log('📢 Уведомление о новой продаже отправлено в Firebase');
-                });
+            if (result.synced) {
+                console.log('✅ Продажа синхронизирована через dataSync');
+                showNotification('✅ Продажа сохранена и синхронизирована!', 'success');
+            } else {
+                console.log('⚠️ dataSync сохранил локально:', result);
+                showNotification('✅ Продажа сохранена локально', 'warning');
             }
+        }
+        // Вариант B: Прямая запись в Firebase
+        else if (firebase && firebase.database) {
+            console.log('🔥 Прямая запись в Firebase...');
+            const db = firebase.database();
             
-            showAccountDataAfterSale(window.currentSaleAccount);
+            // Записываем конкретную продажу
+            await db.ref('sales').child(positionId).set(newSale);
+            console.log('✅ Продажа записана напрямую в Firebase');
             
-        } else if (result.local) {
-            console.log('⚠️ Продажа сохранена только локально');
-            showAccountDataAfterSale(window.currentSaleAccount);
+            // Также обновляем весь список
+            const salesObj = sales.reduce((obj, sale) => {
+                obj[sale.id] = sale;
+                return obj;
+            }, {});
+            
+            await db.ref('sales').set(salesObj);
+            
+            console.log('✅ Весь список продаж синхронизирован с Firebase');
+            showNotification('✅ Продажа сохранена и синхронизирована с облаком!', 'success');
+        }
+        // Вариант C: Fallback
+        else {
+            console.log('📱 Firebase недоступен, только локальное сохранение');
+            showNotification('✅ Продажа сохранена локально', 'warning');
         }
         
     } catch (error) {
-        console.error('❌ Ошибка при сохранении продажи:', error);
-        
-        // Сохраняем локально как запасной вариант
-        sales.push(newSale);
-        localStorage.setItem('sales', JSON.stringify(sales));
-        
-        showNotification('Продажа сохранена локально (Firebase недоступен)', 'warning');
-        showAccountDataAfterSale(window.currentSaleAccount);
+        console.error('❌ Ошибка синхронизации с Firebase:', error);
+        showNotification('✅ Продажа сохранена локально (ошибка синхронизации)', 'warning');
     }
+    
+    // Шаг 4: Показываем данные клиенту
+    showAccountDataAfterSale(window.currentSaleAccount);
 }
 
 function getPositionName(positionType) {
@@ -5020,12 +4997,16 @@ function showSaleDetails(sale) {
     const modalContent = document.getElementById('saleModalContent');
     const currentUser = security.getCurrentUser();
     const canChangeManager = security.canChangeSaleManager();
+    const isAdmin = currentUser && currentUser.role === 'admin';
     
     const saleDate = sale.date || new Date(sale.timestamp).toISOString().split('T')[0];
     const saleTime = sale.time || new Date(sale.timestamp).toTimeString().slice(0, 5);
     
+    // При редактировании показываем текущую цену (уже с вычтенной комиссией)
+    const displayPrice = sale.price;
+
     modalContent.innerHTML = `
-        <h2>💰 Информация о продаже</h2>
+        <h2>💰 Редактировать продажу</h2>
         
         <div class="sale-info">
             <div class="sale-info-item">
@@ -5039,10 +5020,6 @@ function showSaleDetails(sale) {
             <div class="sale-info-item">
                 <strong>Позиция:</strong>
                 <span>${sale.positionName}</span>
-            </div>
-            <div class="sale-info-item">
-                <strong>Площадка:</strong>
-                <span>${sale.marketplace === 'funpay' ? 'Funpay' : getMarketplaceName(sale.marketplace)}</span>
             </div>
             <div class="sale-info-item">
                 <strong>Менеджер:</strong>
@@ -5064,22 +5041,23 @@ function showSaleDetails(sale) {
         <div class="sale-form">
             <div>
                 <label for="editSalePrice">Цена продажи (₽):</label>
-                <input type="number" id="editSalePrice" class="sale-input" value="${sale.price}" required>
+                <input type="number" id="editSalePrice" class="sale-input" value="${displayPrice}" required>
             </div>
             
             <div>
                 <label for="editSaleMarketplace">Площадка продажи:</label>
-                <select id="editSaleMarketplace" class="sale-input">
+                <select id="editSaleMarketplace" class="sale-input" ${isAdmin ? '' : 'disabled'}>
                     <option value="funpay" ${sale.marketplace === 'funpay' ? 'selected' : ''}>Funpay</option>
-    <option value="telegram" ${sale.marketplace === 'telegram' ? 'selected' : ''}>Telegram</option>
-    <option value="avito" ${sale.marketplace === 'avito' ? 'selected' : ''}>Avito</option>
+                    <option value="telegram" ${sale.marketplace === 'telegram' ? 'selected' : ''}>Telegram</option>
+                    <option value="avito" ${sale.marketplace === 'avito' ? 'selected' : ''}>Avito</option>
                 </select>
+                ${!isAdmin ? '<div style="font-size: 0.85em; color: #64748b; margin-top: 5px;">Только админ может менять площадку</div>' : ''}
             </div>
             
             <!-- ПОЛЕ МЕНЕДЖЕРА - ТОЛЬКО ДЛЯ АДМИНА -->
             ${canChangeManager ? `
                 <div>
-                    <label for="editSaleManager">Менеджер (может менять только админ):</label>
+                    <label for="editSaleManager">Менеджер:</label>
                     <select id="editSaleManager" class="sale-input">
                         <option value="">Выберите менеджера</option>
                         ${getWorkersOptions(sale)}
@@ -5097,6 +5075,7 @@ function showSaleDetails(sale) {
                     <input type="time" id="editSaleTime" class="sale-input" value="${saleTime}">
                 </div>
             </div>
+            
             <div>
                 <label for="editSaleNotes">Примечания:</label>
                 <input type="text" id="editSaleNotes" class="sale-input" 
@@ -5240,7 +5219,6 @@ function displayWorkersStats(periodSales) {
 
 async function updateSaleDetails(saleId) {
     const salePrice = document.getElementById('editSalePrice').value;
-    const marketplace = document.getElementById('editSaleMarketplace').value;
     const saleDate = document.getElementById('editSaleDate').value;
     const saleTime = document.getElementById('editSaleTime').value;
     const saleNotes = document.getElementById('editSaleNotes').value;
@@ -5250,17 +5228,11 @@ async function updateSaleDetails(saleId) {
         return;
     }
     
-    let price = parseFloat(salePrice);
+    let finalPrice = parseFloat(salePrice);
     
-    // ПРОСТАЯ ЛОГИКА РАСЧЕТА КОМИССИИ
-    let finalPrice = price;
-    if (marketplace === 'funpay') {
-        const commission = price * 0.03;
-        const roundedCommission = (commission - Math.floor(commission) >= 0.5) 
-            ? Math.ceil(commission) 
-            : Math.floor(commission);
-        finalPrice = price - roundedCommission;
-    }
+    // ВАЖНО: ПРИ РЕДАКТИРОВАНИИ НЕ ПЕРЕСЧИТЫВАЕМ КОМИССИЮ!
+    // Берём оригинальную площадку из скрытого поля
+    const originalMarketplace = document.getElementById('originalMarketplace')?.value || 'telegram';
     
     const saleDateTime = saleDate && saleTime ? `${saleDate} ${saleTime}` : '';
     const currentUser = security.getCurrentUser();
@@ -5295,15 +5267,15 @@ async function updateSaleDetails(saleId) {
         }
     }
     
-    // Обновляем продажу
+    // Обновляем продажу, НЕ МЕНЯЯ marketplace и НЕ ПЕРЕСЧИТЫВАЯ КОМИССИЮ
     sales[saleIndex] = {
         ...originalSale,
-        price: finalPrice,
+        price: finalPrice, // Это уже цена после комиссии
         date: saleDate,
         time: saleTime,
         datetime: saleDateTime,
         notes: saleNotes,
-        marketplace: marketplace || 'telegram',
+        // marketplace НЕ меняем! Оставляем originalMarketplace
         soldBy: newManager,
         soldByName: newManagerName,
         managerRole: newManagerRole,
@@ -5325,14 +5297,78 @@ async function updateSaleDetails(saleId) {
         
         closeSaleModal();
         
-        // Обновляем отображение НОВЫМ СПОСОБОМ (без gameSelect)
+        // Обновляем отображение
         refreshSearchResultsAfterSaleUpdate();
         
-        showNotification('Данные продажи обновлены и синхронизированы! 💾', 'success');
+        showNotification('Данные продажи обновлены! 💾', 'success');
         
     } catch (error) {
         console.error('❌ Ошибка синхронизации продажи:', error);
         showNotification('Данные сохранены локально', 'warning');
+    }
+}
+
+// Функция расчета комиссии Funpay (только для новых продаж)
+function calculateFPCommission(price) {
+    if (!price || price <= 0) return { original: 0, commission: 0, final: 0 };
+    
+    // Вычисляем комиссию (3%)
+    const commission = price * 0.03;
+    
+    // Округляем по правилам:
+    const fractionalPart = commission - Math.floor(commission);
+    
+    // Если дробная часть >= 0.5, округляем вверх
+    let roundedCommission;
+    if (fractionalPart >= 0.5) {
+        roundedCommission = Math.ceil(commission);
+    } else {
+        roundedCommission = Math.floor(commission);
+    }
+    
+    // Финальная сумма (цена минус комиссия)
+    const finalAmount = price - roundedCommission;
+    
+    return {
+        original: price,
+        commission: roundedCommission,
+        final: finalAmount,
+        commissionPercent: 3,
+        roundedBy: fractionalPart >= 0.5 ? 'вверх' : 'вниз'
+    };
+}
+
+// Функция обновления отображения комиссии (только для новых продаж)
+function updateCommission() {
+    const priceInput = document.getElementById('salePrice');
+    const marketplaceSelect = document.getElementById('saleMarketplace');
+    const commissionInfo = document.getElementById('commissionInfo');
+    
+    if (!priceInput || !marketplaceSelect || !commissionInfo) return;
+    
+    const price = parseFloat(priceInput.value) || 0;
+    const marketplace = marketplaceSelect.value;
+    
+    // Показываем блок комиссии только для Funpay
+    if (marketplace === 'funpay' && price > 0) {
+        commissionInfo.style.display = 'block';
+        
+        // Рассчитываем комиссию
+        const commissionData = calculateFPCommission(price);
+        
+        // Обновляем отображение
+        document.getElementById('commissionAmount').textContent = 
+            `-${commissionData.commission} ₽`;
+        document.getElementById('finalAmount').textContent = 
+            `${commissionData.final} ₽`;
+        
+        // Подсвечиваем поле цены
+        priceInput.style.borderColor = '#fbbf24';
+        priceInput.style.boxShadow = '0 0 0 3px rgba(251, 191, 36, 0.1)';
+    } else {
+        commissionInfo.style.display = 'none';
+        priceInput.style.borderColor = '';
+        priceInput.style.boxShadow = '';
     }
 }
 
@@ -5977,109 +6013,266 @@ function getGamesStatsHTML(salesData, sortedGames) {
 
 // Новая функция для отображения списка продаж
 function getSalesListHTML(salesData) {
-    if (salesData.length === 0) {
-        return '<div class="empty">Нет продаж</div>';
+    if (!salesData || salesData.length === 0) {
+        return '<div class="empty" style="padding: 40px; text-align: center; color: #64748b;">Нет продаж</div>';
     }
     
-    // Сортируем по дате (новые сверху)
-    const sortedSales = [...salesData].sort((a, b) => {
-        const dateA = new Date(a.datetime || a.timestamp || 0);
-        const dateB = new Date(b.datetime || b.timestamp || 0);
-        return dateB - dateA;
-    });
-    
-    // Получаем текущего пользователя
-    const currentUser = security.getCurrentUser();
-    const isAdmin = currentUser && currentUser.role === 'admin';
-    
-    return `
-        <div style="
-            max-height: 500px;
-            overflow-y: auto;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 10px;
-        ">
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="
-                        background: #f1f5f9;
-                        position: sticky;
-                        top: 0;
-                        z-index: 10;
-                    ">
-                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Дата</th>
-                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Игра</th>
-                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Аккаунт</th>
-                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Позиция</th>
-                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Цена</th>
-                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1;">Менеджер</th>
-                        <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #cbd5e1; width: 50px;">🗑️</th>
+    try {
+        // Сортируем по дате (новые сверху)
+        const sortedSales = [...salesData].sort((a, b) => {
+            try {
+                const dateA = new Date(a.datetime || a.timestamp || a.date || 0);
+                const dateB = new Date(b.datetime || b.timestamp || b.date || 0);
+                return dateB - dateA;
+            } catch (e) {
+                return 0;
+            }
+        });
+        
+        // Безопасное получение данных пользователя
+        let currentUser = null;
+        let isAdmin = false;
+        try {
+            if (typeof security !== 'undefined' && security.getCurrentUser) {
+                currentUser = security.getCurrentUser();
+                isAdmin = currentUser && currentUser.role === 'admin';
+            }
+        } catch (e) {
+            console.warn('Не удалось получить данные пользователя:', e);
+        }
+        
+        // Безопасное получение accounts
+        let accountsArray = [];
+        try {
+            if (typeof accounts !== 'undefined') {
+                accountsArray = accounts;
+            } else {
+                const localAccounts = localStorage.getItem('accounts');
+                accountsArray = localAccounts ? JSON.parse(localAccounts) : [];
+            }
+        } catch (e) {
+            console.warn('Не удалось получить аккаунты:', e);
+        }
+        
+        // Рассчитываем статистику
+        const totalRevenue = salesData.reduce((sum, sale) => sum + (sale.price || 0), 0);
+        const totalCommission = salesData
+            .filter(s => s.marketplace === 'funpay')
+            .reduce((sum, sale) => sum + (sale.commission || 0), 0);
+        
+        // Создаем HTML таблицы
+        let tableRows = '';
+        
+        sortedSales.forEach(sale => {
+            try {
+                // Безопасное получение данных аккаунта
+                const account = accountsArray.find(acc => acc && acc.id === sale.accountId);
+                const purchaseAmount = account ? (account.purchaseAmount || 0) : 0;
+                
+                // Проверяем права на удаление
+                const canDelete = isAdmin || (currentUser && sale.soldBy === currentUser.username);
+                
+                // Форматируем отображение цены с учетом комиссии
+                let priceDisplay = `${sale.price || 0} ₽`;
+                if (sale.marketplace === 'funpay' && sale.commission) {
+                    priceDisplay = `
+                        <div style="font-weight: 600; color: #1e293b;">${sale.price || 0} ₽</div>
+                        <div style="font-size: 0.85em; color: #64748b;">
+                            комиссия: -${sale.commission} ₽
+                        </div>
+                    `;
+                }
+                
+                // Форматируем дату
+                let displayDate = '';
+                try {
+                    if (sale.datetime) {
+                        displayDate = sale.datetime;
+                    } else if (sale.date) {
+                        displayDate = sale.date;
+                        if (sale.time) {
+                            displayDate += ` ${sale.time}`;
+                        }
+                    } else if (sale.timestamp) {
+                        displayDate = new Date(sale.timestamp).toLocaleDateString('ru-RU');
+                    }
+                } catch (e) {
+                    displayDate = 'Дата не указана';
+                }
+                
+                // Название площадки
+                const marketplaceName = sale.marketplace === 'funpay' ? 'Funpay' : 
+                                       sale.marketplace === 'telegram' ? 'Telegram' : 
+                                       sale.marketplace === 'avito' ? 'Avito' : 
+                                       sale.marketplace || 'Не указано';
+                
+                // Цвет для площадки
+                let marketplaceStyle = '';
+                if (sale.marketplace === 'funpay') {
+                    marketplaceStyle = 'background: #fef3c7; color: #92400e; border-color: #fbbf24;';
+                } else if (sale.marketplace === 'telegram') {
+                    marketplaceStyle = 'background: #dbeafe; color: #1e40af; border-color: #93c5fd;';
+                } else if (sale.marketplace === 'avito') {
+                    marketplaceStyle = 'background: #f0f9ff; color: #0c4a6e; border-color: #7dd3fc;';
+                } else {
+                    marketplaceStyle = 'background: #f1f5f9; color: #374151; border-color: #e2e8f0;';
+                }
+                
+                tableRows += `
+                    <tr style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;">
+                        <td style="padding: 12px 15px; color: #64748b; font-size: 0.9em;">
+                            ${displayDate}
+                        </td>
+                        <td style="padding: 12px 15px; font-weight: 500;">${sale.gameName || 'Не указано'}</td>
+                        <td style="padding: 12px 15px; font-weight: 500;">${sale.accountLogin || 'Не указано'}</td>
+                        <td style="padding: 12px 15px; font-weight: 500;">${sale.positionName || 'Не указано'}</td>
+                        <td style="padding: 12px 15px;">
+                            ${priceDisplay}
+                            ${purchaseAmount > 0 ? `
+                                <div style="font-size: 0.85em; color: #64748b;">
+                                    закуп: ${purchaseAmount} ₽
+                                </div>
+                            ` : ''}
+                        </td>
+                        <td style="padding: 12px 15px;">
+                            <span style="
+                                padding: 4px 10px;
+                                border-radius: 12px;
+                                font-size: 0.85em;
+                                font-weight: 600;
+                                border: 1px solid;
+                                ${marketplaceStyle}
+                            ">
+                                ${marketplaceName}
+                                ${sale.marketplace === 'funpay' ? ' (3%)' : ''}
+                            </span>
+                        </td>
+                        <td style="padding: 12px 15px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-weight: 500;">${sale.soldByName || sale.soldBy || 'Неизвестно'}</span>
+                                ${sale.managerRole === 'admin' ? 
+                                    '<span style="color: #f72585; font-size: 1.2em;">👑</span>' : 
+                                    '<span style="color: #4361ee; font-size: 1.2em;">👷</span>'}
+                            </div>
+                        </td>
+                        <td style="padding: 12px 15px; text-align: center;">
+                            ${canDelete ? `
+                                <button onclick="deleteSaleFromReports('${sale.id}')" 
+                                        style="
+                                            background: #ef4444;
+                                            color: white;
+                                            border: none;
+                                            width: 30px;
+                                            height: 30px;
+                                            border-radius: 6px;
+                                            cursor: pointer;
+                                            font-size: 16px;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            transition: all 0.2s;
+                                        "
+                                        onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.1)'"
+                                        onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'"
+                                        title="Удалить продажу">
+                                    🗑️
+                                </button>
+                            ` : '<span style="color: #94a3b8; font-size: 0.9em;">-</span>'}
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    ${sortedSales.map(sale => {
-                        const account = accounts.find(acc => acc.id === sale.accountId);
-                        const purchaseAmount = account ? (account.purchaseAmount || 0) : 0;
-                        const profit = sale.price - purchaseAmount;
-                        
-                        // Проверяем права на удаление
-                        const canDelete = isAdmin || sale.soldBy === currentUser?.username;
-                        
-                        return `
+                `;
+            } catch (error) {
+                console.error('Ошибка при создании строки таблицы:', error);
+                // Пропускаем проблемную запись
+            }
+        });
+        
+        return `
+            <div style="
+                max-height: 500px;
+                overflow-y: auto;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 10px;
+                background: white;
+            ">
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <thead>
                         <tr style="
-                            border-bottom: 1px solid #e2e8f0;
-                            transition: background 0.2s;
-                        " id="sale-row-${sale.id}">
-                            <td style="padding: 12px 15px; color: #64748b;">
-                                ${sale.datetime || sale.date || new Date(sale.timestamp).toLocaleDateString('ru-RU')}
-                            </td>
-                            <td style="padding: 12px 15px;">${sale.gameName || 'Неизвестно'}</td>
-                            <td style="padding: 12px 15px;">${sale.accountLogin}</td>
-                            <td style="padding: 12px 15px;">${sale.positionName}</td>
-                            <td style="padding: 12px 15px; font-weight: 600; color: #1e293b;">
-                                ${sale.price} ₽
-                                ${purchaseAmount > 0 ? `
-                                    <div style="font-size: 0.85em; color: #64748b;">
-                                        Закуп: ${purchaseAmount} ₽
-                                    </div>
-                                ` : ''}
-                            </td>
-                            <td style="padding: 12px 15px;">
-                                ${sale.soldByName || sale.soldBy || 'Неизвестно'}
-                                ${sale.managerRole === 'admin' ? ' 👑' : ' 👷'}
-                            </td>
-                            <td style="padding: 12px 15px; text-align: center;">
-                                ${canDelete ? `
-                                    <button onclick="deleteSaleFromReports('${sale.id}')" 
-                                            style="
-                                                background: #ef4444;
-                                                color: white;
-                                                border: none;
-                                                width: 30px;
-                                                height: 30px;
-                                                border-radius: 6px;
-                                                cursor: pointer;
-                                                font-size: 16px;
-                                                display: flex;
-                                                align-items: center;
-                                                justify-content: center;
-                                                transition: all 0.2s;
-                                            "
-                                            onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.1)'"
-                                            onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'"
-                                            title="Удалить продажу">
-                                        🗑️
-                                    </button>
-                                ` : '<span style="color: #94a3b8; font-size: 0.9em;">-</span>'}
-                            </td>
+                            background: #f1f5f9;
+                            position: sticky;
+                            top: 0;
+                            z-index: 10;
+                            border-bottom: 2px solid #cbd5e1;
+                        ">
+                            <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151;">Дата</th>
+                            <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151;">Игра</th>
+                            <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151;">Аккаунт</th>
+                            <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151;">Позиция</th>
+                            <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151;">Цена</th>
+                            <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151;">Площадка</th>
+                            <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151;">Менеджер</th>
+                            <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151; width: 50px;">🗑️</th>
                         </tr>
-                        `;
-                    }).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+                
+                <div style="
+                    padding: 15px;
+                    margin-top: 15px;
+                    background: #f8fafc;
+                    border-radius: 8px;
+                    border: 1px solid #e2e8f0;
+                    font-size: 0.9em;
+                    color: #64748b;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <strong>Всего продаж:</strong> ${salesData.length}
+                        </div>
+                        <div>
+                            <strong>Выручка:</strong> ${totalRevenue.toLocaleString('ru-RU')} ₽
+                        </div>
+                        <div>
+                            <strong>Комиссия Funpay:</strong> ${totalCommission.toLocaleString('ru-RU')} ₽
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Критическая ошибка в getSalesListHTML:', error);
+        return `
+            <div style="
+                padding: 40px;
+                text-align: center;
+                background: #fef2f2;
+                border-radius: 10px;
+                border: 1px solid #fecaca;
+                color: #991b1b;
+            ">
+                <div style="font-size: 3em; margin-bottom: 15px;">⚠️</div>
+                <h3 style="color: #dc2626; margin-bottom: 10px;">Ошибка при загрузке продаж</h3>
+                <p>${error.message || 'Неизвестная ошибка'}</p>
+                <button onclick="location.reload()" 
+                        style="
+                            margin-top: 15px;
+                            padding: 10px 20px;
+                            background: #dc2626;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            cursor: pointer;
+                        ">
+                    Обновить страницу
+                </button>
+            </div>
+        `;
+    }
 }
 
 // Функция удаления продажи со страницы отчетов
