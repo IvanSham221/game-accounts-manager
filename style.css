@@ -4802,3 +4802,211 @@ body.dark-theme .position-recommendation {
     background: #ecfccb;
     color: #65a30d;
 }
+
+/* Упрощенный стиль для страницы закупа */
+.critical-game-header h3 {
+    margin: 0;
+    font-size: 1.2em;
+    color: #1e293b;
+}
+
+.game-priority {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.priority-badge {
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.critical-positions {
+    margin-top: 15px;
+}
+
+.platform-section {
+    margin-bottom: 15px;
+}
+
+.platform-label {
+    margin-bottom: 8px;
+}
+
+.platform-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+.platform-badge.ps4 {
+    background: #3b82f6;
+    color: white;
+}
+
+.platform-badge.ps5 {
+    background: #8b5cf6;
+    color: white;
+}
+
+.critical-position {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+}
+
+.critical-position.ps4 {
+    background: #eff6ff;
+    border-left: 3px solid #3b82f6;
+}
+
+.critical-position.ps5 {
+    background: #f5f3ff;
+    border-left: 3px solid #8b5cf6;
+}
+
+.position-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.position-name {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.position-stats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+}
+
+.free-count {
+    color: #ef4444;
+    font-size: 1.1em;
+}
+
+.free-count.exhausted {
+    color: #dc2626;
+    animation: pulse 1.5s infinite;
+}
+
+.total-count {
+    color: #64748b;
+    font-size: 0.9em;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* Стили для рекомендаций в детальной карточке */
+.procurement-recommendations {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.recommendation-item {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    border-left: 4px solid;
+    border: 1px solid #e2e8f0;
+}
+
+.recommendation-item.critical {
+    border-left-color: #dc2626;
+    background: #fef2f2;
+}
+
+.recommendation-item.high {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.recommendation-item.medium {
+    border-left-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.recommendation-item.low {
+    border-left-color: #10b981;
+    background: #f0fdf4;
+}
+
+.recommendation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.recommendation-header strong {
+    color: #1e293b;
+    font-size: 1.1em;
+}
+
+.recommendation-priority {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+.recommendation-priority.critical {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.recommendation-priority.high {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.recommendation-priority.medium {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.recommendation-priority.low {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.recommendation-content {
+    color: #475569;
+    font-size: 0.95em;
+}
+
+.recommendation-details {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #e2e8f0;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.recommendation-details span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
