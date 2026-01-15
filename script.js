@@ -2391,9 +2391,27 @@ function openAccountEditModal(accountId) {
         </div>
         
         <div>
-            <label for="editPsnAuthenticator" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">PSN Аутентификатор:</label>
+            <label for="editPsnAuthenticator" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                PSN Аутентификатор:
+            </label>
             <input type="text" id="editPsnAuthenticator" value="${account.psnAuthenticator || ''}" 
-                   placeholder="PSN Аутентификатор" class="input">
+                   class="input" placeholder="Base32 ключ (например: 2G6NIBH554YYQMLIPAHSIS4Z53IXBZXDVWVKF36C5QWDBKARFR6TOLV4P3VHLWGIKMJGEIBOE7YNB4J43K5GZ7HYKM4LN7QCVLLWRSQ)">
+            
+            ${account.psnAuthenticator ? `
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-primary" onclick="openPSNCodeModal(${account.id})" style="width: 100%;">
+                        <span style="margin-right: 8px;">🔐</span>
+                        Сгенерировать PSN Код (30 секундный)
+                    </button>
+                    <div style="font-size: 0.85em; color: #64748b; margin-top: 5px; text-align: center;">
+                        Откроется окно с автоматически обновляющимся кодом
+                    </div>
+                </div>
+            ` : `
+                <div style="font-size: 0.85em; color: #64748b; margin-top: 5px;">
+                    Вставьте 32-значный ключ из PSN. Кнопка появится после сохранения.
+                </div>
+            `}
         </div>
         
         <div class="positions-section">
@@ -2448,43 +2466,43 @@ function openAccountEditModal(accountId) {
         </div>
 
         <div style="grid-column: 1 / -1; margin-top: 20px;">
-    <h3 style="margin-bottom: 15px; color: #2d3748; font-size: 1.2rem;">🛑 Деактивация аккаунта:</h3>
-    
-    <div style="display: flex; gap: 15px; align-items: center;">
-        <button id="toggleDeactivationBtn" 
-                class="btn ${account.deactivated ? 'btn-danger' : 'btn-secondary'}" 
-                onclick="toggleAccountDeactivation(${account.id})"
-                style="min-width: 150px;">
-            ${account.deactivated ? '✅ Активировать' : '🛑 Деактивировать'}
-        </button>
-        
-        ${account.deactivated ? `
-            <div style="flex: 1;">
-                <label for="deactivationDate" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
-                    Дата деактивации:
-                </label>
-                <input type="date" id="deactivationDate" value="${account.deactivationDate || new Date().toISOString().split('T')[0]}" 
-                       class="input" style="width: 200px;">
-                <button onclick="updateDeactivationDate(${account.id})" 
-                        class="btn btn-small btn-primary" style="margin-left: 10px;">
-                    Обновить
-                </button>
-            </div>
+            <h3 style="margin-bottom: 15px; color: #2d3748; font-size: 1.2rem;">🛑 Деактивация аккаунта:</h3>
             
-            <div style="
-                background: #fef2f2;
-                color: #dc2626;
-                padding: 8px 15px;
-                border-radius: 8px;
-                border: 1px solid #fecaca;
-                font-weight: 600;
-            ">
-                🛑 Деактивирован
-                ${account.deactivationDate ? `<br><small>${account.deactivationDate}</small>` : ''}
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <button id="toggleDeactivationBtn" 
+                        class="btn ${account.deactivated ? 'btn-danger' : 'btn-secondary'}" 
+                        onclick="toggleAccountDeactivation(${account.id})"
+                        style="min-width: 150px;">
+                    ${account.deactivated ? '✅ Активировать' : '🛑 Деактивировать'}
+                </button>
+                
+                ${account.deactivated ? `
+                    <div style="flex: 1;">
+                        <label for="deactivationDate" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                            Дата деактивации:
+                        </label>
+                        <input type="date" id="deactivationDate" value="${account.deactivationDate || new Date().toISOString().split('T')[0]}" 
+                               class="input" style="width: 200px;">
+                        <button onclick="updateDeactivationDate(${account.id})" 
+                                class="btn btn-small btn-primary" style="margin-left: 10px;">
+                            Обновить
+                        </button>
+                    </div>
+                    
+                    <div style="
+                        background: #fef2f2;
+                        color: #dc2626;
+                        padding: 8px 15px;
+                        border-radius: 8px;
+                        border: 1px solid #fecaca;
+                        font-weight: 600;
+                    ">
+                        🛑 Деактивирован
+                        ${account.deactivationDate ? `<br><small>${account.deactivationDate}</small>` : ''}
+                    </div>
+                ` : ''}
             </div>
-        ` : ''}
-    </div>
-</div>
+        </div>
         
         <div class="modal-buttons">
             <button class="btn btn-secondary" onclick="closeAnyModal('editModal')" style="padding: 12px 24px;">
@@ -5173,6 +5191,286 @@ function updateEditCommission() {
         priceInput.style.boxShadow = '';
     }
 }
+
+// ============================================
+// PSN AUTHENTICATOR (TOTP)
+// ============================================
+
+// Открытие модального окна с PSN кодом
+function openPSNCodeModal(accountId) {
+    const account = accounts.find(acc => acc.id === accountId);
+    if (!account) {
+        showNotification('Аккаунт не найден', 'error');
+        return;
+    }
+    
+    // Получаем ключ аутентификатора
+    const authenticatorKey = account.psnAuthenticator?.trim();
+    
+    if (!authenticatorKey) {
+        showNotification('PSN аутентификатор не настроен для этого аккаунта', 'warning');
+        return;
+    }
+    
+    // Проверяем формат ключа
+    if (!TOTP.isValidSecret(authenticatorKey)) {
+        showNotification('Некорректный формат ключа аутентификатора', 'error');
+        return;
+    }
+    
+    // Создаем модальное окно
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'psnCodeModal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <span class="close" onclick="closePSNCodeModal()">&times;</span>
+            
+            <h2 style="margin-bottom: 20px; color: #2d3748;">
+                <span style="margin-right: 10px;">🔐</span>
+                PSN Код для ${account.psnLogin}
+            </h2>
+            
+            <div style="
+                margin: 25px 0;
+                padding: 30px;
+                background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+                border-radius: 15px;
+                border: 2px solid #bbf7d0;
+            ">
+                <div id="psnCodeDisplay" style="
+                    font-family: 'Courier New', monospace;
+                    font-size: 3.5rem;
+                    font-weight: 800;
+                    letter-spacing: 10px;
+                    color: #166534;
+                    text-shadow: 0 2px 10px rgba(22, 101, 52, 0.2);
+                    margin: 15px 0;
+                ">
+                    Загрузка...
+                </div>
+                
+                <div style="
+                    font-size: 0.9em;
+                    color: #64748b;
+                    margin: 10px 0;
+                ">
+                    Действителен:
+                    <span id="timeRemaining" style="
+                        font-weight: 700;
+                        color: #ef4444;
+                        font-size: 1.2em;
+                        margin-left: 5px;
+                    ">30</span>
+                    секунд
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <div style="
+                        height: 6px;
+                        background: #e2e8f0;
+                        border-radius: 3px;
+                        overflow: hidden;
+                    ">
+                        <div id="progressBar" style="
+                            height: 100%;
+                            width: 100%;
+                            background: linear-gradient(90deg, #10b981, #22c55e);
+                            border-radius: 3px;
+                            transition: width 1s linear;
+                        "></div>
+                    </div>
+                </div>
+                
+                <div style="
+                    font-size: 0.85em;
+                    color: #94a3b8;
+                    margin-top: 15px;
+                    padding-top: 15px;
+                    border-top: 1px dashed #e2e8f0;
+                ">
+                    Обновляется автоматически каждые 30 секунд
+                </div>
+            </div>
+            
+            <div style="margin-top: 25px;">
+                <button class="btn btn-primary" onclick="copyPSNCode()" style="margin-right: 10px;">
+                    📋 Скопировать код
+                </button>
+                <button class="btn btn-secondary" onclick="closePSNCodeModal()">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'block';
+    
+    // Инициализируем генератор кодов
+    initPSNCodeGenerator(accountId, authenticatorKey);
+}
+
+// Инициализация генератора кода
+function initPSNCodeGenerator(accountId, secretKey) {
+    // Создаем глобальные переменные для этого модального окна
+    window.psnCodeData = {
+        accountId: accountId,
+        secretKey: secretKey,
+        interval: null,
+        timer: null
+    };
+    
+    // Генерируем первый код
+    updatePSNCode();
+    
+    // Запускаем обновление каждую секунду
+    window.psnCodeData.interval = setInterval(updatePSNCode, 1000);
+}
+
+// Обновление PSN кода
+// Обновление PSN кода
+async function updatePSNCode() {
+    const { secretKey } = window.psnCodeData || {};
+    
+    if (!secretKey) {
+        clearInterval(window.psnCodeData?.interval);
+        return;
+    }
+    
+    try {
+        // Генерируем текущий код
+        const currentCode = await TOTP.generateTOTP(secretKey);
+        const remainingSeconds = TOTP.getRemainingSeconds();
+        
+        // Обновляем отображение
+        const codeDisplay = document.getElementById('psnCodeDisplay');
+        const timeDisplay = document.getElementById('timeRemaining');
+        const progressBar = document.getElementById('progressBar');
+        
+        if (codeDisplay) {
+            // Если код изменился, добавляем анимацию
+            if (codeDisplay.textContent !== currentCode && 
+                codeDisplay.textContent !== 'Загрузка...' &&
+                codeDisplay.textContent !== 'ОШИБКА') {
+                codeDisplay.style.animation = 'pulse 0.5s ease-in-out';
+                setTimeout(() => {
+                    codeDisplay.style.animation = '';
+                }, 500);
+            }
+            
+            codeDisplay.textContent = currentCode;
+        }
+        
+        if (timeDisplay) {
+            timeDisplay.textContent = remainingSeconds;
+            
+            // Меняем цвет при приближении к смене кода
+            if (remainingSeconds <= 5) {
+                timeDisplay.style.color = '#dc2626';
+                timeDisplay.style.animation = remainingSeconds <= 3 ? 'pulse 0.5s infinite' : 'none';
+            } else if (remainingSeconds <= 10) {
+                timeDisplay.style.color = '#f97316';
+            } else {
+                timeDisplay.style.color = '#10b981';
+                timeDisplay.style.animation = 'none';
+            }
+        }
+        
+        if (progressBar) {
+            const progressPercentage = (remainingSeconds / 30) * 100;
+            progressBar.style.width = `${progressPercentage}%`;
+            
+            // Меняем цвет прогресс-бара
+            if (remainingSeconds <= 5) {
+                progressBar.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
+            } else if (remainingSeconds <= 10) {
+                progressBar.style.background = 'linear-gradient(90deg, #f97316, #ea580c)';
+            } else {
+                progressBar.style.background = 'linear-gradient(90deg, #10b981, #22c55e)';
+            }
+        }
+        
+    } catch (error) {
+        console.error('Ошибка генерации PSN кода:', error);
+        const codeDisplay = document.getElementById('psnCodeDisplay');
+        if (codeDisplay) {
+            codeDisplay.textContent = 'ОШИБКА';
+            codeDisplay.style.color = '#dc2626';
+        }
+        
+        // Показываем сообщение об ошибке
+        const timeDisplay = document.getElementById('timeRemaining');
+        if (timeDisplay) {
+            timeDisplay.textContent = 'ERR';
+            timeDisplay.style.color = '#dc2626';
+        }
+    }
+}
+
+// Копирование PSN кода в буфер обмена
+function copyPSNCode() {
+    const codeDisplay = document.getElementById('psnCodeDisplay');
+    if (!codeDisplay) return;
+    
+    const code = codeDisplay.textContent.trim();
+    
+    if (code === 'Загрузка...' || code === 'ОШИБКА') {
+        showNotification('Не удалось скопировать код', 'error');
+        return;
+    }
+    
+    navigator.clipboard.writeText(code).then(() => {
+        showNotification('PSN код скопирован в буфер обмена! 📋', 'success');
+    }).catch(err => {
+        // Fallback для старых браузеров
+        const textArea = document.createElement('textarea');
+        textArea.value = code;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showNotification('PSN код скопирован! 📋', 'success');
+    });
+}
+
+// Закрытие модального окна
+function closePSNCodeModal() {
+    const modal = document.getElementById('psnCodeModal');
+    if (modal) {
+        // Очищаем интервалы
+        if (window.psnCodeData?.interval) {
+            clearInterval(window.psnCodeData.interval);
+        }
+        if (window.psnCodeData?.timer) {
+            clearTimeout(window.psnCodeData.timer);
+        }
+        
+        // Удаляем модальное окно
+        modal.remove();
+        window.psnCodeData = null;
+    }
+}
+
+// Обновляем форму редактирования аккаунта - добавляем кнопку PSN Код
+function updateEditFormWithPSNButton(accountId, currentKey) {
+    // Добавляем кнопку только если есть ключ
+    if (currentKey && TOTP.isValidSecret(currentKey)) {
+        return `
+            <div style="grid-column: 1 / -1; margin-top: 10px;">
+                <button class="btn btn-primary" onclick="openPSNCodeModal(${accountId})" style="width: 100%;">
+                    <span style="margin-right: 8px;">🔐</span>
+                    Сгенерировать PSN Код (30 секундный)
+                </button>
+                <div style="font-size: 0.85em; color: #64748b; margin-top: 5px; text-align: center;">
+                    Откроется окно с автоматически обновляющимся кодом
+                </div>
+            </div>
+        `;
+    }
+    return '';
+}
+
 
 function displayWorkersStats(periodSales) {
     const container = document.getElementById('workersStats');

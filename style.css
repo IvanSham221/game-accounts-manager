@@ -5010,3 +5010,129 @@ body.dark-theme .position-recommendation {
     align-items: center;
     gap: 5px;
 }
+
+/* ==================== СТИЛИ ДЛЯ PSN AUTHENTICATOR ==================== */
+
+/* Анимация пульсации для кода */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Стили для модального окна PSN кода */
+#psnCodeModal .modal-content {
+    animation: slideDown 0.3s ease-out;
+}
+
+/* Стили для поля ввода аутентификатора */
+.input-with-button {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.input-with-button .input {
+    flex: 1;
+}
+
+/* Индикатор валидности ключа */
+.key-status {
+    margin-top: 5px;
+    font-size: 0.85em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.key-status.valid {
+    color: #10b981;
+}
+
+.key-status.invalid {
+    color: #ef4444;
+}
+
+.key-status.warning {
+    color: #f59e0b;
+}
+
+/* Кнопка проверки ключа */
+.check-key-btn {
+    padding: 8px 12px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s;
+}
+
+.check-key-btn:hover {
+    background: #e2e8f0;
+}
+
+/* Секрет в виде звёздочек */
+.secret-preview {
+    font-family: 'Courier New', monospace;
+    background: #f8fafc;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.9em;
+    color: #64748b;
+    word-break: break-all;
+}
+
+/* Иконка для копирования */
+.copy-icon {
+    cursor: pointer;
+    margin-left: 10px;
+    color: #64748b;
+    transition: color 0.2s;
+}
+
+.copy-icon:hover {
+    color: #4361ee;
+}
+
+/* Темная тема для PSN кода */
+body.dark-theme #psnCodeModal .modal-content {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-theme #psnCodeModal h2 {
+    color: #f1f5f9;
+}
+
+body.dark-theme .psn-code-display {
+    background: linear-gradient(135deg, #064e3b 0%, #022c22 100%);
+    border-color: #065f46;
+}
+
+body.dark-theme .secret-preview {
+    background: #334155;
+    border-color: #475569;
+    color: #cbd5e1;
+}
+
+body.dark-theme .check-key-btn {
+    background: #334155;
+    border-color: #475569;
+    color: #cbd5e1;
+}
+
+body.dark-theme .check-key-btn:hover {
+    background: #475569;
+}
+
+/* Анимация для смены кода */
+@keyframes codeChange {
+    0% { opacity: 0.5; transform: translateY(-5px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.code-changing {
+    animation: codeChange 0.5s ease-out;
+}
