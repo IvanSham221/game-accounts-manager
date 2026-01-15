@@ -80,5 +80,11 @@
     <script src="security.js"></script>
     <script src="script.js?v=20250115"></script>
     <script src="autocomplete.js"></script>
+    <script>
+// Переопределяем глобальную функцию closeModal для accounts.html
+window.closeModal = function() {
+    closeAnyModal('editModal');
+};
+</script>
 </body>
 </html>

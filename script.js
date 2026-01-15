@@ -1637,6 +1637,8 @@ window.displayGames = function() {
     }, 500);
 };
 
+
+
 function openGameStats(gameId) {
     const game = games.find(g => g.id === gameId);
     if (!game) return;
@@ -2303,6 +2305,15 @@ function clearFilters() {
 // ============================================
 
 function editAccount(accountId) {
+    // Просто открываем наше универсальное модальное окно
+    openAccountEditModal(accountId);
+}
+
+// ============================================
+// УНИВЕРСАЛЬНОЕ РЕДАКТИРОВАНИЕ АККАУНТОВ
+// ============================================
+
+function openAccountEditModal(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) {
         showNotification('Аккаунт не найден', 'error');
@@ -2406,13 +2417,81 @@ function editAccount(accountId) {
             </div>
         </div>
         
+        <!-- Комментарии к аккаунту -->
+        <div class="comments-section" style="grid-column: 1 / -1; margin-top: 20px;">
+            <h3 style="margin-bottom: 15px; color: #2d3748; font-size: 1.2rem;">💬 Комментарии к аккаунту:</h3>
+            <div id="accountCommentsList" style="
+                max-height: 200px;
+                overflow-y: auto;
+                margin-bottom: 15px;
+                padding: 15px;
+                background: #f8fafc;
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+            ">
+                ${renderCommentsListForEditModal(account.comments || [], account.id)}
+            </div>
+            
+            <div class="new-comment-box">
+                <textarea id="newAccountComment" placeholder="Добавить новый комментарий..." 
+                         rows="3" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px;"></textarea>
+                <button onclick="addCommentFromEditModal(${account.id})" 
+                        class="btn btn-primary btn-small" style="margin-top: 10px;">
+                    💬 Добавить комментарий
+                </button>
+            </div>
+        </div>
+
+        <div style="grid-column: 1 / -1; margin-top: 20px;">
+    <h3 style="margin-bottom: 15px; color: #2d3748; font-size: 1.2rem;">🛑 Деактивация аккаунта:</h3>
+    
+    <div style="display: flex; gap: 15px; align-items: center;">
+        <button id="toggleDeactivationBtn" 
+                class="btn ${account.deactivated ? 'btn-danger' : 'btn-secondary'}" 
+                onclick="toggleAccountDeactivation(${account.id})"
+                style="min-width: 150px;">
+            ${account.deactivated ? '✅ Активировать' : '🛑 Деактивировать'}
+        </button>
+        
+        ${account.deactivated ? `
+            <div style="flex: 1;">
+                <label for="deactivationDate" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                    Дата деактивации:
+                </label>
+                <input type="date" id="deactivationDate" value="${account.deactivationDate || new Date().toISOString().split('T')[0]}" 
+                       class="input" style="width: 200px;">
+                <button onclick="updateDeactivationDate(${account.id})" 
+                        class="btn btn-small btn-primary" style="margin-left: 10px;">
+                    Обновить
+                </button>
+            </div>
+            
+            <div style="
+                background: #fef2f2;
+                color: #dc2626;
+                padding: 8px 15px;
+                border-radius: 8px;
+                border: 1px solid #fecaca;
+                font-weight: 600;
+            ">
+                🛑 Деактивирован
+                ${account.deactivationDate ? `<br><small>${account.deactivationDate}</small>` : ''}
+            </div>
+        ` : ''}
+    </div>
+</div>
+        
         <div class="modal-buttons">
-            <button class="btn btn-secondary" onclick="closeModal()" style="padding: 12px 24px;">
+            <button class="btn btn-secondary" onclick="closeAnyModal('editModal')" style="padding: 12px 24px;">
                 Отмена
             </button>
             <button class="btn btn-success" onclick="saveAccountChanges()" style="padding: 12px 24px;">
                 <span style="margin-right: 8px;">💾</span>
                 Сохранить изменения
+            </button>
+            <button class="btn btn-danger" onclick="deleteAccountFromModal(${account.id})" style="padding: 12px 24px;">
+                <span style="margin-right: 8px;">🗑️</span>
+                Удалить аккаунт
             </button>
         </div>
     `;
@@ -2426,6 +2505,183 @@ function editAccount(accountId) {
     }, 100);
 }
 
+// Функция для рендеринга комментариев в модальном окне редактирования
+function renderCommentsListForEditModal(comments, accountId) {
+    if (!comments || comments.length === 0) {
+        return '<div style="text-align: center; color: #94a3b8;">Нет комментариев</div>';
+    }
+    
+    return comments.map(comment => `
+        <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; font-size: 0.9em;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <div style="font-weight: 600; color: #2d3748;">${comment.author}</div>
+                <div style="color: #64748b; font-size: 0.85em;">
+                    ${comment.date} ${comment.time}
+                </div>
+            </div>
+            <div style="color: #374151;">${sanitizeHTML(comment.text)}</div>
+            ${comment.authorUsername === security.getCurrentUser()?.username || security.getCurrentUser()?.role === 'admin' ? `
+                <div style="margin-top: 5px; text-align: right;">
+                    <button onclick="deleteCommentFromEditModal(${comment.id}, ${accountId})" 
+                            style="
+                                background: #fef2f2;
+                                color: #dc2626;
+                                border: 1px solid #fecaca;
+                                padding: 2px 8px;
+                                border-radius: 4px;
+                                font-size: 11px;
+                                cursor: pointer;
+                            ">
+                        Удалить
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+// Функции для деактивации аккаунта
+function toggleAccountDeactivation(accountId) {
+    const accountIndex = accounts.findIndex(acc => acc.id === accountId);
+    if (accountIndex === -1) return;
+    
+    const isCurrentlyDeactivated = accounts[accountIndex].deactivated;
+    
+    if (!isCurrentlyDeactivated) {
+        // Деактивируем
+        if (confirm('Деактивировать этот аккаунт?')) {
+            accounts[accountIndex] = {
+                ...accounts[accountIndex],
+                deactivated: true,
+                deactivationDate: new Date().toISOString().split('T')[0],
+                deactivatedBy: security.getCurrentUser()?.name || 'Неизвестно',
+                deactivatedAt: new Date().toISOString()
+            };
+            
+            saveToStorage('accounts', accounts);
+            
+            // Обновляем UI в модальном окне
+            const btn = document.getElementById('toggleDeactivationBtn');
+            if (btn) {
+                btn.className = 'btn btn-danger';
+                btn.textContent = '✅ Активировать';
+            }
+            
+            showNotification('Аккаунт деактивирован', 'success');
+        }
+    } else {
+        // Активируем
+        if (confirm('Активировать этот аккаунт?')) {
+            accounts[accountIndex] = {
+                ...accounts[accountIndex],
+                deactivated: false,
+                deactivationDate: null,
+                deactivatedBy: null,
+                deactivatedAt: null
+            };
+            
+            saveToStorage('accounts', accounts);
+            
+            // Обновляем UI в модальном окне
+            const btn = document.getElementById('toggleDeactivationBtn');
+            if (btn) {
+                btn.className = 'btn btn-secondary';
+                btn.textContent = '🛑 Деактивировать';
+            }
+            
+            showNotification('Аккаунт активирован', 'success');
+        }
+    }
+}
+
+function updateDeactivationDate(accountId) {
+    const dateInput = document.getElementById('deactivationDate');
+    if (!dateInput) return;
+    
+    const newDate = dateInput.value;
+    if (!newDate) {
+        showNotification('Выберите дату', 'warning');
+        return;
+    }
+    
+    const accountIndex = accounts.findIndex(acc => acc.id === accountId);
+    if (accountIndex === -1) return;
+    
+    accounts[accountIndex] = {
+        ...accounts[accountIndex],
+        deactivationDate: newDate
+    };
+    
+    saveToStorage('accounts', accounts);
+    showNotification('Дата деактивации обновлена', 'success');
+}
+
+// Функция для добавления комментария из модального окна редактирования
+function addCommentFromEditModal(accountId) {
+    const textarea = document.getElementById('newAccountComment');
+    const commentText = textarea.value.trim();
+    
+    if (!commentText) {
+        showNotification('Введите текст комментария', 'warning');
+        return;
+    }
+    
+    if (addCommentToAccount(accountId, commentText)) {
+        textarea.value = '';
+        
+        // Обновляем список комментариев
+        const account = accounts.find(acc => acc.id === accountId);
+        if (account) {
+            document.getElementById('accountCommentsList').innerHTML = 
+                renderCommentsListForEditModal(account.comments || [], account.id);
+        }
+        
+        showNotification('Комментарий добавлен', 'success');
+    }
+}
+
+// Функция для удаления комментария из модального окна редактирования
+function deleteCommentFromEditModal(commentId, accountId) {
+    if (deleteComment(accountId, commentId)) {
+        // Обновляем список комментариев
+        const account = accounts.find(acc => acc.id === accountId);
+        if (account) {
+            document.getElementById('accountCommentsList').innerHTML = 
+                renderCommentsListForEditModal(account.comments || [], account.id);
+        }
+    }
+}
+
+// Функция удаления аккаунта из модального окна
+async function deleteAccountFromModal(accountId) {
+    const account = accounts.find(acc => acc.id === accountId);
+    if (!account) return;
+    
+    if (confirm(`Удалить аккаунт "${account.psnLogin}"? Это действие нельзя отменить.`)) {
+        accounts = accounts.filter(acc => acc.id !== accountId);
+        await saveToStorage('accounts', accounts);
+        
+        closeAnyModal('editModal');
+        
+        // Обновляем отображение на обеих страницах
+        if (window.location.pathname.includes('accounts.html')) {
+            displayAccounts();
+        } else if (window.location.pathname.includes('manager.html')) {
+            // Обновляем результаты поиска если что-то искали
+            const searchInput = document.getElementById('managerGameSearch');
+            if (searchInput && searchInput.value.trim()) {
+                searchByGame();
+            }
+        }
+        
+        showNotification(`Аккаунт "${account.psnLogin}" удален`, 'info');
+    }
+}
+
+// ============================================
+// ФУНКЦИЯ СОХРАНЕНИЯ ИЗМЕНЕНИЙ АККАУНТА
+// ============================================
+
 async function saveAccountChanges() {
     const accountId = parseInt(document.getElementById('editAccountId').value);
     const accountIndex = accounts.findIndex(acc => acc.id === accountId);
@@ -2436,8 +2692,8 @@ async function saveAccountChanges() {
     const gameId = parseInt(gameSelect.value);
     const game = games.find(g => g.id === gameId);
     
-    if (!game) {
-        showNotification('Выберите игру', 'warning');
+    if (!game && gameId !== 0) {
+        showNotification('Выберите игру или "Свободный"', 'warning');
         return;
     }
     
@@ -2447,10 +2703,22 @@ async function saveAccountChanges() {
         return;
     }
     
+    // Проверяем уникальность логина (кроме текущего аккаунта)
+    const duplicate = accounts.find((acc, index) => 
+        index !== accountIndex && 
+        acc.psnLogin.toLowerCase() === psnLogin.toLowerCase()
+    );
+    
+    if (duplicate) {
+        showNotification(`Логин "${psnLogin}" уже существует у другого аккаунта!`, 'error');
+        return;
+    }
+    
+    // Обновляем аккаунт
     accounts[accountIndex] = {
         ...accounts[accountIndex],
         gameId: gameId,
-        gameName: game.name,
+        gameName: game ? game.name : 'Свободный',
         purchaseAmount: parseFloat(document.getElementById('editPurchaseAmount').value) || 0,
         psnLogin: psnLogin,
         psnPassword: document.getElementById('editPsnPassword').value,
@@ -2465,12 +2733,28 @@ async function saveAccountChanges() {
             p3_ps4: parseInt(document.getElementById('editP3_ps4').value) || 0,
             p2_ps5: parseInt(document.getElementById('editP2_ps5').value) || 0,
             p3_ps5: parseInt(document.getElementById('editP3_ps5').value) || 0
-        }
+        },
+        lastModified: new Date().toISOString(),
+        modifiedBy: security.getCurrentUser()?.name || 'Неизвестно'
     };
     
     await saveToStorage('accounts', accounts);
-    closeModal();
-    displayAccounts();
+    
+    closeAnyModal('editModal');
+    
+    // Обновляем отображение на обеих страницах
+    if (window.location.pathname.includes('accounts.html')) {
+        displayAccounts();
+    } else if (window.location.pathname.includes('manager.html')) {
+        // Обновляем результаты поиска если что-то искали
+        const searchInput = document.getElementById('managerGameSearch');
+        if (searchInput && searchInput.value.trim()) {
+            searchByGame();
+        }
+    } else if (window.location.pathname.includes('free-accounts.html')) {
+        displayFreeAccounts();
+    }
+    
     showNotification('Изменения сохранены и синхронизированы! ✅', 'success');
 }
 
@@ -3051,8 +3335,11 @@ function displaySearchResults(accountsList, gameName) {
     
     if (!accountsList || accountsList.length === 0) {
         resultsContainer.innerHTML = `
-            <div class="empty">
-                <h3>По запросу "${gameName}" не найдено аккаунтов</h3>
+            <div class="empty" style="text-align: center; padding: 40px 20px; color: #64748b;">
+                <div style="font-size: 3em; margin-bottom: 15px;">🔍</div>
+                <h3 style="color: #64748b; margin-bottom: 10px;">
+                    По запросу "${gameName}" не найдено аккаунтов
+                </h3>
             </div>
         `;
         return;
@@ -3101,42 +3388,36 @@ function displaySearchResults(accountsList, gameName) {
     let html = '';
     
     // Кнопка переключения показа
-    if (accountsList.length > 0) {
+    if (accountsList.length > 0 && hiddenCount > 0) {
         html += `
             <div style="
                 margin-bottom: 20px;
-                padding: 15px;
-                background: ${hiddenCount > 0 ? '#f0f9ff' : '#f8fafc'};
-                border-radius: 10px;
-                border: 1px solid ${hiddenCount > 0 ? '#bae6fd' : '#e2e8f0'};
+                padding: 10px 15px;
+                background: #f0f9ff;
+                border-radius: 8px;
+                border: 1px solid #bae6fd;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
             ">
-                <div style="font-weight: 600; color: #2d3748;">
-                    Найдено: ${filteredAccounts.length} аккаунтов
-                    ${hiddenCount > 0 ? ` (${hiddenCount} скрыто)` : ''}
+                <div style="color: #64748b; font-size: 0.9em;">
+                    Скрыто полностью проданных: ${hiddenCount}
                 </div>
                 
                 <button onclick="toggleShowAllAccounts()" 
                         style="
-                            background: ${showAllAccounts ? '#dc2626' : '#3b82f6'};
+                            background: #3b82f6;
                             color: white;
                             border: none;
-                            padding: 8px 16px;
-                            border-radius: 8px;
-                            font-weight: 600;
-                            font-size: 14px;
+                            padding: 6px 12px;
+                            border-radius: 6px;
+                            font-size: 13px;
                             cursor: pointer;
-                            display: flex;
-                            align-items: center;
-                            gap: 8px;
                             transition: all 0.3s ease;
                         "
-                        onmouseover="this.style.opacity='0.9'; this.style.transform='translateY(-2px)'"
+                        onmouseover="this.style.opacity='0.9'; this.style.transform='translateY(-1px)'"
                         onmouseout="this.style.opacity='1'; this.style.transform='translateY(0)'">
-                    ${showAllAccounts ? '👁️' : '👁️‍🗨️'}
-                    ${showAllAccounts ? 'Скрыть проданные' : 'Показать все'}
+                    ${showAllAccounts ? '👁️ Скрыть проданные' : '👁️‍🗨️ Показать все'}
                 </button>
             </div>
         `;
@@ -3153,30 +3434,27 @@ function displaySearchResults(accountsList, gameName) {
                 border: 1px solid #e2e8f0;
                 color: #64748b;
             ">
-                <div style="font-size: 3em; margin-bottom: 10px;">${showAllAccounts ? '🏁' : '👻'}</div>
+                <div style="font-size: 3em; margin-bottom: 10px;">👻</div>
                 <h3 style="color: #64748b; margin-bottom: 10px;">
-                    ${showAllAccounts ? 'Все аккаунты проданы' : 'Все доступные аккаунты проданы'}
+                    Все доступные аккаунты проданы
                 </h3>
-                <p>${showAllAccounts ? 'По данному запросу все аккаунты полностью распроданы' : 'Все свободные позиции по этому запросу уже проданы'}</p>
                 
-                ${!showAllAccounts ? `
-                    <button onclick="toggleShowAllAccounts()" 
-                            style="
-                                background: #3b82f6;
-                                color: white;
-                                border: none;
-                                padding: 10px 20px;
-                                border-radius: 8px;
-                                font-weight: 600;
-                                margin-top: 15px;
-                                cursor: pointer;
-                                transition: all 0.3s ease;
-                            "
-                            onmouseover="this.style.opacity='0.9'; this.style.transform='translateY(-2px)'"
-                            onmouseout="this.style.opacity='1'; this.style.transform='translateY(0)'">
-                        👁️‍🗨️ Показать проданные аккаунты
-                    </button>
-                ` : ''}
+                <button onclick="toggleShowAllAccounts()" 
+                        style="
+                            background: #3b82f6;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 8px;
+                            font-weight: 600;
+                            margin-top: 15px;
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                        "
+                        onmouseover="this.style.opacity='0.9'; this.style.transform='translateY(-2px)'"
+                        onmouseout="this.style.opacity='1'; this.style.transform='translateY(0)'">
+                    👁️‍🗨️ Показать проданные аккаунты
+                </button>
             </div>
         `;
     } else {
@@ -3218,60 +3496,74 @@ function displaySearchResults(accountsList, gameName) {
                         </div>
                     ` : ''}
                     
-                    <!-- ВЕРХ: ЛОГИН -->
+                    <!-- ВЕРХ: ТОЛЬКО ЛОГИН КЛИКАБЕЛЬНЫЙ -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <div style="
                             font-size: 1.3em;
                             font-weight: 700;
                             color: ${isSold ? '#dc2626' : '#2d3748'};
-                            ${isSold ? 'text-decoration: line-through;' : ''}
-                        ">
+                            ${isSold ? 'text-decoration: line-through;' : ''};
+                            cursor: pointer;
+                            transition: all 0.2s ease;
+                        "
+                        onclick="openAccountEditModal(${account.id})"
+                        onmouseover="this.style.color='#4361ee';"
+                        onmouseout="this.style.color='${isSold ? '#dc2626' : '#2d3748'}';">
                             ${account.psnLogin}
                             <span style="font-size: 0.8em; color: #64748b; margin-left: 10px;">
                                 ${account.gameName || 'Свободный'}
                             </span>
                         </div>
                         
-                        ${commentsCount > 0 ? `
-                            <button onclick="showAccountComments(${account.id})" 
-                                    style="
-                                        background: ${isSold ? '#fecaca' : '#4361ee'};
-                                        color: ${isSold ? '#dc2626' : 'white'};
-                                        border: ${isSold ? '1px solid #fecaca' : 'none'};
-                                        padding: 8px 16px;
-                                        border-radius: 8px;
-                                        font-weight: 600;
-                                        font-size: 14px;
-                                        cursor: pointer;
-                                        display: flex;
-                                        align-items: center;
-                                        gap: 5px;
-                                        transition: all 0.3s ease;
-                                    "
-                                    onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.05)'"
-                                    onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'">
-                                💬 ${commentsCount}
-                            </button>
-                        ` : `
-                            <button onclick="showAccountComments(${account.id})" 
-                                    style="
-                                        background: #f8fafc;
-                                        color: #64748b;
-                                        border: 1px solid #e2e8f0;
-                                        padding: 8px 16px;
-                                        border-radius: 8px;
-                                        font-size: 14px;
-                                        cursor: pointer;
-                                        display: flex;
-                                        align-items: center;
-                                        gap: 5px;
-                                        transition: all 0.3s ease;
-                                    "
-                                    onmouseover="this.style.background='#f1f5f9'; this.style.transform='scale(1.05)'"
-                                    onmouseout="this.style.background='#f8fafc'; this.style.transform='scale(1)'">
-                                💬 Добавить
-                            </button>
-                        `}
+                        <!-- ПРАВАЯ ЧАСТЬ: ДАТА ДЕАКТИВАЦИИ И КОММЕНТАРИИ -->
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            ${account.deactivated ? `
+                                <div style="
+                                    background: #dc2626;
+                                    color: white;
+                                    padding: 6px 12px;
+                                    border-radius: 20px;
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 5px;
+                                ">
+                                    🛑 ${account.deactivationDate || ''}
+                                </div>
+                            ` : ''}
+                            
+                            ${commentsCount > 0 ? `
+                                <button onclick="showAccountComments(${account.id})" 
+                                        style="
+                                            background: ${isSold ? '#fecaca' : '#4361ee'};
+                                            color: ${isSold ? '#dc2626' : 'white'};
+                                            border: ${isSold ? '1px solid #fecaca' : 'none'};
+                                            padding: 6px 12px;
+                                            border-radius: 6px;
+                                            font-size: 13px;
+                                            cursor: pointer;
+                                            display: flex;
+                                            align-items: center;
+                                            gap: 5px;
+                                        ">
+                                    💬 ${commentsCount}
+                                </button>
+                            ` : `
+                                <button onclick="showAccountComments(${account.id})" 
+                                        style="
+                                            background: #f8fafc;
+                                            color: #64748b;
+                                            border: 1px solid #e2e8f0;
+                                            padding: 6px 12px;
+                                            border-radius: 6px;
+                                            font-size: 13px;
+                                            cursor: pointer;
+                                        ">
+                                    💬
+                                </button>
+                            `}
+                        </div>
                     </div>
                     
                     <!-- ПОСАДКИ: PS4 слева, PS5 справа -->
@@ -3291,7 +3583,6 @@ function displaySearchResults(accountsList, gameName) {
                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                 ${generateSimplePositionButtons(account, 'p2_ps4', 'П2 PS4', 'П2')}
                                 
-                                <!-- Просто небольшой отступ между П2 и П3 -->
                                 ${account.positions.p2_ps4 > 0 ? '<div style="margin-right: 15px;"></div>' : ''}
                                 
                                 ${generateSimplePositionButtons(account, 'p3_ps4', 'П3 PS4', 'П3')}
@@ -3309,7 +3600,6 @@ function displaySearchResults(accountsList, gameName) {
                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                 ${generateSimplePositionButtons(account, 'p2_ps5', 'П2 PS5', 'П2')}
                                 
-                                <!-- Просто небольшой отступ между П2 и П3 -->
                                 ${account.positions.p2_ps5 > 0 ? '<div style="margin-right: 15px;"></div>' : ''}
                                 
                                 ${generateSimplePositionButtons(account, 'p3_ps5', 'П3 PS5', 'П3')}
@@ -3324,6 +3614,308 @@ function displaySearchResults(accountsList, gameName) {
     resultsContainer.innerHTML = html;
 }
 
+// ============================================
+// СИНХРОНИЗАЦИЯ МЕЖДУ ВКЛАДКАМИ ЧЕРЕЗ FIREBASE
+// ============================================
+
+// Модифицируем функцию saveToStorage для работы с Firebase
+async function saveToStorageWithFirebase(dataType, data) {
+    console.log(`💾 Сохранение ${dataType} в Firebase...`);
+    
+    // Сохраняем в локальное хранилище для быстрого доступа
+    localStorage.setItem(dataType, JSON.stringify(data));
+    
+    // Обновляем глобальные переменные
+    switch(dataType) {
+        case 'games': 
+            games = data; 
+            break;
+        case 'accounts': 
+            accounts = data; 
+            break;
+        case 'sales': 
+            sales = data; 
+            break;
+        case 'workers':
+            // workers уже обрабатывается отдельно
+            break;
+        case 'gamePrices':
+            // gamePrices уже обрабатывается отдельно
+            break;
+    }
+    
+    // Синхронизируем с Firebase через dataSync
+    if (window.dataSync && window.dataSync.saveData) {
+        try {
+            const result = await window.dataSync.saveData(dataType, data);
+            
+            if (result.synced) {
+                console.log(`✅ ${dataType} синхронизированы с Firebase`);
+                
+                // Отправляем уведомление через Firebase Realtime Database для других вкладок
+                if (firebaseSync && firebaseSync.db) {
+                    const timestamp = Date.now();
+                    firebaseSync.db.ref('lastUpdate').set({
+                        dataType: dataType,
+                        timestamp: timestamp,
+                        user: security.getCurrentUser()?.name || 'Неизвестно'
+                    }).then(() => {
+                        console.log(`📢 Уведомление о обновлении ${dataType} отправлено`);
+                    });
+                }
+                
+                if (typeof showNotification === 'function') {
+                    showNotification(`${dataType} сохранены и синхронизированы`, 'success', 1500);
+                }
+            } else if (result.local) {
+                console.log(`⚠️ ${dataType} сохранены локально (Firebase недоступен)`);
+                showNotification(`${dataType} сохранены локально`, 'warning');
+            }
+            
+            return result;
+            
+        } catch (error) {
+            console.error(`❌ Ошибка синхронизации ${dataType}:`, error);
+            
+            // Сохраняем только локально при ошибке
+            localStorage.setItem(dataType, JSON.stringify(data));
+            
+            return { success: true, local: true, error: error.message };
+        }
+    }
+    
+    // Fallback - только локальное сохранение
+    return { success: true, local: true };
+}
+
+// Переопределяем старую функцию saveToStorage
+window.saveToStorage = saveToStorageWithFirebase;
+
+// Настраиваем слушатель Firebase для обновлений в реальном времени
+function setupFirebaseUpdateListener() {
+    if (!firebaseSync || !firebaseSync.db) return;
+    
+    // Слушаем общие обновления
+    firebaseSync.db.ref('lastUpdate').on('value', (snapshot) => {
+        if (snapshot.exists()) {
+            const update = snapshot.val();
+            console.log('📢 Получено уведомление об обновлении:', update);
+            
+            // Если это не наше собственное обновление
+            if (update.user !== (security.getCurrentUser()?.name || 'Неизвестно')) {
+                // Обновляем данные указанного типа
+                refreshDataFromFirebase(update.dataType);
+            }
+        }
+    });
+}
+
+// Функция для обновления данных из Firebase
+async function refreshDataFromFirebase(dataType) {
+    if (!window.dataSync || !window.dataSync.loadData) return;
+    
+    try {
+        console.log(`🔄 Обновляем ${dataType} из Firebase...`);
+        
+        const freshData = await window.dataSync.loadData(dataType);
+        
+        switch(dataType) {
+            case 'games':
+                games = freshData;
+                localStorage.setItem('games', JSON.stringify(games));
+                
+                // Обновляем UI игр
+                if (typeof displayGames === 'function' && 
+                    window.location.pathname.includes('games.html')) {
+                    displayGames();
+                }
+                
+                // Обновляем все селекты с играми
+                if (typeof loadGamesForSelect === 'function' && 
+                    window.location.pathname.includes('add-account.html')) {
+                    loadGamesForSelect();
+                }
+                
+                if (typeof loadGamesForFilter === 'function' && 
+                    window.location.pathname.includes('accounts.html')) {
+                    loadGamesForFilter();
+                }
+                
+                if (typeof loadGamesForManager === 'function' && 
+                    window.location.pathname.includes('manager.html')) {
+                    loadGamesForManager();
+                }
+                break;
+                
+            case 'accounts':
+                accounts = freshData;
+                localStorage.setItem('accounts', JSON.stringify(accounts));
+                
+                // Обновляем UI аккаунтов
+                if (typeof displayAccounts === 'function' && 
+                    window.location.pathname.includes('accounts.html')) {
+                    displayAccounts();
+                }
+                
+                if (typeof displayFreeAccounts === 'function' && 
+                    window.location.pathname.includes('free-accounts.html')) {
+                    displayFreeAccounts();
+                }
+                
+                // Обновляем результаты поиска в менеджере
+                if (typeof displaySearchResults === 'function' && 
+                    window.location.pathname.includes('manager.html')) {
+                    const searchInput = document.getElementById('managerGameSearch');
+                    if (searchInput && searchInput.value.trim()) {
+                        searchByGame();
+                    }
+                }
+                break;
+                
+            case 'sales':
+                sales = freshData;
+                localStorage.setItem('sales', JSON.stringify(sales));
+                
+                // Обновляем отчеты если открыты
+                if (window.location.pathname.includes('reports.html')) {
+                    setTimeout(() => {
+                        if (typeof generateReport === 'function') {
+                            generateReport();
+                        }
+                    }, 500);
+                }
+                break;
+        }
+        
+        console.log(`✅ Данные "${dataType}" обновлены из Firebase`);
+        
+        // Показываем уведомление
+        showNotification(`Данные "${dataType}" обновлены с другого устройства 🔄`, 'info', 3000);
+        
+    } catch (error) {
+        console.error(`❌ Ошибка обновления "${dataType}":`, error);
+    }
+}
+
+// Запускаем слушатель при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        setupFirebaseUpdateListener();
+    }, 2000);
+});
+
+// Модифицируем функцию saveAccountChanges для работы с Firebase
+async function saveAccountChanges() {
+    const accountId = parseInt(document.getElementById('editAccountId').value);
+    const accountIndex = accounts.findIndex(acc => acc.id === accountId);
+    
+    if (accountIndex === -1) return;
+    
+    const gameSelect = document.getElementById('editGame');
+    const gameId = parseInt(gameSelect.value);
+    const game = games.find(g => g.id === gameId);
+    
+    if (!game && gameId !== 0) {
+        showNotification('Выберите игру или "Свободный"', 'warning');
+        return;
+    }
+    
+    const psnLogin = document.getElementById('editPsnLogin').value.trim();
+    if (!psnLogin) {
+        showNotification('Введите логин PSN', 'warning');
+        return;
+    }
+    
+    // Проверяем уникальность логина (кроме текущего аккаунта)
+    const duplicate = accounts.find((acc, index) => 
+        index !== accountIndex && 
+        acc.psnLogin.toLowerCase() === psnLogin.toLowerCase()
+    );
+    
+    if (duplicate) {
+        showNotification(`Логин "${psnLogin}" уже существует у другого аккаунта!`, 'error');
+        return;
+    }
+    
+    // Сохраняем оригинальный аккаунт для отслеживания изменений
+    const originalAccount = accounts[accountIndex];
+    
+    // Обновляем аккаунт
+    accounts[accountIndex] = {
+        ...originalAccount,
+        gameId: gameId,
+        gameName: game ? game.name : 'Свободный',
+        purchaseAmount: parseFloat(document.getElementById('editPurchaseAmount').value) || 0,
+        psnLogin: psnLogin,
+        psnPassword: document.getElementById('editPsnPassword').value,
+        email: document.getElementById('editEmail').value.trim(),
+        emailPassword: document.getElementById('editEmailPassword').value,
+        backupEmail: document.getElementById('editBackupEmail').value.trim(),
+        birthDate: document.getElementById('editBirthDate').value.trim(),
+        psnCodes: document.getElementById('editPsnCodes').value.trim(),
+        psnAuthenticator: document.getElementById('editPsnAuthenticator').value.trim(),
+        positions: {
+            p2_ps4: parseInt(document.getElementById('editP2_ps4').value) || 0,
+            p3_ps4: parseInt(document.getElementById('editP3_ps4').value) || 0,
+            p2_ps5: parseInt(document.getElementById('editP2_ps5').value) || 0,
+            p3_ps5: parseInt(document.getElementById('editP3_ps5').value) || 0
+        },
+        lastModified: new Date().toISOString(),
+        modifiedBy: security.getCurrentUser()?.name || 'Неизвестно',
+        modifiedByUsername: security.getCurrentUser()?.username || 'unknown'
+    };
+    
+    // Сохраняем с синхронизацией через Firebase
+    const result = await saveToStorage('accounts', accounts);
+    
+    if (result.synced) {
+        // Отправляем уведомление о конкретном изменении
+        if (firebaseSync && firebaseSync.db) {
+            const changes = {
+                accountId: accountId,
+                accountLogin: psnLogin,
+                modifiedBy: security.getCurrentUser()?.name || 'Неизвестно',
+                timestamp: new Date().toISOString(),
+                changes: {}
+            };
+            
+            // Отмечаем какие поля изменились
+            if (originalAccount.gameName !== accounts[accountIndex].gameName) {
+                changes.changes.gameName = {
+                    from: originalAccount.gameName,
+                    to: accounts[accountIndex].gameName
+                };
+            }
+            
+            if (originalAccount.psnLogin !== psnLogin) {
+                changes.changes.psnLogin = {
+                    from: originalAccount.psnLogin,
+                    to: psnLogin
+                };
+            }
+            
+            // Логируем изменение
+            firebaseSync.db.ref('accountChanges').push(changes);
+        }
+    }
+    
+    closeAnyModal('editModal');
+    
+    // Обновляем отображение на обеих страницах
+    if (window.location.pathname.includes('accounts.html')) {
+        displayAccounts();
+    } else if (window.location.pathname.includes('manager.html')) {
+        // Обновляем результаты поиска если что-то искали
+        const searchInput = document.getElementById('managerGameSearch');
+        if (searchInput && searchInput.value.trim()) {
+            searchByGame();
+        }
+    } else if (window.location.pathname.includes('free-accounts.html')) {
+        displayFreeAccounts();
+    }
+    
+    showNotification('Изменения сохранены и синхронизированы! ✅', 'success');
+}
 function toggleShowAllAccounts() {
     // Переключаем флаг
     showAllAccounts = !showAllAccounts;

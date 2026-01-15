@@ -60,8 +60,8 @@ class FirebaseSync {
             console.error('❌ Ошибка синхронизации работников:', error);
         }
     }
-});
-*/
+    });
+    */
 
         // Слушатель для игр
         this.db.ref('games').on('value', (snapshot) => {
@@ -233,6 +233,73 @@ class FirebaseSync {
             return local ? JSON.parse(local) : [];
         }
     }
+}
+
+// В firebase.js после класса FirebaseSync добавьте:
+
+class ChangeMonitor {
+    constructor() {
+        this.db = firebase.database();
+        this.setupChangeMonitoring();
+    }
+    
+    setupChangeMonitoring() {
+        // Мониторим изменения аккаунтов
+        this.db.ref('accounts').on('child_changed', (snapshot) => {
+            const changedAccount = snapshot.val();
+            const accountId = snapshot.key;
+            
+            console.log(`🔄 Аккаунт изменен в Firebase: ${accountId}`);
+            
+            // Обновляем локальный кеш
+            const localAccounts = JSON.parse(localStorage.getItem('accounts') || '[]');
+            const accountIndex = localAccounts.findIndex(acc => acc.id == accountId);
+            
+            if (accountIndex !== -1) {
+                localAccounts[accountIndex] = {
+                    ...localAccounts[accountIndex],
+                    ...changedAccount
+                };
+                localStorage.setItem('accounts', JSON.stringify(localAccounts));
+                
+                // Уведомляем UI если нужно
+                if (typeof window.onAccountsChanged === 'function') {
+                    window.onAccountsChanged(localAccounts);
+                }
+            }
+        });
+        
+        // Мониторим добавление новых аккаунтов
+        this.db.ref('accounts').on('child_added', (snapshot) => {
+            const newAccount = snapshot.val();
+            console.log(`➕ Новый аккаунт в Firebase: ${newAccount.psnLogin}`);
+            
+            // Обновляем локальный кеш
+            const localAccounts = JSON.parse(localStorage.getItem('accounts') || '[]');
+            if (!localAccounts.some(acc => acc.id == snapshot.key)) {
+                localAccounts.push(newAccount);
+                localStorage.setItem('accounts', JSON.stringify(localAccounts));
+            }
+        });
+        
+        // Мониторим удаление аккаунтов
+        this.db.ref('accounts').on('child_removed', (snapshot) => {
+            const removedAccountId = snapshot.key;
+            console.log(`🗑️ Аккаунт удален из Firebase: ${removedAccountId}`);
+            
+            // Удаляем из локального кеша
+            const localAccounts = JSON.parse(localStorage.getItem('accounts') || '[]');
+            const filteredAccounts = localAccounts.filter(acc => acc.id != removedAccountId);
+            localStorage.setItem('accounts', JSON.stringify(filteredAccounts));
+        });
+    }
+}
+
+// Инициализируем мониторинг изменений
+try {
+    const changeMonitor = new ChangeMonitor();
+} catch (error) {
+    console.error('Ошибка инициализации мониторинга изменений:', error);
 }
 
 let firebaseSync = null;
