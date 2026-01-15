@@ -5011,15 +5011,8 @@ function copyAccountData() {
 function closeSaleModalAndRefresh() {
     closeModal('saleModal'); // Используйте общую функцию
     
-    const gameSelect = document.getElementById('managerGame');
-    const gameId = parseInt(gameSelect.value);
-    if (gameId) {
-        const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
-        const game = games.find(g => g.id === gameId);
-        if (game) {
-            displaySearchResults(gameAccounts, game.name);
-        }
-    }
+    // Обновляем результаты поиска
+    refreshSearchResultsAfterSaleUpdate();
 }
 
 
@@ -5259,7 +5252,7 @@ async function updateSaleDetails(saleId) {
     
     let price = parseFloat(salePrice);
     
-    // ТА ЖЕ ПРОСТАЯ ЛОГИКА
+    // ПРОСТАЯ ЛОГИКА РАСЧЕТА КОМИССИИ
     let finalPrice = price;
     if (marketplace === 'funpay') {
         const commission = price * 0.03;
@@ -5273,80 +5266,103 @@ async function updateSaleDetails(saleId) {
     const currentUser = security.getCurrentUser();
     
     const saleIndex = sales.findIndex(s => s.id === saleId);
-    if (saleIndex !== -1) {
-        const originalSale = sales[saleIndex];
-        
-        // МЕНЕДЖЕРА МЕНЯЕМ ТОЛЬКО ЕСЛИ АДМИН
-        let newManager = originalSale.soldBy;
-        let newManagerName = originalSale.soldByName;
-        let newManagerRole = originalSale.managerRole;
-        
-        const managerSelect = document.getElementById('editSaleManager');
-        if (managerSelect && security.canChangeSaleManager()) {
-            const newManagerUsername = managerSelect.value;
-            if (newManagerUsername && newManagerUsername !== originalSale.soldBy) {
-                if (newManagerUsername === currentUser.username) {
-                    newManager = currentUser.username;
-                    newManagerName = currentUser.name;
-                    newManagerRole = currentUser.role;
-                } else {
-                    const workers = JSON.parse(localStorage.getItem('workers')) || [];
-                    const worker = workers.find(w => w.username === newManagerUsername);
-                    if (worker) {
-                        newManager = worker.username;
-                        newManagerName = worker.name;
-                        newManagerRole = worker.role;
-                    }
+    if (saleIndex === -1) return;
+    
+    const originalSale = sales[saleIndex];
+    
+    // МЕНЕДЖЕРА МЕНЯЕМ ТОЛЬКО ЕСЛИ АДМИН
+    let newManager = originalSale.soldBy;
+    let newManagerName = originalSale.soldByName;
+    let newManagerRole = originalSale.managerRole;
+    
+    const managerSelect = document.getElementById('editSaleManager');
+    if (managerSelect && security.canChangeSaleManager()) {
+        const newManagerUsername = managerSelect.value;
+        if (newManagerUsername && newManagerUsername !== originalSale.soldBy) {
+            if (newManagerUsername === currentUser.username) {
+                newManager = currentUser.username;
+                newManagerName = currentUser.name;
+                newManagerRole = currentUser.role;
+            } else {
+                const workers = JSON.parse(localStorage.getItem('workers')) || [];
+                const worker = workers.find(w => w.username === newManagerUsername);
+                if (worker) {
+                    newManager = worker.username;
+                    newManagerName = worker.name;
+                    newManagerRole = worker.role;
                 }
             }
         }
+    }
+    
+    // Обновляем продажу
+    sales[saleIndex] = {
+        ...originalSale,
+        price: finalPrice,
+        date: saleDate,
+        time: saleTime,
+        datetime: saleDateTime,
+        notes: saleNotes,
+        marketplace: marketplace || 'telegram',
+        soldBy: newManager,
+        soldByName: newManagerName,
+        managerRole: newManagerRole,
+        lastModifiedBy: currentUser ? currentUser.username : 'unknown',
+        lastModifiedByName: currentUser ? currentUser.name : 'Неизвестно',
+        lastModifiedAt: new Date().toISOString()
+    };
+    
+    // Сохраняем с синхронизацией
+    try {
+        await saveToStorage('sales', sales);
         
-        // Просто обновляем
-        sales[saleIndex] = {
-            ...originalSale,
-            price: finalPrice,
-            date: saleDate,
-            time: saleTime,
-            datetime: saleDateTime,
-            notes: saleNotes,
-            marketplace: marketplace || 'telegram',
-            soldBy: newManager,
-            soldByName: newManagerName,
-            managerRole: newManagerRole,
-            lastModifiedBy: currentUser ? currentUser.username : 'unknown',
-            lastModifiedByName: currentUser ? currentUser.name : 'Неизвестно',
-            lastModifiedAt: new Date().toISOString()
-        };
+        // Отправляем уведомление об обновлении
+        if (firebase && firebase.database) {
+            firebase.database().ref('sales').child(saleId).set(sales[saleIndex]).then(() => {
+                console.log('✅ Изменения продажи синхронизированы');
+            });
+        }
         
-        // Сохраняем с синхронизацией
-        try {
-            await saveToStorage('sales', sales);
+        closeSaleModal();
+        
+        // Обновляем отображение НОВЫМ СПОСОБОМ (без gameSelect)
+        refreshSearchResultsAfterSaleUpdate();
+        
+        showNotification('Данные продажи обновлены и синхронизированы! 💾', 'success');
+        
+    } catch (error) {
+        console.error('❌ Ошибка синхронизации продажи:', error);
+        showNotification('Данные сохранены локально', 'warning');
+    }
+}
+
+// Новая функция для обновления результатов поиска
+function refreshSearchResultsAfterSaleUpdate() {
+    const searchInput = document.getElementById('managerGameSearch');
+    const loginInput = document.getElementById('managerLogin');
+    
+    if (searchInput && searchInput.value.trim()) {
+        // Если был поиск по игре - обновляем результаты
+        searchByGame();
+    } else if (loginInput && loginInput.value.trim()) {
+        // Если был поиск по логину - обновляем
+        searchByLogin();
+    } else {
+        // Если нет поиска - просто обновляем текущие результаты
+        const resultsContainer = document.getElementById('searchResults');
+        if (resultsContainer && resultsContainer.children.length > 0) {
+            // Сохраняем текущий поиск
+            const currentSearch = {
+                gameSearch: searchInput ? searchInput.value : '',
+                loginSearch: loginInput ? loginInput.value : ''
+            };
             
-            // Отправляем уведомление об обновлении
-            if (firebaseSync && firebaseSync.db) {
-                firebaseSync.db.ref('sales').child(saleId).set(sales[saleIndex]).then(() => {
-                    console.log('✅ Изменения продажи синхронизированы');
-                });
+            // Если есть какая-то информация о текущем отображении
+            if (currentSearch.gameSearch) {
+                searchByGame();
+            } else if (currentSearch.loginSearch) {
+                searchByLogin();
             }
-            
-            closeSaleModal();
-            
-            // Обновляем отображение
-            const gameSelect = document.getElementById('managerGame');
-            const gameId = parseInt(gameSelect.value);
-            if (gameId) {
-                const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
-                const game = games.find(g => g.id === gameId);
-                if (game) {
-                    displaySearchResults(gameAccounts, game.name);
-                }
-            }
-            
-            showNotification('Данные продажи обновлены и синхронизированы! 💾', 'success');
-            
-        } catch (error) {
-            console.error('❌ Ошибка синхронизации продажи:', error);
-            showNotification('Данные сохранены локально', 'warning');
         }
     }
 }
@@ -5451,15 +5467,8 @@ async function deleteSale(saleId) {
         await saveToStorage('sales', sales);
         closeSaleModal();
         
-        const gameSelect = document.getElementById('managerGame');
-        const gameId = parseInt(gameSelect.value);
-        if (gameId) {
-            const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
-            const game = games.find(g => g.id === gameId);
-            if (game) {
-                displaySearchResults(gameAccounts, game.name);
-            }
-        }
+        // Обновляем отображение
+        refreshSearchResultsAfterSaleUpdate();
         
         showNotification('Продажа удалена! 🗑️', 'info');
     }
