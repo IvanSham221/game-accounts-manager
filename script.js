@@ -4537,23 +4537,26 @@ async function confirmSaleAndShowData() {
     let commissionData = null;
     
     if (marketplace === 'funpay') {
-        // Рассчитываем комиссию
         commissionData = calculateFPCommission(price);
         finalPrice = commissionData.final;
-        
         console.log(`💰 Funpay комиссия: ${price} - ${commissionData.commission} = ${finalPrice}`);
     }
     
     const saleDateTime = saleDate && saleTime ? `${saleDate} ${saleTime}` : new Date().toLocaleString('ru-RU');
     
     const accountIndex = accounts.findIndex(acc => acc.id === window.currentSaleAccount);
-    if (accountIndex === -1) return;
+    if (accountIndex === -1) {
+        showNotification('Аккаунт не найден', 'error');
+        return;
+    }
     
-    const positionId = `${window.currentSaleAccount}_${window.currentSalePosition}_${window.currentSalePositionIndex}`;
+    // ГЕНЕРАЦИЯ УНИКАЛЬНОГО ID С ТАЙМСТЭМПОМ
+    const timestamp = Date.now();
+    const positionId = `${window.currentSaleAccount}_${window.currentSalePosition}_${window.currentSalePositionIndex}_${timestamp}`;
     
     const currentUser = security.getCurrentUser();
     
-    // СОЗДАЕМ ЗАПИСЬ О ПРОДАЖЕ С ИНФОРМАЦИЕЙ О КОМИССИИ
+    // СОЗДАЕМ ЗАПИСЬ О ПРОДАЖЕ
     const newSale = {
         id: positionId,
         accountId: window.currentSaleAccount,
@@ -4561,40 +4564,39 @@ async function confirmSaleAndShowData() {
         gameName: accounts[accountIndex].gameName,
         positionType: window.currentSalePosition,
         positionName: getPositionName(window.currentSalePosition),
-        price: finalPrice, // Цена после комиссии
-        originalPrice: marketplace === 'funpay' ? price : null, // Оригинальная цена (только для Funpay)
+        price: finalPrice,
+        originalPrice: marketplace === 'funpay' ? price : null,
         commission: marketplace === 'funpay' ? commissionData?.commission || 0 : 0,
         commissionPercent: marketplace === 'funpay' ? 3 : 0,
         date: saleDate || new Date().toISOString().split('T')[0],
         time: saleTime || new Date().toTimeString().slice(0, 5),
         datetime: saleDateTime,
         notes: saleNotes,
-        timestamp: new Date().toISOString(),
+        timestamp: timestamp,
+        createdTimestamp: timestamp, // Дополнительное поле для отслеживания
         sold: true,
         positionIndex: window.currentSalePositionIndex,
         soldBy: currentUser ? currentUser.username : 'unknown',
         soldByName: currentUser ? currentUser.name : 'Неизвестно',
         managerRole: currentUser ? currentUser.role : 'unknown',
         marketplace: marketplace || 'telegram',
-        // Флаг, что комиссия уже учтена
         commissionApplied: marketplace === 'funpay'
     };
     
-    console.log('💾 Создана новая продажа с комиссией:', newSale);
+    console.log('💾 Создана новая продажа:', newSale);
     
-    // Шаг 1: Добавляем в локальный массив
-    sales.push(newSale);
-    console.log('📱 Добавлено в локальный массив продаж. Всего:', sales.length);
-    
-    // Шаг 2: Сохраняем локально
-    localStorage.setItem('sales', JSON.stringify(sales));
-    console.log('💾 Сохранено в localStorage');
-    
-    // Шаг 3: Пытаемся синхронизировать с Firebase
     try {
-        console.log('☁️ Пытаюсь синхронизировать с Firebase...');
+        // Шаг 1: Добавляем в локальный массив
+        sales.push(newSale);
+        console.log('📱 Добавлено в локальный массив. Всего продаж:', sales.length);
         
-        // Вариант A: Через dataSync
+        // Шаг 2: Сохраняем локально
+        localStorage.setItem('sales', JSON.stringify(sales));
+        console.log('💾 Сохранено в localStorage');
+        
+        // Шаг 3: Пытаемся синхронизировать с Firebase
+        // ВАЖНО: Не перезаписываем весь список, а добавляем только новую продажу
+        
         if (window.dataSync && window.dataSync.saveData) {
             console.log('🔄 Использую dataSync.saveData...');
             const result = await window.dataSync.saveData('sales', sales);
@@ -4606,40 +4608,163 @@ async function confirmSaleAndShowData() {
                 console.log('⚠️ dataSync сохранил локально:', result);
                 showNotification('✅ Продажа сохранена локально', 'warning');
             }
-        }
-        // Вариант B: Прямая запись в Firebase
+        } 
+        // ИЛИ если используешь прямой Firebase
         else if (firebase && firebase.database) {
-            console.log('🔥 Прямая запись в Firebase...');
+            console.log('🔥 Записываю в Firebase напрямую...');
             const db = firebase.database();
             
-            // Записываем конкретную продажу
-            await db.ref('sales').child(positionId).set(newSale);
-            console.log('✅ Продажа записана напрямую в Firebase');
+            // Ключевое исправление: используем push() вместо set() для новой записи
+            // Но сохраняем наш ID для последующего поиска
+            const saleRef = db.ref('sales').child(positionId);
+            await saleRef.set(newSale);
             
-            // Также обновляем весь список
-            const salesObj = sales.reduce((obj, sale) => {
-                obj[sale.id] = sale;
-                return obj;
-            }, {});
-            
-            await db.ref('sales').set(salesObj);
-            
-            console.log('✅ Весь список продаж синхронизирован с Firebase');
-            showNotification('✅ Продажа сохранена и синхронизирована с облаком!', 'success');
+            console.log('✅ Продажа записана в Firebase с ID:', positionId);
+            showNotification('✅ Продажа сохранена в облаке!', 'success');
         }
-        // Вариант C: Fallback
+        // ИЛИ сохраняем только локально
         else {
             console.log('📱 Firebase недоступен, только локальное сохранение');
             showNotification('✅ Продажа сохранена локально', 'warning');
         }
         
+        // Шаг 4: Обновляем отображение
+        refreshSearchResultsAfterSaleUpdate();
+        
+        // Шаг 5: Показываем данные клиенту
+        showAccountDataAfterSale(window.currentSaleAccount);
+        
     } catch (error) {
-        console.error('❌ Ошибка синхронизации с Firebase:', error);
-        showNotification('✅ Продажа сохранена локально (ошибка синхронизации)', 'warning');
+        console.error('❌ Критическая ошибка при сохранении продажи:', error);
+        showNotification('❌ Ошибка при сохранении продажи. Проверьте консоль.', 'error');
+        
+        // Сохраняем хотя бы локально при ошибке
+        try {
+            localStorage.setItem('sales', JSON.stringify(sales));
+            showNotification('✅ Продажа сохранена локально (ошибка синхронизации)', 'warning');
+        } catch (localError) {
+            console.error('❌ Ошибка локального сохранения:', localError);
+            showNotification('❌ Не удалось сохранить продажу', 'error');
+        }
+    }
+}
+
+// Добавь в script.js
+function logSaleOperation(operation, sale, success, error = null) {
+    const log = {
+        timestamp: new Date().toISOString(),
+        operation: operation,
+        saleId: sale.id,
+        accountId: sale.accountId,
+        accountLogin: sale.accountLogin,
+        price: sale.price,
+        user: security.getCurrentUser()?.username || 'unknown',
+        success: success,
+        error: error
+    };
+    
+    console.log('📝 Лог продажи:', log);
+    
+    // Сохраняем лог в localStorage
+    try {
+        const logs = JSON.parse(localStorage.getItem('saleLogs') || '[]');
+        logs.push(log);
+        localStorage.setItem('saleLogs', JSON.stringify(logs.slice(-100))); // Храним последние 100 записей
+    } catch (e) {
+        console.error('Ошибка сохранения лога:', e);
+    }
+}
+
+// Добавь в script.js
+function validateAndFixSalesData() {
+    console.log('🔍 Проверка целостности данных продаж...');
+    
+    const originalLength = sales.length;
+    
+    // 1. Удаляем дубликаты по ID
+    const uniqueSales = [];
+    const seenIds = new Set();
+    
+    sales.forEach(sale => {
+        if (sale && sale.id && !seenIds.has(sale.id)) {
+            seenIds.add(sale.id);
+            uniqueSales.push(sale);
+        } else if (sale && !sale.id) {
+            // Восстанавливаем ID для продаж без него
+            const newId = `${sale.accountId}_${sale.positionType}_${sale.positionIndex}_${Date.now()}`;
+            sale.id = newId;
+            uniqueSales.push(sale);
+            console.log('🔄 Восстановлен ID для продажи:', sale);
+        }
+    });
+    
+    // 2. Проверяем обязательные поля
+    const validSales = uniqueSales.filter(sale => {
+        return sale && 
+               sale.id && 
+               sale.accountId && 
+               sale.price !== undefined &&
+               sale.timestamp;
+    });
+    
+    // 3. Сортируем по времени
+    validSales.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    // 4. Сохраняем если есть изменения
+    if (validSales.length !== originalLength) {
+        console.log(`🔄 Исправлены данные: было ${originalLength}, стало ${validSales.length}`);
+        sales = validSales;
+        localStorage.setItem('sales', JSON.stringify(sales));
+        
+        // Показываем уведомление если много ошибок
+        const lostCount = originalLength - validSales.length;
+        if (lostCount > 0) {
+            showNotification(`Обнаружено ${lostCount} повреждённых записей продаж`, 'warning');
+        }
     }
     
-    // Шаг 4: Показываем данные клиенту
-    showAccountDataAfterSale(window.currentSaleAccount);
+    return validSales.length;
+}
+
+// Вызывай при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        validateAndFixSalesData();
+    }, 2000);
+});
+
+// В firebase.js или в script.js
+function setupSalesSyncMonitor() {
+    if (!firebase || !firebase.database) return;
+    
+    const db = firebase.database();
+    
+    // Мониторим изменения в продажах
+    db.ref('sales').on('value', (snapshot) => {
+        const firebaseSales = snapshot.val() || {};
+        const firebaseCount = Object.keys(firebaseSales).length;
+        const localCount = sales.length;
+        
+        console.log(`📊 Синхронизация: Firebase=${firebaseCount}, Локально=${localCount}`);
+        
+        if (Math.abs(firebaseCount - localCount) > 5) {
+            console.warn('⚠️ Большое расхождение в данных продаж!');
+            
+            // Загружаем данные из Firebase
+            const firebaseArray = Object.values(firebaseSales);
+            
+            // Синхронизируем
+            sales = firebaseArray;
+            localStorage.setItem('sales', JSON.stringify(sales));
+            
+            showNotification('Данные продаж синхронизированы с облаком 🔄', 'info');
+            
+            // Обновляем отображение
+            if (typeof refreshSearchResultsAfterSaleUpdate === 'function') {
+                refreshSearchResultsAfterSaleUpdate();
+            }
+        }
+    });
 }
 
 function getPositionName(positionType) {
