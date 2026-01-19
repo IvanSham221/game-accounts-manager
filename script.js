@@ -4645,9 +4645,9 @@ async function confirmSaleAndShowData() {
         // Шаг 3: Пытаемся синхронизировать с Firebase
         // ВАЖНО: Не перезаписываем весь список, а добавляем только новую продажу
         
-        if (window.dataSync && window.dataSync.saveData) {
-            console.log('🔄 Использую dataSync.saveData...');
-            const result = await window.dataSync.saveData('sales', sales);
+        if (window.dataSync && window.dataSync.saveSale) {
+            console.log('🔄 Использую dataSync.saveSale...');
+            const result = await window.dataSync.saveSale(newSale);
             
             if (result.synced) {
                 console.log('✅ Продажа синхронизирована через dataSync');
@@ -5364,6 +5364,53 @@ function updateEditCommission() {
         priceInput.style.boxShadow = '';
     }
 }
+
+// Функция для восстановления при конфликтах
+async function fixSalesConflict() {
+    console.log('🔄 Восстановление при конфликте данных...');
+    
+    // 1. Загружаем из Firebase
+    if (window.dataSync && window.dataSync.loadData) {
+        const firebaseSales = await window.dataSync.loadData('sales');
+        
+        // 2. Сравниваем с локальными
+        const localSales = JSON.parse(localStorage.getItem('sales')) || [];
+        
+        // 3. Объединяем, устраняя дубликаты
+        const mergedSales = [...firebaseSales];
+        
+        localSales.forEach(localSale => {
+            const exists = mergedSales.find(fbSale => fbSale.id === localSale.id);
+            if (!exists) {
+                mergedSales.push(localSale);
+            }
+        });
+        
+        // 4. Сохраняем обратно
+        sales = mergedSales;
+        localStorage.setItem('sales', JSON.stringify(sales));
+        
+        // 5. Синхронизируем с Firebase
+        if (window.dataSync && window.dataSync.saveData) {
+            await window.dataSync.saveData('sales', sales);
+        }
+        
+        console.log(`✅ Конфликт устранен. Всего продаж: ${sales.length}`);
+        showNotification(`Конфликт данных устранен. Продаж: ${sales.length}`, 'success');
+        
+        // 6. Обновляем UI
+        refreshSearchResultsAfterSaleUpdate();
+    }
+}
+
+// Автоматически проверяем каждые 5 минут
+setInterval(() => {
+    const localSales = JSON.parse(localStorage.getItem('sales')) || [];
+    if (Math.abs(sales.length - localSales.length) > 0) {
+        console.warn('⚠️ Обнаружено расхождение данных продаж');
+        fixSalesConflict();
+    }
+}, 5 * 60 * 1000); // 5 минут
 
 // ============================================
 // PSN AUTHENTICATOR (TOTP)
