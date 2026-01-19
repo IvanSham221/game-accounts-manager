@@ -887,6 +887,21 @@ function initApp() {
     setTimeout(() => {
         initMobileMenu();
     }, 100);
+    function initAppWithDiagnostics() {
+    initApp();
+    
+    // Добавляем кнопку диагностики
+    setTimeout(addDiagnosticButton, 1000);
+    
+    // Автоматическая проверка при загрузке
+    setTimeout(() => {
+        const localSales = JSON.parse(localStorage.getItem('sales')) || [];
+        if (Math.abs(sales.length - localSales.length) > 0) {
+            console.warn('⚠️ Обнаружено расхождение данных продаж при загрузке');
+            showNotification('Обнаружено расхождение в данных продаж. Рекомендуется провести диагностику.', 'warning', 5000);
+        }
+    }, 3000);
+}
 }
 
 function initPage(currentPage) {
@@ -3349,8 +3364,41 @@ function clearSearchFields() {
 // ============================================
 
 function getPositionSaleInfo(accountId, positionType, positionIndex) {
-    const positionId = `${accountId}_${positionType}_${positionIndex}`;
-    return sales.find(sale => sale.id === positionId);
+    // Ищем продажу с правильным ID (без timestamp)
+    const saleIdWithoutTimestamp = `${accountId}_${positionType}_${positionIndex}`;
+    
+    // Ищем продажу, ID которой начинается с saleIdWithoutTimestamp
+    return sales.find(sale => {
+        if (!sale.id) return false;
+        // Проверяем начинается ли ID продажи с нужного шаблона
+        return sale.id.startsWith(saleIdWithoutTimestamp + '_') || 
+               sale.id === saleIdWithoutTimestamp;
+    });
+}
+
+function debugPositionSales(accountId, positionType, positionIndex) {
+    console.log('🔍 Отладка продаж для позиции:', { accountId, positionType, positionIndex });
+    
+    const expectedId = `${accountId}_${positionType}_${positionIndex}`;
+    console.log('Ожидаемый ID (без timestamp):', expectedId);
+    
+    const allSalesForPosition = sales.filter(sale => {
+        return sale.accountId === accountId && 
+               sale.positionType === positionType &&
+               sale.positionIndex === positionIndex;
+    });
+    
+    console.log('Найденные продажи:', allSalesForPosition);
+    
+    if (allSalesForPosition.length === 0) {
+        console.log('❌ Продажи не найдены в фильтре по полям');
+        
+        // Ищем по ID
+        const byId = sales.find(s => s.id && s.id.includes(expectedId));
+        console.log('Поиск по части ID:', byId);
+    }
+    
+    return allSalesForPosition;
 }
 
 function displaySearchResults(accountsList, gameName) {
@@ -6767,71 +6815,125 @@ function getSalesListHTML(salesData) {
 
 // Функция удаления продажи со страницы отчетов
 async function deleteSaleFromReports(saleId) {
+    console.log(`🗑️ Попытка удаления продажи ${saleId}...`);
+    
     if (!confirm('Удалить эту продажу из системы? Это действие нельзя отменить.')) {
         return;
     }
     
     try {
-        // Находим продажу
-        const saleIndex = sales.findIndex(s => s.id === saleId);
-        if (saleIndex === -1) {
-            showNotification('Продажа не найдена', 'error');
+        // 1. Ищем продажу ВО ВСЕХ источниках
+        let saleIndex = sales.findIndex(s => s.id === saleId);
+        let sale = saleIndex !== -1 ? sales[saleIndex] : null;
+        
+        // 2. Если не нашли в памяти, ищем в localStorage
+        if (!sale) {
+            const localSales = JSON.parse(localStorage.getItem('sales')) || [];
+            saleIndex = localSales.findIndex(s => s.id === saleId);
+            sale = saleIndex !== -1 ? localSales[saleIndex] : null;
+            
+            if (sale) {
+                console.log('🔍 Найден в localStorage, обновляю память...');
+                // Обновляем массив в памяти
+                sales = localSales;
+                saleIndex = sales.findIndex(s => s.id === saleId);
+            }
+        }
+        
+        if (!sale || saleIndex === -1) {
+            showNotification('❌ Продажа не найдена в системе', 'error');
+            console.error('Продажа не найдена:', saleId);
+            
+            // Показываем диагностику
+            const diagnosticModal = document.getElementById('diagnosticModal');
+            if (!diagnosticModal) {
+                openDiagnosticModal();
+            }
             return;
         }
         
-        const sale = sales[saleIndex];
+        console.log('✅ Продажа найдена:', sale);
         
-        // Проверяем права
+        // 3. Проверяем права
         const currentUser = security.getCurrentUser();
         const isAdmin = currentUser && currentUser.role === 'admin';
         const isOwner = sale.soldBy === currentUser?.username;
         
         if (!isAdmin && !isOwner) {
-            showNotification('Вы не можете удалить эту продажу', 'error');
+            showNotification('❌ Вы не можете удалить эту продажу', 'error');
             return;
         }
         
-        // Удаляем продажу
+        // 4. Удаляем из массива
         sales.splice(saleIndex, 1);
+        console.log(`✅ Удалено из памяти. Осталось: ${sales.length}`);
         
-        // Сохраняем изменения
-        await saveToStorage('sales', sales);
+        // 5. Сохраняем во ВСЕХ источниках
+        console.log('💾 Сохраняю в localStorage...');
+        localStorage.setItem('sales', JSON.stringify(sales));
         
-        // Плавно удаляем строку из таблицы
+        console.log('🔥 Сохраняю в Firebase...');
+        const result = await saveToStorage('sales', sales);
+        
+        if (result.success) {
+            console.log('✅ Данные сохранены');
+        } else {
+            console.warn('⚠️ Ошибка сохранения в Firebase:', result.error);
+        }
+        
+        // 6. Плавное удаление из UI
         const row = document.getElementById(`sale-row-${saleId}`);
         if (row) {
+            row.style.transition = 'all 0.3s ease';
             row.style.opacity = '0';
-            row.style.transform = 'translateX(-20px)';
+            row.style.transform = 'translateX(-50px)';
+            
             setTimeout(() => {
                 row.remove();
-                showNotification('Продажа удалена', 'success');
+                showNotification('✅ Продажа удалена', 'success');
                 
-                // Обновляем общее количество продаж в заголовке
-                const totalSales = sales.length;
-                const header = document.querySelector('.section h3');
-                if (header) {
-                    header.textContent = `💰 Все продажи (${totalSales})`;
-                }
+                // Обновляем статистику
+                updateReportStats();
                 
-                // Если таблица стала пустой, обновляем всю страницу отчетов
-                const tbody = row.parentElement;
+                // Если таблица пустая, обновляем страницу
+                const tbody = document.querySelector('.stats-table tbody');
                 if (tbody && tbody.children.length === 0) {
                     setTimeout(() => {
                         generateReport();
-                    }, 300);
+                    }, 500);
                 }
             }, 300);
         } else {
-            // Если не нашли строку, просто обновляем отчеты
-            showNotification('Продажа удалена', 'success');
+            // Если не нашли строку, обновляем всю страницу
+            showNotification('✅ Продажа удалена', 'success');
             setTimeout(() => {
                 generateReport();
             }, 500);
         }
         
     } catch (error) {
-        console.error('❌ Ошибка при удалении продажи:', error);
-        showNotification('Ошибка при удалении продажи', 'error');
+        console.error('❌ Критическая ошибка при удалении:', error);
+        showNotification('❌ Ошибка при удалении продажи. Проверьте консоль.', 'error');
+        
+        // Показываем диагностику
+        openDiagnosticModal();
+    }
+}
+
+// Добавьте функцию обновления статистики
+function updateReportStats() {
+    const totalSales = sales.length;
+    const header = document.querySelector('.section h3');
+    if (header) {
+        header.textContent = `💰 Все продажи (${totalSales})`;
+    }
+    
+    // Обновляем общие цифры если они есть
+    const totalRevenue = sales.reduce((sum, sale) => sum + (sale.price || 0), 0);
+    const totalElements = document.querySelectorAll('.stat-value');
+    if (totalElements.length >= 3) {
+        totalElements[0].textContent = `${totalRevenue.toLocaleString('ru-RU')} ₽`;
+        totalElements[2].textContent = totalSales;
     }
 }
 
@@ -7865,4 +7967,311 @@ function generateWorkersDailyStatsHTML(periodSales) {
             </div>
         </div>
     `;
+}
+
+// ============================================
+// ФУНКЦИИ ДЛЯ ДИАГНОСТИКИ ПРОБЛЕМЫ С ПРОДАЖАМИ
+// ============================================
+
+// Функция для поиска "призрачной" продажи
+function findGhostSale() {
+    console.log('👻 Поиск проблемных продаж...');
+    
+    // 1. Проверяем локальный массив
+    console.log('📊 Локальный массив sales:', sales.length);
+    
+    // 2. Проверяем localStorage
+    const localSales = JSON.parse(localStorage.getItem('sales')) || [];
+    console.log('💾 localStorage sales:', localSales.length);
+    
+    // 3. Ищем расхождения
+    if (sales.length !== localSales.length) {
+        console.warn(`⚠️ Расхождение данных! Локально: ${sales.length}, localStorage: ${localSales.length}`);
+        
+        // Находим ID, которые есть в localStorage, но нет в локальном массиве
+        const localIds = localSales.map(s => s.id);
+        const memIds = sales.map(s => s.id);
+        
+        const missingInMemory = localIds.filter(id => !memIds.includes(id));
+        const missingInLocal = memIds.filter(id => !localIds.includes(id));
+        
+        if (missingInMemory.length > 0) {
+            console.log('❌ Продажи в localStorage, но не в памяти:', missingInMemory);
+            const ghostSales = localSales.filter(s => missingInMemory.includes(s.id));
+            console.log('👻 Призрачные продажи:', ghostSales);
+            
+            // Показываем пользователю
+            alert(`Найдено ${missingInMemory.length} призрачных продаж в localStorage! Проверьте консоль.`);
+            return ghostSales;
+        }
+        
+        if (missingInLocal.length > 0) {
+            console.log('❌ Продажи в памяти, но не в localStorage:', missingInLocal);
+        }
+    }
+    
+    console.log('✅ Проверка завершена');
+    return [];
+}
+
+// Функция для принудительной синхронизации продаж
+async function forceSyncSales() {
+    console.log('🔄 Принудительная синхронизация продаж...');
+    
+    try {
+        // 1. Загружаем из localStorage как основной источник
+        const localSales = JSON.parse(localStorage.getItem('sales')) || [];
+        
+        // 2. Обновляем локальный массив
+        sales = localSales;
+        
+        // 3. Сохраняем в Firebase
+        if (window.dataSync && window.dataSync.saveData) {
+            await window.dataSync.saveData('sales', sales);
+        }
+        
+        // 4. Обновляем отображение
+        refreshSearchResultsAfterSaleUpdate();
+        
+        console.log(`✅ Продажи синхронизированы: ${sales.length} записей`);
+        showNotification(`Продажи синхронизированы: ${sales.length} записей`, 'success');
+        
+        return sales;
+        
+    } catch (error) {
+        console.error('❌ Ошибка синхронизации:', error);
+        showNotification('Ошибка синхронизации', 'error');
+        return sales;
+    }
+}
+
+// Функция для восстановления удалённой продажи
+async function recoverGhostSale(saleId) {
+    console.log(`🔄 Восстановление продажи ${saleId}...`);
+    
+    try {
+        // 1. Ищем продажу в localStorage
+        const localSales = JSON.parse(localStorage.getItem('sales')) || [];
+        const ghostSale = localSales.find(s => s.id === saleId);
+        
+        if (!ghostSale) {
+            showNotification('Продажа не найдена в localStorage', 'error');
+            return false;
+        }
+        
+        console.log('👻 Найдена призрачная продажа:', ghostSale);
+        
+        // 2. Добавляем обратно в массив
+        const exists = sales.find(s => s.id === saleId);
+        if (!exists) {
+            sales.push(ghostSale);
+            console.log('✅ Продажа добавлена в массив');
+        }
+        
+        // 3. Сохраняем
+        await saveToStorage('sales', sales);
+        
+        // 4. Обновляем отображение
+        refreshSearchResultsAfterSaleUpdate();
+        
+        showNotification(`Продажа ${saleId} восстановлена!`, 'success');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Ошибка восстановления:', error);
+        showNotification('Ошибка восстановления продажи', 'error');
+        return false;
+    }
+}
+
+// Функция для полной очистки "призрачных" продаж
+async function cleanGhostSales() {
+    console.log('🧹 Очистка призрачных продаж...');
+    
+    if (!confirm('Очистить все несоответствия в данных продаж? Это может удалить некоторые записи.')) {
+        return;
+    }
+    
+    try {
+        // 1. Берём localStorage как источник истины
+        const localSales = JSON.parse(localStorage.getItem('sales')) || [];
+        
+        // 2. Обновляем глобальный массив
+        const originalCount = sales.length;
+        sales = localSales;
+        
+        // 3. Сохраняем
+        await saveToStorage('sales', sales);
+        
+        // 4. Обновляем отображение
+        refreshSearchResultsAfterSaleUpdate();
+        
+        const diff = originalCount - sales.length;
+        console.log(`✅ Очистка завершена. Удалено записей: ${diff}`);
+        
+        if (diff > 0) {
+            showNotification(`Очищено ${diff} призрачных продаж`, 'success');
+        } else {
+            showNotification('Несоответствий не найдено', 'info');
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка очистки:', error);
+        showNotification('Ошибка очистки', 'error');
+    }
+}
+
+// Добавьте кнопку диагностики в UI
+function addDiagnosticButton() {
+    const nav = document.querySelector('.nav-buttons');
+    if (!nav) return;
+    
+    if (!document.querySelector('#diagnosticBtn')) {
+        const diagnosticBtn = document.createElement('button');
+        diagnosticBtn.id = 'diagnosticBtn';
+        diagnosticBtn.className = 'btn btn-warning';
+        diagnosticBtn.innerHTML = '🔍 Диагностика';
+        diagnosticBtn.onclick = function() {
+            openDiagnosticModal();
+        };
+        
+        // Добавляем кнопку в навигацию
+        const syncBtn = nav.querySelector('#syncButton');
+        if (syncBtn) {
+            nav.insertBefore(diagnosticBtn, syncBtn);
+        } else {
+            nav.appendChild(diagnosticBtn);
+        }
+    }
+}
+
+// Модальное окно диагностики
+function openDiagnosticModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'diagnosticModal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 700px;">
+            <span class="close" onclick="document.getElementById('diagnosticModal').remove()">&times;</span>
+            
+            <h2 style="margin-bottom: 20px; color: #2d3748;">
+                <span style="margin-right: 10px;">🔍</span>
+                Диагностика системы продаж
+            </h2>
+            
+            <div id="diagnosticResults" style="
+                background: #f8fafc;
+                padding: 20px;
+                border-radius: 10px;
+                border: 1px solid #e2e8f0;
+                margin-bottom: 20px;
+                max-height: 300px;
+                overflow-y: auto;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+            ">
+                Запустите проверку...
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="runSalesDiagnostic()">
+                    🔍 Проверить продажи
+                </button>
+                <button class="btn btn-success" onclick="forceSyncSales().then(() => runSalesDiagnostic())">
+                    🔄 Синхронизировать
+                </button>
+                <button class="btn btn-warning" onclick="findGhostSale()">
+                    👻 Найти призрачные
+                </button>
+                <button class="btn btn-danger" onclick="cleanGhostSales()">
+                    🧹 Очистить ошибки
+                </button>
+            </div>
+            
+            <div style="
+                padding: 15px;
+                background: #fef3c7;
+                border-radius: 8px;
+                border: 1px solid #fbbf24;
+                color: #92400e;
+                font-size: 0.9em;
+            ">
+                <strong>⚠️ Внимание:</strong> Функция "Очистить ошибки" может удалить продажи, 
+                которые есть в localStorage, но отсутствуют в памяти. Используйте осторожно!
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'block';
+    
+    // Автоматически запускаем диагностику
+    setTimeout(runSalesDiagnostic, 300);
+}
+
+// Запуск диагностики
+function runSalesDiagnostic() {
+    const resultsDiv = document.getElementById('diagnosticResults');
+    if (!resultsDiv) return;
+    
+    let log = '=== ДИАГНОСТИКА СИСТЕМЫ ПРОДАЖ ===\n\n';
+    
+    // 1. Основная информация
+    log += `📊 Всего продаж в памяти: ${sales.length}\n`;
+    
+    // 2. localStorage
+    const localSales = JSON.parse(localStorage.getItem('sales')) || [];
+    log += `💾 Всего продаж в localStorage: ${localSales.length}\n`;
+    
+    // 3. Расхождения
+    if (sales.length === localSales.length) {
+        log += '✅ Данные синхронизированы\n';
+    } else {
+        log += `⚠️ РАСХОЖДЕНИЕ! Разница: ${Math.abs(sales.length - localSales.length)} записей\n`;
+        
+        // Находим ID
+        const memIds = sales.map(s => s.id).sort();
+        const localIds = localSales.map(s => s.id).sort();
+        
+        // Продажи в localStorage, но не в памяти
+        const onlyInLocal = localIds.filter(id => !memIds.includes(id));
+        if (onlyInLocal.length > 0) {
+            log += `\n👻 Продажи только в localStorage (${onlyInLocal.length}):\n`;
+            onlyInLocal.forEach(id => {
+                const sale = localSales.find(s => s.id === id);
+                log += `  • ${id} | ${sale?.accountLogin} | ${sale?.price} ₽ | ${sale?.date}\n`;
+            });
+        }
+        
+        // Продажи в памяти, но не в localStorage
+        const onlyInMem = memIds.filter(id => !localIds.includes(id));
+        if (onlyInMem.length > 0) {
+            log += `\n📱 Продажи только в памяти (${onlyInMem.length}):\n`;
+            onlyInMem.forEach(id => {
+                const sale = sales.find(s => s.id === id);
+                log += `  • ${id} | ${sale?.accountLogin} | ${sale?.price} ₽ | ${sale?.date}\n`;
+            });
+        }
+    }
+    
+    // 4. Проблемные записи
+    log += '\n=== ПРОВЕРКА ЦЕЛОСТНОСТИ ===\n';
+    
+    let errorCount = 0;
+    
+    sales.forEach((sale, index) => {
+        if (!sale.id || !sale.accountId || sale.price === undefined) {
+            errorCount++;
+            log += `❌ Запись ${index}: Неполные данные (ID: ${sale.id})\n`;
+        }
+    });
+    
+    if (errorCount === 0) {
+        log += '✅ Все записи корректны\n';
+    } else {
+        log += `⚠️ Найдено проблемных записей: ${errorCount}\n`;
+    }
+    
+    // 5. Выводим результат
+    resultsDiv.textContent = log;
 }
