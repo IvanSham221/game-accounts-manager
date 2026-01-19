@@ -5136,3 +5136,45 @@ body.dark-theme .check-key-btn:hover {
 .code-changing {
     animation: codeChange 0.5s ease-out;
 }
+
+/* Добавьте в style.css */
+#closeSaleBtn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    border: none !important;
+    font-weight: 700 !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+}
+
+#closeSaleBtn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+}
+
+/* Добавьте в style.css */
+@keyframes slideOut {
+    0% {
+        opacity: 1;
+        transform: translateX(0);
+        max-height: 100px;
+    }
+    50% {
+        opacity: 0.5;
+        transform: translateX(-30px);
+        max-height: 50px;
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(-100px);
+        max-height: 0;
+        padding: 0;
+        margin: 0;
+        border: none;
+    }
+}
+
+.sale-row-removing {
+    animation: slideOut 0.5s ease forwards !important;
+    overflow: hidden !important;
+}

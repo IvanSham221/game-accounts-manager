@@ -4825,7 +4825,6 @@ function getPositionName(positionType) {
     return names[positionType] || positionType;
 }
 
-// Замените существующую функцию showAccountDataAfterSale():
 function showAccountDataAfterSale(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return;
@@ -5029,13 +5028,15 @@ ${window.currentOrderDataRU}
             padding-top: 20px;
             border-top: 1px solid #e2e8f0;
         ">
-            <button class="btn btn-success" onclick="copyAllData()" style="padding: 12px 24px;">
+            <button class="btn btn-success" onclick="copyAllData()" style="padding: 12px 24px; flex: 1;">
                 <span style="margin-right: 8px;">📄</span>
                 <span id="copyAllBtn">Скопировать ВСЁ (данные + инструкция)</span>
             </button>
-            <button class="btn btn-primary" onclick="closeSaleModalAndRefresh()" style="padding: 12px 24px;">
+            <button class="btn btn-primary" onclick="closeSaleModalAndRefresh()" 
+                    style="padding: 12px 24px; flex: 1; background: #10b981; border-color: #10b981;"
+                    id="closeSaleBtn">
                 <span style="margin-right: 8px;">✅</span>
-                <span id="doneBtn">Готово</span>
+                <span id="doneBtn">Готово (закрыть окно)</span>
             </button>
         </div>
     `;
@@ -5043,6 +5044,16 @@ ${window.currentOrderDataRU}
     // Инициализируем копирование на русском
     window.currentOrderData = window.currentOrderDataRU;
     window.currentInstruction = window.currentInstructionRU;
+    
+    // Добавляем обработчик для кнопки
+    setTimeout(() => {
+        const closeBtn = document.getElementById('closeSaleBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                console.log('🎯 Кнопка "Готово" нажата, закрываю модальное окно...');
+            });
+        }
+    }, 100);
 }
 
 // Добавьте после функции showAccountDataAfterSale() в script.js:
@@ -5176,11 +5187,37 @@ function copyAccountData() {
     });
 }
 
+// ИСПОЛЬЗУЙТЕ эту функцию:
 function closeSaleModalAndRefresh() {
-    closeModal('saleModal'); // Используйте общую функцию
+    console.log('✅ Закрываю модальное окно продажи...');
     
-    // Обновляем результаты поиска
-    refreshSearchResultsAfterSaleUpdate();
+    // 1. Закрываем модальное окно продажи
+    const saleModal = document.getElementById('saleModal');
+    if (saleModal) {
+        saleModal.style.display = 'none';
+        console.log('🎯 Модальное окно продажи закрыто');
+    }
+    
+    // 2. Если открыто окно с данными для клиента - закрываем его тоже
+    const psnCodeModal = document.getElementById('psnCodeModal');
+    if (psnCodeModal) {
+        psnCodeModal.style.display = 'none';
+        psnCodeModal.remove();
+        console.log('🗂️ Окно PSN кода закрыто');
+    }
+    
+    // 3. Восстанавливаем скролл страницы
+    document.body.style.overflow = 'auto';
+    document.body.style.position = 'relative';
+    
+    // 4. Обновляем результаты поиска
+    setTimeout(() => {
+        refreshSearchResultsAfterSaleUpdate();
+        console.log('🔄 Результаты поиска обновлены');
+    }, 300);
+    
+    // 5. Показываем уведомление
+    showNotification('Продажа завершена! ✅', 'success', 2000);
 }
 
 
@@ -6082,16 +6119,82 @@ function displayFilteredGames(filteredGames) {
     `).join('');
 }
 
+// ИСПОЛЬЗУЙТЕ ЭТУ ВЕРСИЮ:
 async function deleteSale(saleId) {
-    if (confirm('Удалить запись о продаже? Это действие нельзя отменить.')) {
+    console.log(`🗑️ Пытаюсь удалить продажу: ${saleId}`);
+    
+    if (!saleId) {
+        console.error('❌ ID продажи не указан');
+        showNotification('Ошибка: ID продажи не указан', 'error');
+        return;
+    }
+    
+    // Проверяем права
+    const currentUser = security.getCurrentUser();
+    const sale = sales.find(s => s.id === saleId);
+    
+    if (!sale) {
+        console.error(`❌ Продажа с ID ${saleId} не найдена`);
+        showNotification('Продажа не найдена', 'error');
+        return;
+    }
+    
+    const isAdmin = currentUser && currentUser.role === 'admin';
+    const isOwner = sale.soldBy === currentUser?.username;
+    
+    if (!isAdmin && !isOwner) {
+        showNotification('❌ Вы не можете удалить эту продажу. Только автор или администратор.', 'error');
+        return;
+    }
+    
+    if (!confirm(`Удалить продажу аккаунта "${sale.accountLogin}" за ${sale.price} ₽?\nЭто действие нельзя отменить.`)) {
+        return;
+    }
+    
+    try {
+        console.log(`✅ Начинаю удаление продажи ${saleId}...`);
+        
+        // 1. Удаляем из локального массива
+        const originalCount = sales.length;
         sales = sales.filter(sale => sale.id !== saleId);
-        await saveToStorage('sales', sales);
+        console.log(`✅ Удалено из памяти. Было: ${originalCount}, стало: ${sales.length}`);
+        
+        // 2. Сохраняем локально
+        localStorage.setItem('sales', JSON.stringify(sales));
+        console.log('✅ Сохранено в localStorage');
+        
+        // 3. Удаляем из Firebase (если подключен)
+        let firebaseDeleted = false;
+        if (firebaseSync && firebaseSync.db) {
+            try {
+                await firebaseSync.db.ref('sales/' + saleId).remove();
+                firebaseDeleted = true;
+                console.log(`✅ Продажа удалена из Firebase: ${saleId}`);
+            } catch (firebaseError) {
+                console.error('❌ Ошибка удаления из Firebase:', firebaseError);
+                // Продолжаем работу, продажа уже удалена локально
+            }
+        }
+        
+        // 4. Закрываем модальное окно
         closeSaleModal();
         
-        // Обновляем отображение
+        // 5. Обновляем отображение
         refreshSearchResultsAfterSaleUpdate();
         
-        showNotification('Продажа удалена! 🗑️', 'info');
+        // 6. Показываем уведомление
+        if (firebaseDeleted) {
+            showNotification(`Продажа "${sale.accountLogin}" удалена из облака! 🗑️`, 'success');
+        } else {
+            showNotification(`Продажа "${sale.accountLogin}" удалена локально 🗑️`, 'info');
+        }
+        
+        // 7. Логируем удаление
+        console.log(`🎉 Продажа успешно удалена: ${sale.accountLogin} за ${sale.price} ₽`);
+        
+    } catch (error) {
+        console.error('❌ Критическая ошибка при удалении продажи:', error);
+        showNotification('Ошибка при удалении продажи ❌', 'error');
     }
 }
 
@@ -6120,9 +6223,33 @@ function closeAnyModal(modalId) {
     }, 10);
 }
 
-// ПЕРЕОПРЕДЕЛЯЕМ ВСЕ СУЩЕСТВУЮЩИЕ ФУНКЦИИ
+// ИСПОЛЬЗУЙТЕ:
 function closeSaleModal() {
-    closeAnyModal('saleModal');
+    console.log('🔒 Закрытие модального окна продажи...');
+    
+    // Закрываем основное модальное окно
+    const saleModal = document.getElementById('saleModal');
+    if (saleModal) {
+        saleModal.style.display = 'none';
+    }
+    
+    // Закрываем окно PSN кода если открыто
+    const psnCodeModal = document.getElementById('psnCodeModal');
+    if (psnCodeModal) {
+        psnCodeModal.style.display = 'none';
+        psnCodeModal.remove();
+    }
+    
+    // Восстанавливаем скролл
+    document.body.style.overflow = 'auto';
+    document.body.style.position = 'relative';
+    
+    // Очищаем данные текущей продажи
+    window.currentSaleAccount = null;
+    window.currentSalePosition = null;
+    window.currentSalePositionIndex = null;
+    
+    console.log('✅ Модальное окно продажи закрыто');
 }
 
 function closeModal() {
@@ -6703,8 +6830,9 @@ function getSalesListHTML(salesData) {
                     marketplaceStyle = 'background: #f1f5f9; color: #374151; border-color: #e2e8f0;';
                 }
                 
+                // ВАЖНО: добавляем data-sale-id к строке таблицы для анимации удаления
                 tableRows += `
-                    <tr style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;">
+                    <tr data-sale-id="${sale.id}" style="border-bottom: 1px solid #e2e8f0; transition: all 0.3s ease;">
                         <td style="padding: 12px 15px; color: #64748b; font-size: 0.9em;">
                             ${displayDate}
                         </td>
@@ -6743,6 +6871,7 @@ function getSalesListHTML(salesData) {
                         <td style="padding: 12px 15px; text-align: center;">
                             ${canDelete ? `
                                 <button onclick="deleteSaleFromReports('${sale.id}')" 
+                                        data-sale-id="${sale.id}"
                                         style="
                                             background: #ef4444;
                                             color: white;
@@ -6759,7 +6888,7 @@ function getSalesListHTML(salesData) {
                                         "
                                         onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.1)'"
                                         onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'"
-                                        title="Удалить продажу">
+                                        title="Удалить продажу ${sale.accountLogin} за ${sale.price} ₽">
                                     🗑️
                                 </button>
                             ` : '<span style="color: #94a3b8; font-size: 0.9em;">-</span>'}
@@ -6859,112 +6988,167 @@ function getSalesListHTML(salesData) {
         `;
     }
 }
-
-// Функция удаления продажи со страницы отчетов
+// ИСПОЛЬЗУЙТЕ ЭТУ ВЕРСИЮ:
 async function deleteSaleFromReports(saleId) {
-    console.log(`🗑️ Попытка удаления продажи ${saleId}...`);
+    console.log(`📊 Удаление продажи из отчетов: ${saleId}`);
     
-    if (!confirm('Удалить эту продажу из системы? Это действие нельзя отменить.')) {
+    // Проверяем ID
+    if (!saleId) {
+        console.error('❌ ID продажи не указан');
+        showNotification('Ошибка: ID продажи не указан', 'error');
+        return;
+    }
+    
+    // Находим продажу
+    const sale = sales.find(s => s.id === saleId);
+    if (!sale) {
+        console.error(`❌ Продажа ${saleId} не найдена в массиве sales`);
+        
+        // Пробуем найти в localStorage
+        const localSales = JSON.parse(localStorage.getItem('sales')) || [];
+        const localSale = localSales.find(s => s.id === saleId);
+        
+        if (!localSale) {
+            showNotification('Продажа не найдена в системе', 'error');
+            return;
+        }
+        
+        console.log('✅ Найдена в localStorage, обновляю память...');
+        sales = localSales;
+    }
+    
+    // Проверяем права пользователя
+    const currentUser = security.getCurrentUser();
+    if (!currentUser) {
+        showNotification('❌ Пользователь не авторизован', 'error');
+        return;
+    }
+    
+    const isAdmin = currentUser.role === 'admin';
+    const isOwner = sale.soldBy === currentUser.username;
+    const canDelete = isAdmin || isOwner;
+    
+    if (!canDelete) {
+        showNotification('❌ Вы не можете удалить эту продажу. Только автор или администратор.', 'error');
+        return;
+    }
+    
+    // Подтверждение удаления
+    if (!confirm(`Удалить продажу аккаунта "${sale.accountLogin}" за ${sale.price} ₽?\nДата: ${sale.date || 'не указана'}\nЭто действие нельзя отменить.`)) {
         return;
     }
     
     try {
-        // 1. Ищем продажу ВО ВСЕХ источниках
-        let saleIndex = sales.findIndex(s => s.id === saleId);
-        let sale = saleIndex !== -1 ? sales[saleIndex] : null;
+        console.log(`✅ Начинаю удаление продажи ${saleId}...`);
         
-        // 2. Если не нашли в памяти, ищем в localStorage
-        if (!sale) {
-            const localSales = JSON.parse(localStorage.getItem('sales')) || [];
-            saleIndex = localSales.findIndex(s => s.id === saleId);
-            sale = saleIndex !== -1 ? localSales[saleIndex] : null;
-            
-            if (sale) {
-                console.log('🔍 Найден в localStorage, обновляю память...');
-                // Обновляем массив в памяти
-                sales = localSales;
-                saleIndex = sales.findIndex(s => s.id === saleId);
-            }
-        }
+        // 1. Удаляем из локального массива
+        const originalCount = sales.length;
+        sales = sales.filter(s => s.id !== saleId);
+        console.log(`✅ Удалено из памяти. Было: ${originalCount}, стало: ${sales.length}`);
         
-        if (!sale || saleIndex === -1) {
-            showNotification('❌ Продажа не найдена в системе', 'error');
-            console.error('Продажа не найдена:', saleId);
-            
-            // Показываем диагностику
-            const diagnosticModal = document.getElementById('diagnosticModal');
-            if (!diagnosticModal) {
-                openDiagnosticModal();
-            }
-            return;
-        }
-        
-        console.log('✅ Продажа найдена:', sale);
-        
-        // 3. Проверяем права
-        const currentUser = security.getCurrentUser();
-        const isAdmin = currentUser && currentUser.role === 'admin';
-        const isOwner = sale.soldBy === currentUser?.username;
-        
-        if (!isAdmin && !isOwner) {
-            showNotification('❌ Вы не можете удалить эту продажу', 'error');
-            return;
-        }
-        
-        // 4. Удаляем из массива
-        sales.splice(saleIndex, 1);
-        console.log(`✅ Удалено из памяти. Осталось: ${sales.length}`);
-        
-        // 5. Сохраняем во ВСЕХ источниках
-        console.log('💾 Сохраняю в localStorage...');
+        // 2. Сохраняем локально
         localStorage.setItem('sales', JSON.stringify(sales));
+        console.log('✅ Сохранено в localStorage');
         
-        console.log('🔥 Сохраняю в Firebase...');
-        const result = await saveToStorage('sales', sales);
+        // 3. Удаляем из Firebase (если подключен)
+        let firebaseDeleted = false;
+        let firebaseError = null;
         
-        if (result.success) {
-            console.log('✅ Данные сохранены');
-        } else {
-            console.warn('⚠️ Ошибка сохранения в Firebase:', result.error);
+        if (firebase && firebase.database) {
+            try {
+                const db = firebase.database();
+                await db.ref('sales/' + saleId).remove();
+                firebaseDeleted = true;
+                console.log(`✅ Продажа удалена из Firebase: ${saleId}`);
+            } catch (error) {
+                firebaseError = error;
+                console.error('❌ Ошибка удаления из Firebase:', error);
+                // Продолжаем работу, продажа уже удалена локально
+            }
+        } else if (window.dataSync && window.dataSync.saveData) {
+            // Используем dataSync для синхронизации
+            try {
+                await window.dataSync.saveData('sales', sales);
+                firebaseDeleted = true;
+                console.log('✅ Продажи синхронизированы через dataSync');
+            } catch (error) {
+                firebaseError = error;
+                console.error('❌ Ошибка синхронизации через dataSync:', error);
+            }
         }
         
-        // 6. Плавное удаление из UI
-        const row = document.getElementById(`sale-row-${saleId}`);
+        // 4. Плавное удаление из таблицы UI
+        const row = document.querySelector(`[data-sale-id="${saleId}"]`);
         if (row) {
-            row.style.transition = 'all 0.3s ease';
-            row.style.opacity = '0';
-            row.style.transform = 'translateX(-50px)';
+            // Добавляем класс для анимации
+            row.classList.add('sale-row-removing');
             
+            // Удаляем после анимации
             setTimeout(() => {
                 row.remove();
-                showNotification('✅ Продажа удалена', 'success');
-                
-                // Обновляем статистику
-                updateReportStats();
-                
-                // Если таблица пустая, обновляем страницу
-                const tbody = document.querySelector('.stats-table tbody');
-                if (tbody && tbody.children.length === 0) {
-                    setTimeout(() => {
-                        generateReport();
-                    }, 500);
-                }
-            }, 300);
-        } else {
-            // Если не нашли строку, обновляем всю страницу
-            showNotification('✅ Продажа удалена', 'success');
-            setTimeout(() => {
-                generateReport();
+                console.log('✅ Строка удалена из UI с анимацией');
             }, 500);
         }
         
+        // 5. Обновляем статистику
+        updateReportStatsAfterDeletion(sale.price);
+        
+        // 6. Показываем уведомление
+        if (firebaseDeleted) {
+            showNotification(`✅ Продажа "${sale.accountLogin}" удалена из системы!`, 'success');
+        } else if (firebaseError) {
+            showNotification(`⚠️ Продажа удалена локально (ошибка синхронизации: ${firebaseError.message})`, 'warning');
+        } else {
+            showNotification(`✅ Продажа "${sale.accountLogin}" удалена локально`, 'info');
+        }
+        
+        // 7. Если таблица пустая, обновляем всю страницу
+        setTimeout(() => {
+            const tbody = document.querySelector('.stats-table tbody');
+            if (tbody && tbody.children.length === 0) {
+                console.log('📊 Таблица пустая, обновляю страницу...');
+                setTimeout(() => {
+                    generateReport();
+                }, 500);
+            }
+        }, 1000);
+        
     } catch (error) {
         console.error('❌ Критическая ошибка при удалении:', error);
-        showNotification('❌ Ошибка при удалении продажи. Проверьте консоль.', 'error');
-        
-        // Показываем диагностику
-        openDiagnosticModal();
+        showNotification('❌ Ошибка при удалении продажи', 'error');
     }
+}
+
+function updateReportStatsAfterDeletion(deletedPrice) {
+    // Обновляем общие цифры в отчете
+    const totalSales = sales.length;
+    const header = document.querySelector('.section h3');
+    if (header && header.textContent.includes('Все продажи')) {
+        header.textContent = `💰 Все продажи (${totalSales})`;
+    }
+    
+    // Обновляем статистические карточки если они есть
+    const statCards = document.querySelectorAll('.stat-card');
+    if (statCards.length >= 3) {
+        // Карточка "Всего продаж"
+        if (statCards[2].querySelector('.stat-value')) {
+            statCards[2].querySelector('.stat-value').textContent = totalSales;
+        }
+        
+        // Пересчитываем выручку
+        const totalRevenue = sales.reduce((sum, sale) => sum + (sale.price || 0), 0);
+        if (statCards[0].querySelector('.stat-value')) {
+            statCards[0].querySelector('.stat-value').textContent = `${totalRevenue.toLocaleString('ru-RU')} ₽`;
+        }
+        
+        // Пересчитываем средний чек
+        const avgCheck = totalSales > 0 ? totalRevenue / totalSales : 0;
+        if (statCards.length >= 5 && statCards[4].querySelector('.stat-value')) {
+            statCards[4].querySelector('.stat-value').textContent = `${avgCheck.toLocaleString('ru-RU')} ₽`;
+        }
+    }
+    
+    console.log('📊 Статистика обновлена после удаления');
 }
 
 // Добавьте функцию обновления статистики
