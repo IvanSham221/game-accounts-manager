@@ -6129,21 +6129,12 @@ async function deleteSale(saleId) {
         return;
     }
     
-    // Проверяем права
     const currentUser = security.getCurrentUser();
     const sale = sales.find(s => s.id === saleId);
-    
+
     if (!sale) {
         console.error(`❌ Продажа с ID ${saleId} не найдена`);
         showNotification('Продажа не найдена', 'error');
-        return;
-    }
-    
-    const isAdmin = currentUser && currentUser.role === 'admin';
-    const isOwner = sale.soldBy === currentUser?.username;
-    
-    if (!isAdmin && !isOwner) {
-        showNotification('❌ Вы не можете удалить эту продажу. Только автор или администратор.', 'error');
         return;
     }
     
@@ -6869,9 +6860,8 @@ function getSalesListHTML(salesData) {
                             </div>
                         </td>
                         <td style="padding: 12px 15px; text-align: center;">
-                            ${canDelete ? `
-                                <button onclick="deleteSaleFromReports('${sale.id}')" 
-                                        data-sale-id="${sale.id}"
+                            <button onclick="deleteSaleFromReports('${sale.id}')" 
+                                    data-sale-id="${sale.id}"
                                         style="
                                             background: #ef4444;
                                             color: white;
@@ -6890,8 +6880,7 @@ function getSalesListHTML(salesData) {
                                         onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'"
                                         title="Удалить продажу ${sale.accountLogin} за ${sale.price} ₽">
                                     🗑️
-                                </button>
-                            ` : '<span style="color: #94a3b8; font-size: 0.9em;">-</span>'}
+                            </button>
                         </td>
                     </tr>
                 `;
@@ -7023,15 +7012,8 @@ async function deleteSaleFromReports(saleId) {
         showNotification('❌ Пользователь не авторизован', 'error');
         return;
     }
-    
-    const isAdmin = currentUser.role === 'admin';
-    const isOwner = sale.soldBy === currentUser.username;
-    const canDelete = isAdmin || isOwner;
-    
-    if (!canDelete) {
-        showNotification('❌ Вы не можете удалить эту продажу. Только автор или администратор.', 'error');
-        return;
-    }
+
+    const canDelete = true;
     
     // Подтверждение удаления
     if (!confirm(`Удалить продажу аккаунта "${sale.accountLogin}" за ${sale.price} ₽?\nДата: ${sale.date || 'не указана'}\nЭто действие нельзя отменить.`)) {
