@@ -337,6 +337,33 @@ class PricesManager {
         container.innerHTML = html;
     }
 
+    // ДОБАВЬТЕ ЭТОТ МЕТОД В КЛАСС PricesManager
+async refreshFromFirebase() {
+    console.log('💰 Обновление ценников из Firebase...');
+    
+    try {
+        // Загружаем актуальные данные из localStorage (они уже синхронизированы firebase.js)
+        const savedPrices = localStorage.getItem('gamePrices');
+        
+        if (savedPrices) {
+            this.gamePrices = JSON.parse(savedPrices);
+            console.log(`💰 Загружено ${this.gamePrices.length} ценников из синхронизации`);
+            
+            // Обновляем отображение
+            this.displayPrices();
+            this.updateStats();
+            
+            showNotification('Ценники синхронизированы! ✅', 'success');
+        }
+        
+        // Обновляем селект игр (на случай, если добавили новую игру)
+        this.loadGameSelect();
+        
+    } catch (error) {
+        console.error('❌ Ошибка обновления ценников из Firebase:', error);
+    }
+}
+
     async addGameToPrices() {
         const gameSelect = document.getElementById('gameSelect');
         const gameLanguage = document.getElementById('gameLanguage');
@@ -689,6 +716,13 @@ function showAllPrices() {
         if (allBtn) allBtn.classList.add('active');
     }
 }
+
+// ГЛОБАЛЬНАЯ ФУНКЦИЯ ДЛЯ ВЫЗОВА ИЗ FIREBASE.JS
+window.refreshPricesFromFirebase = function() {
+    if (window.pricesManager) {
+        window.pricesManager.refreshFromFirebase();
+    }
+};
 
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
