@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Добавить аккаунт - Менеджер игровых аккаунтов</title>
     <link rel="stylesheet" href="style.css?v=20250115">
+    <style>
+        /* Добавим стиль для синей кнопки, если его нет в style.css */
+        .btn-info {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: white;
+        }
+        .btn-info:hover {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        }
+    </style>
 </head>
 <body>
     <div id="mobileMenu" class="mobile-menu">
@@ -76,6 +86,11 @@
                         <label>П3 PS5: <input type="number" id="p3_ps5" class="input-small" value="0" min="0"></label>
                     </div>
                 </div>
+                
+                <!-- 🔥 НОВАЯ КНОПКА: Вставить из буфера -->
+                <button type="button" class="btn btn-info" onclick="pasteFromClipboard()" style="grid-column: 1 / -1; margin-bottom: 10px;">
+                    📋 Вставить из буфера
+                </button>
                 
                 <button onclick="addAccount()" class="btn btn-success" style="grid-column: 1 / -1;">Добавить аккаунт</button>
             </div>

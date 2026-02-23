@@ -4825,17 +4825,97 @@ function getPositionName(positionType) {
     return names[positionType] || positionType;
 }
 
+
+// ============================================
+// ПОКАЗ ДАННЫХ ПОСЛЕ ПРОДАЖИ (ТОЛЬКО ПРАВИЛА ДЛЯ ВЫБРАННОЙ ПОЗИЦИИ)
+// ============================================
 function showAccountDataAfterSale(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
-    if (!account) return;
+    if (!account) {
+        console.error('❌ Аккаунт не найден');
+        return;
+    }
 
-    const psnCodesArray = account.psnCodes ? account.psnCodes.split(',').map(code => code.trim()).filter(code => code !== '') : [];
-    const currentCode = psnCodesArray.length > 0 ? psnCodesArray[0] : 'По запросу';
+    // Получаем данные о последней проданной позиции
+    const lastSale = sales
+        .filter(s => s.accountId === accountId)
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
+
+    if (!lastSale) {
+        console.error('❌ Не найдена продажа для аккаунта', accountId);
+        return;
+    }
+
+    const marketplace = lastSale.marketplace;
+    const positionType = lastSale.positionType;
+    const isP2 = positionType.includes('p2');
+
+    // --- ТЕКСТЫ ДЛЯ ПЛАШЕК (Русский) ---
+    const rulesP2_RU = `❗️ Чтобы гарантия на игру сохранялась — при любых ошибках пишем только в чат, где была куплена игра.
+Правила пользования игрой (П2):
+— Данные аккаунта не менять: пароль, аутентификатор, номер телефона.
+— Играем только на той консоли, для которой была приобретена игра.
+— Одна игра — один пользователь: не покупаем игры или подписки на выданном аккаунте.
+— Используем только одну личную консоль: добавлять игру на другие устройства запрещено.
+— Включать активацию для PS4 или общий доступ для PS5 нельзя, вы играете только с выданных данных с включенным интернетом.`;
+
+    const rulesP3_RU = `**Правила пользования выданной игрой с Активацией / Общим доступом (П3):**
+— Данные аккаунта не менять: пароль, аутентификатор, номер телефона.
+— Одна игра — один пользователь: не покупаем игры или подписки на выданные данные.
+— **Позиция с Активацией / Общим доступом — играем только с вашего личного пользователя.** На выданный аккаунт заходим **только для настройки**.
+— **Данные нельзя добавлять на несколько консолей.** Используем только одну личную консоль.
+— Если на игре появился “замочек”, зайдите на пользователя с игрой и:
+• на PS4 — активируйте как основную систему,
+• на PS5 — включите общий доступ к консоли.
+— **Играем только на той консоли, для которой была приобретена игра.** Купить игру для PS4 и играть на PS5 — это потеря гарантии.
+— **При несоблюдении правил гарантии мы имеем право отобрать аккаунт без возврата денег.**`;
+
+    const review_RU = `🙏 Мы будем благодарны за ваш отзыв — он очень помогает нам развиваться!
+🎮 Приятной игры!
+
+📝 Отзывы: https://t.me/pshubshoptg/29
+📌 Актуальные цены на игры: @pshubshoptg`;
+
+    // --- ТЕКСТЫ ДЛЯ ПЛАШЕК (Английский) ---
+    const rulesP2_EN = `❗️ To maintain the game warranty, please only write to the chat where the game was purchased if you encounter any errors.
+Rules for using the game (P2):
+— Do not change your account details: password, authenticator, phone number.
+— Only play on the console for which the game was purchased.
+— One game — one user: do not purchase games or subscriptions on the account provided.
+— Use only one personal console: adding the game to other devices is prohibited.
+— Do not enable activation for PS4 or shared access for PS5; you can only play with the provided data with the internet enabled.`;
+
+    const rulesP3_EN = `**Rules for using the game with Activation/Shared Access (P3):**
+— Do not change your account details: password, authenticator, phone number.
+— One game — one user: we do not purchase games or subscriptions for the issued details.
+— **Position with Activation/Shared Access — play only with your personal user.** Log in to the issued account **only for configuration**.
+— **Data cannot be added to multiple consoles.** Use only one personal console.
+— If a "lock" appears on the game, log in to the user with the game and:
+  • on PS4 — activate it as the primary system,
+  • on PS5 — enable shared access to the console.`;
+
+    const review_EN = `🙏 We would appreciate your feedback — it will help us improve!
+🎮 Enjoy the game!
+
+📝 Reviews: https://t.me/pshubshoptg/29
+📌 Current game prices: @pshubshoptg`;
+
+    // --- ИНСТРУКЦИИ ПО АКТИВАЦИИ ---
+    const instructionRU = isP2 ? 
+        POSITION_INSTRUCTIONS['p2_' + (positionType.includes('ps4') ? 'ps4' : 'ps5')] : 
+        POSITION_INSTRUCTIONS['p3_' + (positionType.includes('ps4') ? 'ps4' : 'ps5')];
     
+    const instructionEN = isP2 ? 
+        POSITION_INSTRUCTIONS_EN['p2_' + (positionType.includes('ps4') ? 'ps4' : 'ps5')] : 
+        POSITION_INSTRUCTIONS_EN['p3_' + (positionType.includes('ps4') ? 'ps4' : 'ps5')];
+
+    // --- ДАННЫЕ АККАУНТА ---
+    const psnCodesArray = account.psnCodes ? account.psnCodes.split(',').map(code => code.trim()).filter(code => code !== '') : [];
+    const currentCode = psnCodesArray.length > 0 ? psnCodesArray[0] : 'По запросу / On request';
+
     if (psnCodesArray.length > 0) {
         psnCodesArray.shift();
         const updatedCodes = psnCodesArray.join(', ');
-        
         const accountIndex = accounts.findIndex(acc => acc.id === accountId);
         if (accountIndex !== -1) {
             accounts[accountIndex].psnCodes = updatedCodes;
@@ -4843,280 +4923,186 @@ function showAccountDataAfterSale(accountId) {
         }
     }
 
-    // Получаем инструкции на русском и английском
-    const instructionRU = getInstructionForPosition(window.currentSalePosition);
-    const instructionEN = POSITION_INSTRUCTIONS_EN[window.currentSalePosition] || instructionRU;
-    
-    // Сохраняем данные на русском
+    // --- ФУНКЦИИ КОПИРОВАНИЯ ---
+    window.copyRules = function() {
+        const text = window.currentLanguage === 'EN' 
+            ? (isP2 ? rulesP2_EN : rulesP3_EN)
+            : (isP2 ? rulesP2_RU : rulesP3_RU);
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification(window.currentLanguage === 'EN' ? '✅ Rules copied!' : '✅ Правила скопированы!', 'success');
+        });
+    };
+
+    window.copyReview = function() {
+        if (marketplace !== 'telegram') {
+            showNotification(window.currentLanguage === 'EN' ? 'Feedback is only for Telegram' : 'Отзыв только для Telegram', 'info');
+            return;
+        }
+        const text = window.currentLanguage === 'EN' ? review_EN : review_RU;
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification(window.currentLanguage === 'EN' ? '✅ Feedback copied!' : '✅ Отзыв скопирован!', 'success');
+        });
+    };
+
+    window.copyAccountData = function() {
+        const text = window.currentLanguage === 'EN' ? window.currentOrderDataEN : window.currentOrderDataRU;
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification(window.currentLanguage === 'EN' ? '✅ Data copied!' : '✅ Данные скопированы!', 'success');
+        });
+    };
+
+    window.copyInstruction = function() {
+        const text = window.currentLanguage === 'EN' ? instructionEN : instructionRU;
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification(window.currentLanguage === 'EN' ? '✅ Instructions copied!' : '✅ Инструкция скопирована!', 'success');
+        });
+    };
+
+    window.switchLanguage = function(lang) {
+        window.currentLanguage = lang;
+        renderModal();
+    };
+
+    // --- ФУНКЦИЯ ДЛЯ ОТРИСОВКИ МОДАЛЬНОГО ОКНА ---
+    function renderModal() {
+        const isEn = window.currentLanguage === 'EN';
+        
+        // Текущие тексты
+        const currentOrderData = isEn ? window.currentOrderDataEN : window.currentOrderDataRU;
+        const currentInstruction = isEn ? instructionEN : instructionRU;
+        const currentRules = isEn 
+            ? (isP2 ? rulesP2_EN : rulesP3_EN)
+            : (isP2 ? rulesP2_RU : rulesP3_RU);
+        const currentReview = isEn ? review_EN : review_RU;
+
+        // Тексты для кнопок и заголовков
+        const dataTitle = isEn ? 'Customer data:' : 'Данные для клиента:';
+        const instructionTitle = isEn ? `Instructions for ${getPositionName(positionType)}:` : `Инструкция для ${getPositionName(positionType)}:`;
+        const rulesTitle = isEn 
+            ? (isP2 ? 'Rules for P2:' : 'Rules for P3:')
+            : (isP2 ? 'Правила для П2:' : 'Правила для П3:');
+        const reviewTitle = isEn ? 'Feedback' : 'Отзыв';
+        const copyDataBtn = isEn ? 'Copy data' : 'Скопировать данные';
+        const copyInstructionBtn = isEn ? 'Copy instructions' : 'Скопировать инструкцию';
+        const copyRulesBtn = isEn ? 'Copy rules' : 'Скопировать правила';
+        const copyReviewBtn = isEn ? 'Copy feedback' : 'Скопировать отзыв';
+        const doneBtn = isEn ? 'Done' : 'Готово';
+
+        // Генерируем HTML блоков в зависимости от площадки
+        let marketplaceBlocksHTML = '';
+        
+        if (marketplace === 'telegram') {
+            marketplaceBlocksHTML = `
+                <!-- Правила (только для выбранной позиции) -->
+                <div class="instruction-section" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border-color: #ffc107; margin-top: 15px; padding: 20px; border-radius: 15px;">
+                    <h4 style="color: #856404; margin-bottom: 10px;">${rulesTitle}</h4>
+                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ffe69c; font-size: 13px; white-space: pre-wrap; margin-bottom: 10px;">${currentRules}</div>
+                    <button class="btn btn-warning btn-small" onclick="window.copyRules()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${copyRulesBtn}</button>
+                </div>
+                <!-- Отзыв -->
+                <div class="instruction-section" style="background: linear-gradient(135deg, #d1e7dd 0%, #b8dfd0 100%); border-color: #20c997; margin-top: 15px; padding: 20px; border-radius: 15px;">
+                    <h4 style="color: #0f5132; margin-bottom: 10px;">${reviewTitle}:</h4>
+                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #b8dfd0; font-size: 13px; white-space: pre-wrap; margin-bottom: 10px;">${currentReview}</div>
+                    <button class="btn btn-success btn-small" onclick="window.copyReview()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${copyReviewBtn}</button>
+                </div>
+            `;
+        } else if (marketplace === 'avito') {
+            marketplaceBlocksHTML = `
+                <!-- Правила (только для выбранной позиции) -->
+                <div class="instruction-section" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border-color: #ffc107; margin-top: 15px; padding: 20px; border-radius: 15px;">
+                    <h4 style="color: #856404; margin-bottom: 10px;">${rulesTitle}</h4>
+                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ffe69c; font-size: 13px; white-space: pre-wrap; margin-bottom: 10px;">${currentRules}</div>
+                    <button class="btn btn-warning btn-small" onclick="window.copyRules()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${copyRulesBtn}</button>
+                </div>
+            `;
+        }
+
+        const modalContent = document.getElementById('saleModalContent');
+        modalContent.innerHTML = `
+            <h2 style="text-align: center; margin-bottom: 25px;">
+                <span style="display: inline-block; margin-right: 10px;">✅</span>
+                Продажа оформлена!
+            </h2>
+            
+            <!-- Языковая панель -->
+            <div class="language-switcher" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; padding: 15px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 15px; border: 1px solid #e2e8f0;">
+                <button onclick="window.switchLanguage('RU')" class="language-btn" style="padding: 10px 25px; border-radius: 25px; border: 2px solid ${!isEn ? '#4361ee' : '#e2e8f0'}; background: ${!isEn ? '#4361ee' : 'white'}; color: ${!isEn ? 'white' : '#64748b'}; font-weight: 600; cursor: pointer;">🇷🇺 Русский</button>
+                <button onclick="window.switchLanguage('EN')" class="language-btn" style="padding: 10px 25px; border-radius: 25px; border: 2px solid ${isEn ? '#4361ee' : '#e2e8f0'}; background: ${isEn ? '#4361ee' : 'white'}; color: ${isEn ? 'white' : '#64748b'}; font-weight: 600; cursor: pointer;">🇬🇧 English</button>
+            </div>
+            
+            <!-- Данные для клиента -->
+            <div id="orderDataSection" class="sale-success-section" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 25px; border-radius: 15px; border: 1px solid #bbf7d0; margin-bottom: 25px;">
+                <h3 style="color: #16a34a; margin-bottom: 20px;"><span>📋</span> <span>${dataTitle}</span></h3>
+                <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.6; margin-bottom: 20px; white-space: pre-wrap; word-break: break-word;">${currentOrderData}</div>
+                <button class="btn btn-success btn-small" onclick="window.copyAccountData()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${copyDataBtn}</button>
+            </div>
+            
+            <!-- Инструкция по активации -->
+            <div id="instructionSection" class="instruction-section" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 25px; border-radius: 15px; border: 1px solid #bfdbfe; margin-bottom: 25px;">
+                <h3 style="color: #2563eb; margin-bottom: 15px;"><span>📖</span> <span>${instructionTitle}</span></h3>
+                <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; max-height: 300px; overflow-y: auto; font-size: 13.5px; line-height: 1.5; color: #4b5563; white-space: pre-wrap; margin-bottom: 10px;">${currentInstruction.replace(/\n/g, '<br>')}</div>
+                <button class="btn btn-primary btn-small" onclick="window.copyInstruction()" style="width: 100%;"><span style="margin-right: 8px;">📝</span> ${copyInstructionBtn}</button>
+            </div>
+            
+            <!-- ДИНАМИЧЕСКИЕ БЛОКИ (только правила для выбранной позиции) -->
+            <div id="marketplaceBlocksContainer">
+                ${marketplaceBlocksHTML}
+            </div>
+            
+            <!-- Оставшиеся коды -->
+            ${psnCodesArray.length > 0 ? `
+                <div class="remaining-codes" style="background: #f8fafc; padding: 20px; border-radius: 15px; border: 1px solid #e2e8f0; margin: 25px 0;">
+                    <h4 style="color: #475569; margin-bottom: 15px;"><span>🔑</span> <span>${isEn ? `Remaining codes (${psnCodesArray.length}):` : `Оставшиеся коды (${psnCodesArray.length}):`}</span></h4>
+                    <div class="codes-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+                        ${psnCodesArray.map(code => `<div style="background: white; padding: 10px 15px; border-radius: 8px; border: 1px solid #e2e8f0; font-family: 'Courier New', monospace; font-size: 12px; text-align: center; word-break: break-all;">${code}</div>`).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- Кнопка закрытия -->
+            <div class="order-buttons" style="display: flex; gap: 15px; justify-content: center; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                <button class="btn btn-primary" onclick="closeSaleModalAndRefresh()" style="padding: 12px 24px; flex: 1; background: #10b981; border-color: #10b981;" id="closeSaleBtn">
+                    <span style="margin-right: 8px;">✅</span>
+                    ${doneBtn}
+                </button>
+            </div>
+        `;
+    }
+
+    // Сохраняем данные глобально
+    window.currentLanguage = 'RU';
     window.currentOrderDataRU = `Игра: ${account.gameName}
 Логин PSN: ${account.psnLogin}
 Пароль PSN: ${account.psnPassword || 'Не указан'}
 Код аутентификации PSN: ${currentCode}`;
-    
-    // Сохраняем данные на английском
+
     window.currentOrderDataEN = `Game: ${account.gameName}
 PSN Login: ${account.psnLogin}
 PSN Password: ${account.psnPassword || 'Not specified'}
 PSN Authentication Code: ${currentCode}`;
-    
-    // Сохраняем инструкции
-    window.currentInstructionRU = instructionRU;
-    window.currentInstructionEN = instructionEN;
-    
-    // Сохраняем текущий язык (по умолчанию русский)
-    window.currentLanguage = 'RU';
 
-    const modalContent = document.getElementById('saleModalContent');
-    modalContent.innerHTML = `
-        <h2 style="text-align: center; margin-bottom: 25px;">
-            <span style="display: inline-block; margin-right: 10px;">✅</span>
-            Продажа оформлена!
-        </h2>
-        
-        <!-- Языковая панель -->
-        <div class="language-switcher" style="
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 25px;
-            padding: 15px;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            border-radius: 15px;
-            border: 1px solid #e2e8f0;
-        ">
-            <button onclick="switchLanguage('RU')" 
-                    class="language-btn ${window.currentLanguage === 'RU' ? 'active' : ''}"
-                    style="
-                        padding: 10px 25px;
-                        border-radius: 25px;
-                        border: 2px solid ${window.currentLanguage === 'RU' ? '#4361ee' : '#e2e8f0'};
-                        background: ${window.currentLanguage === 'RU' ? '#4361ee' : 'white'};
-                        color: ${window.currentLanguage === 'RU' ? 'white' : '#64748b'};
-                        font-weight: 600;
-                        cursor: pointer;
-                        transition: all 0.3s ease;
-                    ">
-                🇷🇺 Русский
-            </button>
-            <button onclick="switchLanguage('EN')" 
-                    class="language-btn ${window.currentLanguage === 'EN' ? 'active' : ''}"
-                    style="
-                        padding: 10px 25px;
-                        border-radius: 25px;
-                        border: 2px solid ${window.currentLanguage === 'EN' ? '#4361ee' : '#e2e8f0'};
-                        background: ${window.currentLanguage === 'EN' ? '#4361ee' : 'white'};
-                        color: ${window.currentLanguage === 'EN' ? 'white' : '#64748b'};
-                        font-weight: 600;
-                        cursor: pointer;
-                        transition: all 0.3s ease;
-                    ">
-                🇬🇧 English
-            </button>
-        </div>
-        
-        <!-- Данные для клиента (динамически меняются) -->
-        <div id="orderDataSection" class="sale-success-section" style="
-            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-            padding: 25px;
-            border-radius: 15px;
-            border: 1px solid #bbf7d0;
-            margin-bottom: 25px;
-        ">
-            <h3 style="color: #16a34a; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-                <span>📋</span>
-                <span id="dataTitle">Данные для клиента:</span>
-            </h3>
-            
-            <div class="order-data" id="orderDataText" style="
-                background: white;
-                padding: 20px;
-                border-radius: 10px;
-                border: 1px solid #e2e8f0;
-                font-family: 'Courier New', monospace;
-                font-size: 14px;
-                line-height: 1.6;
-                margin-bottom: 20px;
-                white-space: pre-wrap;
-                word-break: break-word;
-            ">
-${window.currentOrderDataRU}
-            </div>
-            
-            <div class="copy-buttons" style="display: flex; gap: 10px; margin-top: 15px;">
-                <button class="btn btn-success btn-small" onclick="copyAccountData()" style="flex: 1;">
-                    <span style="margin-right: 8px;">📋</span>
-                    <span id="copyDataBtn">Скопировать данные</span>
-                </button>
-                <button class="btn btn-primary btn-small" onclick="copyInstruction()" style="flex: 1;">
-                    <span style="margin-right: 8px;">📝</span>
-                    <span id="copyInstructionBtn">Скопировать инструкцию</span>
-                </button>
-            </div>
-        </div>
-        
-        <!-- Инструкция (динамически меняется) -->
-        <div id="instructionSection" class="instruction-section" style="
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            padding: 25px;
-            border-radius: 15px;
-            border: 1px solid #bfdbfe;
-            margin-bottom: 25px;
-        ">
-            <h3 style="color: #2563eb; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                <span>📖</span>
-                <span id="instructionTitle">Инструкция для ${getPositionName(window.currentSalePosition)}:</span>
-            </h3>
-            
-            <div id="instructionText" style="
-                background: white;
-                padding: 20px;
-                border-radius: 10px;
-                border: 1px solid #e2e8f0;
-                max-height: 300px;
-                overflow-y: auto;
-                font-size: 13.5px;
-                line-height: 1.5;
-                color: #4b5563;
-            ">
-                ${instructionRU.replace(/\n/g, '<br>')}
-            </div>
-            
-            <div style="margin-top: 15px; text-align: center;">
-                <small style="color: #6b7280;">
-                    ⭐ <span id="instructionHint">Инструкция скопирована в буфер обмена при нажатии кнопки выше</span>
-                </small>
-            </div>
-        </div>
-        
-        ${psnCodesArray.length > 0 ? `
-            <div class="remaining-codes" style="
-                background: #f8fafc;
-                padding: 20px;
-                border-radius: 15px;
-                border: 1px solid #e2e8f0;
-                margin-bottom: 25px;
-            ">
-                <h4 style="color: #475569; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                    <span>🔑</span>
-                    <span id="codesTitle">Оставшиеся коды (${psnCodesArray.length}):</span>
-                </h4>
-                <div class="codes-list" style="
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-                    gap: 10px;
-                ">
-                    ${psnCodesArray.map(code => `
-                        <div style="
-                            background: white;
-                            padding: 10px 15px;
-                            border-radius: 8px;
-                            border: 1px solid #e2e8f0;
-                            font-family: 'Courier New', monospace;
-                            font-size: 12px;
-                            text-align: center;
-                            word-break: break-all;
-                        ">${code}</div>
-                    `).join('')}
-                </div>
-            </div>
-        ` : ''}
-        
-        <div class="order-buttons" style="
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            padding-top: 20px;
-            border-top: 1px solid #e2e8f0;
-        ">
-            <button class="btn btn-success" onclick="copyAllData()" style="padding: 12px 24px; flex: 1;">
-                <span style="margin-right: 8px;">📄</span>
-                <span id="copyAllBtn">Скопировать ВСЁ (данные + инструкция)</span>
-            </button>
-            <button class="btn btn-primary" onclick="closeSaleModalAndRefresh()" 
-                    style="padding: 12px 24px; flex: 1; background: #10b981; border-color: #10b981;"
-                    id="closeSaleBtn">
-                <span style="margin-right: 8px;">✅</span>
-                <span id="doneBtn">Готово (закрыть окно)</span>
-            </button>
-        </div>
-    `;
-    
-    // Инициализируем копирование на русском
-    window.currentOrderData = window.currentOrderDataRU;
-    window.currentInstruction = window.currentInstructionRU;
-    
-    // Добавляем обработчик для кнопки
-    setTimeout(() => {
-        const closeBtn = document.getElementById('closeSaleBtn');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', function() {
-                console.log('🎯 Кнопка "Готово" нажата, закрываю модальное окно...');
-            });
-        }
-    }, 100);
+    // Отображаем модальное окно
+    renderModal();
+    openModal('saleModal');
 }
 
-// Добавьте после функции showAccountDataAfterSale() в script.js:
-
-// Функция переключения языка
-function switchLanguage(lang) {
-    if (!window.currentOrderDataRU) return;
+// Функция закрытия (оставляем)
+function closeSaleModalAndRefresh() {
+    console.log('✅ Закрываю модальное окно продажи...');
     
-    window.currentLanguage = lang;
-    
-    // Обновляем кнопки языка
-    document.querySelectorAll('.language-btn').forEach(btn => {
-        const isActive = btn.textContent.includes(lang === 'RU' ? 'Русский' : 'English');
-        btn.style.background = isActive ? '#4361ee' : 'white';
-        btn.style.color = isActive ? 'white' : '#64748b';
-        btn.style.borderColor = isActive ? '#4361ee' : '#e2e8f0';
-    });
-    
-    // Обновляем тексты в зависимости от языка
-    if (lang === 'EN') {
-        // Обновляем заголовки
-        document.getElementById('dataTitle').textContent = 'Customer data:';
-        document.getElementById('instructionTitle').textContent = `Instructions for ${getPositionName(window.currentSalePosition)}:`;
-        document.getElementById('copyDataBtn').textContent = 'Copy data';
-        document.getElementById('copyInstructionBtn').textContent = 'Copy instructions';
-        document.getElementById('instructionHint').textContent = 'Instructions copied to clipboard when clicking the button above';
-        document.getElementById('copyAllBtn').textContent = 'Copy ALL (data + instructions)';
-        document.getElementById('doneBtn').textContent = 'Done';
-        
-        if (document.getElementById('codesTitle')) {
-            document.getElementById('codesTitle').textContent = `Remaining codes (${window.currentOrderDataEN.split('\n').filter(line => line.includes('Code')).length}):`;
-        }
-        
-        // Обновляем данные
-        document.getElementById('orderDataText').textContent = window.currentOrderDataEN;
-        document.getElementById('instructionText').innerHTML = window.currentInstructionEN.replace(/\n/g, '<br>');
-        
-        // Обновляем глобальные переменные для копирования
-        window.currentOrderData = window.currentOrderDataEN;
-        window.currentInstruction = window.currentInstructionEN;
-        
-    } else {
-        // Обновляем на русский
-        document.getElementById('dataTitle').textContent = 'Данные для клиента:';
-        document.getElementById('instructionTitle').textContent = `Инструкция для ${getPositionName(window.currentSalePosition)}:`;
-        document.getElementById('copyDataBtn').textContent = 'Скопировать данные';
-        document.getElementById('copyInstructionBtn').textContent = 'Скопировать инструкцию';
-        document.getElementById('instructionHint').textContent = 'Инструкция скопирована в буфер обмена при нажатии кнопки выше';
-        document.getElementById('copyAllBtn').textContent = 'Скопировать ВСЁ (данные + инструкция)';
-        document.getElementById('doneBtn').textContent = 'Готово';
-        
-        if (document.getElementById('codesTitle')) {
-            document.getElementById('codesTitle').textContent = `Оставшиеся коды (${window.currentOrderDataRU.split('\n').filter(line => line.includes('Код')).length}):`;
-        }
-        
-        // Обновляем данные
-        document.getElementById('orderDataText').textContent = window.currentOrderDataRU;
-        document.getElementById('instructionText').innerHTML = window.currentInstructionRU.replace(/\n/g, '<br>');
-        
-        // Обновляем глобальные переменные для копирования
-        window.currentOrderData = window.currentOrderDataRU;
-        window.currentInstruction = window.currentInstructionRU;
+    const saleModal = document.getElementById('saleModal');
+    if (saleModal) {
+        saleModal.style.display = 'none';
     }
+    
+    document.body.style.overflow = 'auto';
+    document.body.style.position = 'relative';
+    
+    setTimeout(() => {
+        refreshSearchResultsAfterSaleUpdate();
+    }, 300);
+    
+    showNotification('Продажа завершена! ✅', 'success', 2000);
 }
 
 // Функция для копирования инструкции
@@ -5141,27 +5127,30 @@ function copyInstruction() {
     });
 }
 
-// Функция для копирования ВСЕГО (данные + инструкция)
-function copyAllData() {
-    if (!window.currentOrderData || !window.currentInstruction) {
-        showNotification('❌ Data not found', 'error');
-        return;
-    }
-    
-    const isEnglish = window.currentLanguage === 'EN';
-    const allData = `${window.currentOrderData}\n\n${window.currentInstruction}`;
-    
-    navigator.clipboard.writeText(allData).then(() => {
-        showNotification(isEnglish ? '✅ All data copied!' : '✅ Все данные скопированы!', 'success');
-    }).catch(err => {
-        const textArea = document.createElement('textarea');
-        textArea.value = allData;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        showNotification(isEnglish ? '✅ All data copied!' : '✅ Все данные скопированы!', 'success');
+
+function copyRulesP2() {
+    const texts = window.getCurrentTexts();
+    navigator.clipboard.writeText(texts.rulesP2).then(() => {
+        showNotification(texts.copyRulesP2Btn + ' ✅', 'success');
     });
+}
+
+function copyRulesP3() {
+    const texts = window.getCurrentTexts();
+    navigator.clipboard.writeText(texts.rulesP3).then(() => {
+        showNotification(texts.copyRulesP3Btn + ' ✅', 'success');
+    });
+}
+
+function copyReview() {
+    const texts = window.getCurrentTexts();
+    if (window.currentMarketplace === 'telegram') {
+        navigator.clipboard.writeText(texts.review).then(() => {
+            showNotification(texts.copyReviewBtn + ' ✅', 'success');
+        });
+    } else {
+        showNotification('Отзыв доступен только для Telegram', 'info');
+    }
 }
 
 // Обновим функцию copyAccountData() чтобы она тоже была доступна
@@ -5185,6 +5174,41 @@ function copyAccountData() {
         document.body.removeChild(textArea);
         showNotification(isEnglish ? '✅ Data copied to clipboard!' : '✅ Данные скопированы в буфер обмена!', 'success');
     });
+}
+
+function copyAllSaleData() {
+    const texts = window.getCurrentTexts();
+    let allText = texts.orderData + '\n\n' + texts.instruction + '\n\n' + texts.rulesP2 + '\n\n' + texts.rulesP3;
+    
+    if (window.currentMarketplace === 'telegram') {
+        allText += '\n\n' + texts.review;
+    }
+    
+    navigator.clipboard.writeText(allText).then(() => {
+        showNotification(texts.copyAllBtn + ' ✅', 'success');
+    });
+}
+
+// ============================================
+// ФУНКЦИЯ ПЕРЕКЛЮЧЕНИЯ ЯЗЫКА (обновленная)
+// ============================================
+function switchLanguage(lang) {
+    if (!window.currentOrderDataRU) return;
+    
+    window.currentLanguage = lang;
+    
+    // Обновляем кнопки языка
+    document.querySelectorAll('.language-btn').forEach(btn => {
+        const isActive = btn.textContent.includes(lang === 'RU' ? 'Русский' : 'English');
+        btn.style.background = isActive ? '#4361ee' : 'white';
+        btn.style.color = isActive ? 'white' : '#64748b';
+        btn.style.borderColor = isActive ? '#4361ee' : '#e2e8f0';
+    });
+    
+    // Перерендериваем модальное окно
+    if (window.renderSaleModal) {
+        window.renderSaleModal();
+    }
 }
 
 // ИСПОЛЬЗУЙТЕ эту функцию:
@@ -6880,7 +6904,7 @@ function getSalesListHTML(salesData) {
                                         onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'"
                                         title="Удалить продажу ${sale.accountLogin} за ${sale.price} ₽">
                                     🗑️
-                            </button>
+                                </button>
                         </td>
                     </tr>
                 `;
@@ -8420,6 +8444,89 @@ function openDiagnosticModal() {
     
     // Автоматически запускаем диагностику
     setTimeout(runSalesDiagnostic, 300);
+}
+
+// ============================================
+// ПАРСИНГ АККАУНТА ИЗ БУФЕРА ОБМЕНА
+// ============================================
+async function pasteFromClipboard() {
+    try {
+        // Пытаемся прочитать текст из буфера обмена
+        const text = await navigator.clipboard.readText();
+        if (!text) {
+            showNotification('Буфер обмена пуст', 'warning');
+            return;
+        }
+
+        // Разбираем текст на поля
+        const lines = text.split('\n');
+        const data = {};
+
+        lines.forEach(line => {
+            line = line.trim();
+            
+            // Почта для входа Playstation: ...
+            if (line.includes('Почта для входа Playstation:')) {
+                const match = line.match(/Почта для входа Playstation:\s*(.+)/);
+                if (match) {
+                    const email = match[1].trim();
+                    document.getElementById('psnLogin').value = email;
+                    document.getElementById('email').value = email;
+                }
+            }
+            
+            // Пароль для входа Playstation: ...
+            else if (line.includes('Пароль для входа Playstation:')) {
+                const match = line.match(/Пароль для входа Playstation:\s*(.+)/);
+                if (match) {
+                    document.getElementById('psnPassword').value = match[1].trim();
+                }
+            }
+            
+            // Почта пароль: ...
+            else if (line.includes('Почта пароль:')) {
+                const match = line.match(/Почта пароль:\s*(.+)/);
+                if (match) {
+                    document.getElementById('emailPassword').value = match[1].trim();
+                }
+            }
+            
+            // Дата рождения: ...
+            else if (line.includes('Дата рождения:')) {
+                const match = line.match(/Дата рождения:\s*(.+)/);
+                if (match) {
+                    document.getElementById('birthDate').value = match[1].trim();
+                }
+            }
+            
+            // 2ФА (Google): ...
+            else if (line.includes('2ФА (Google):')) {
+                const match = line.match(/2ФА \(Google\):\s*(.+)/);
+                if (match) {
+                    document.getElementById('psnAuthenticator').value = match[1].trim();
+                }
+            }
+            
+            // 2ФА резервные коды: ...
+            else if (line.includes('2ФА резервные коды:')) {
+                const match = line.match(/2ФА резервные коды:\s*(.+)/);
+                if (match) {
+                    // Убираем пробелы после запятых если есть
+                    const codes = match[1].trim().replace(/,\s+/g, ',');
+                    document.getElementById('psnCodes').value = codes;
+                }
+            }
+        });
+
+        // Ставим прочерк в резервную почту
+        document.getElementById('backupEmail').value = '-';
+        
+        showNotification('✅ Аккаунт успешно заполнен из буфера!', 'success');
+        
+    } catch (err) {
+        console.error('Ошибка при чтении буфера:', err);
+        showNotification('❌ Не удалось прочитать буфер обмена', 'error');
+    }
 }
 
 // Запуск диагностики
