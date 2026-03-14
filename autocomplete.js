@@ -221,27 +221,52 @@ class AutoComplete {
         }
     }
 
-    // ОТОБРАЖЕНИЕ ИГР
-    renderGames(games, dropdown) {
-        dropdown.innerHTML = games.map(game => {
-            const hasAccounts = game.accountsCount > 0;
-            
-            return `
-                <div data-game-id="${game.id}"
-                     data-game-name="${game.name}"
-                     style="
-                        padding: 12px 15px;
-                        cursor: pointer;
-                        border-bottom: 1px solid #f1f5f9;
-                        display: flex;
-                        align-items: center;
-                        gap: 12px;
-                        transition: background 0.2s;
-                        ${!hasAccounts ? 'opacity: 0.8;' : ''}
-                     "
-                     onmouseover="this.style.background='#f1f5f9'"
-                     onmouseout="this.style.background='white'">
-                     
+    // ОТОБРАЖЕНИЕ ИГР С КАРТИНКАМИ
+renderGames(games, dropdown) {
+    dropdown.innerHTML = games.map(game => {
+        const hasAccounts = game.accountsCount > 0;
+        const gameData = this.games.find(g => g.id === game.id); // находим полные данные игры
+        
+        return `
+            <div data-game-id="${game.id}"
+                 data-game-name="${game.name}"
+                 style="
+                    padding: 12px 15px;
+                    cursor: pointer;
+                    border-bottom: 1px solid #f1f5f9;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    transition: background 0.2s;
+                    ${!hasAccounts ? 'opacity: 0.8;' : ''}
+                 "
+                 onmouseover="this.style.background='#f1f5f9'"
+                 onmouseout="this.style.background='white'">
+                 
+                <!-- ===== КАРТИНКА ИГРЫ ===== -->
+                ${gameData && gameData.imageUrl ? `
+                    <div style="position: relative; width: 40px; height: 40px; flex-shrink: 0;">
+                        <img src="${gameData.imageUrl}" 
+                             style="width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 2px solid ${hasAccounts ? '#4361ee' : '#94a3b8'};"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                             onload="this.style.display='block'; this.nextElementSibling.style.display='none';">
+                        <div style="
+                            width: 40px; height: 40px;
+                            background: ${hasAccounts ? 
+                                'linear-gradient(135deg, #4361ee, #3a56d4)' : 
+                                'linear-gradient(135deg, #94a3b8, #64748b)'};
+                            border-radius: 6px;
+                            display: none;
+                            align-items: center;
+                            justify-content: center;
+                            color: white;
+                            font-size: 18px;
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                        ">🎮</div>
+                    </div>
+                ` : `
                     <div style="
                         width: 40px; height: 40px;
                         background: ${hasAccounts ? 
@@ -255,27 +280,28 @@ class AutoComplete {
                         font-size: 18px;
                         flex-shrink: 0;
                     ">🎮</div>
-                    
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; color: #1e293b;">${game.name}</div>
-                        <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
-                            📊 ${game.accountsCount} аккаунтов
-                        </div>
+                `}
+                
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #1e293b;">${game.name}</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                        📊 ${game.accountsCount} аккаунтов
                     </div>
-                    
-                    ${hasAccounts ? `
-                        <div style="font-size: 11px; color: #4361ee; background: #e0e7ff; padding: 2px 6px; border-radius: 4px;">
-                            есть аккаунты
-                        </div>
-                    ` : `
-                        <div style="font-size: 11px; color: #94a3b8; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">
-                            нет аккаунтов
-                        </div>
-                    `}
                 </div>
-            `;
-        }).join('');
-    }
+                
+                ${hasAccounts ? `
+                    <div style="font-size: 11px; color: #4361ee; background: #e0e7ff; padding: 2px 6px; border-radius: 4px;">
+                        есть аккаунты
+                    </div>
+                ` : `
+                    <div style="font-size: 11px; color: #94a3b8; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">
+                        нет аккаунтов
+                    </div>
+                `}
+            </div>
+        `;
+    }).join('');
+}
 }
 
 // Инициализируем

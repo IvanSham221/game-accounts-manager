@@ -1129,6 +1129,7 @@ async function refreshData(dataType) {
 
 async function addGame() {
     const gameName = document.getElementById('gameName').value.trim();
+    const imageUrl = document.getElementById('gameImageUrl').value.trim(); // НОВОЕ
     const urlTR = document.getElementById('gameUrlTR').value.trim();
     const urlUA = document.getElementById('gameUrlUA').value.trim();
     
@@ -1160,6 +1161,7 @@ async function addGame() {
     const newGame = {
         id: Date.now(),
         name: gameName,
+        imageUrl: imageUrl || null, // НОВОЕ ПОЛЕ
         storeLinks: {
             TR: urlTR || '',
             UA: urlUA || ''
@@ -1178,14 +1180,13 @@ async function addGame() {
     
     // Очищаем форму
     document.getElementById('gameName').value = '';
+    document.getElementById('gameImageUrl').value = ''; // НОВОЕ
     document.getElementById('gameUrlTR').value = '';
     document.getElementById('gameUrlUA').value = '';
     
-    // Принудительно обновляем все страницы
     if (result.synced) {
         showNotification(`Игра "${gameName}" успешно добавлена и синхронизирована! 🎮`, 'success');
         
-        // Запускаем принудительную синхронизацию на всех устройствах
         if (window.dataSync && window.dataSync.forceFullSync) {
             setTimeout(() => {
                 dataSync.forceFullSync().then(() => {
@@ -1197,7 +1198,6 @@ async function addGame() {
         showNotification(`Игра "${gameName}" добавлена локально 🎮`, 'warning');
     }
     
-    // Обновляем отображение списка
     displayGames();
 }
 
@@ -1209,7 +1209,6 @@ function editGame(gameId) {
         return;
     }
     
-    // Заполняем форму редактирования
     const editForm = document.getElementById('editGameForm');
     editForm.innerHTML = `
         <input type="hidden" id="editGameId" value="${game.id}">
@@ -1221,6 +1220,16 @@ function editGame(gameId) {
             <input type="text" id="editGameName" value="${game.name}" 
                    class="input" placeholder="Название игры" required>
         </div>
+        
+        <!-- ===== НОВОЕ ПОЛЕ ДЛЯ КАРТИНКИ ===== -->
+        <div>
+            <label for="editGameImageUrl" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                🖼️ URL картинки:
+            </label>
+            <input type="text" id="editGameImageUrl" value="${game.imageUrl || ''}" 
+                   class="input" placeholder="https://example.com/game-cover.jpg">
+        </div>
+        <!-- ===== КОНЕЦ НОВОГО ПОЛЯ ===== -->
         
         <div>
             <label for="editGameUrlTR" style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
@@ -1262,17 +1271,14 @@ function editGame(gameId) {
         </div>
     `;
     
-    // Открываем модальное окно
     document.getElementById('editGameModal').style.display = 'block';
     
-    // Автофокус на первом поле
     setTimeout(() => {
         const firstInput = document.getElementById('editGameName');
         if (firstInput) firstInput.focus();
     }, 100);
 }
 
-// Функция сохранения изменений игры
 async function saveGameChanges() {
     const gameId = parseInt(document.getElementById('editGameId').value);
     const gameIndex = games.findIndex(g => g.id === gameId);
@@ -1283,6 +1289,7 @@ async function saveGameChanges() {
     }
     
     const gameName = document.getElementById('editGameName').value.trim();
+    const imageUrl = document.getElementById('editGameImageUrl').value.trim(); // НОВОЕ
     const urlTR = document.getElementById('editGameUrlTR').value.trim();
     const urlUA = document.getElementById('editGameUrlUA').value.trim();
     
@@ -1291,7 +1298,6 @@ async function saveGameChanges() {
         return;
     }
     
-    // Проверяем уникальность названия (кроме текущей игры)
     const duplicate = games.find((g, index) => 
         index !== gameIndex && g.name.toLowerCase() === gameName.toLowerCase()
     );
@@ -1301,10 +1307,10 @@ async function saveGameChanges() {
         return;
     }
     
-    // Обновляем игру
     games[gameIndex] = {
         ...games[gameIndex],
         name: gameName,
+        imageUrl: imageUrl || null, // НОВОЕ
         storeLinks: {
             TR: urlTR,
             UA: urlUA
@@ -1433,8 +1439,25 @@ function displayGames() {
                 ">
                     <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
                         ${game.imageUrl ? `
-                            <img src="${game.imageUrl}" 
-                                 style="width: 60px; height: 60px; border-radius: 10px; object-fit: cover; border: 2px solid #e2e8f0;">
+                            <div style="position: relative;">
+                                <img src="${game.imageUrl}" 
+                                     style="width: 60px; height: 60px; border-radius: 10px; object-fit: cover; border: 2px solid #e2e8f0;"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                     onload="this.style.display='block'; this.nextElementSibling.style.display='none';">
+                                <div style="
+                                    width: 60px; height: 60px;
+                                    background: linear-gradient(135deg, #4361ee 0%, #3a56d4 100%);
+                                    border-radius: 10px;
+                                    display: none;
+                                    align-items: center;
+                                    justify-content: center;
+                                    color: white;
+                                    font-size: 24px;
+                                    position: absolute;
+                                    top: 0;
+                                    left: 0;
+                                ">🎮</div>
+                            </div>
                         ` : `
                             <div style="
                                 width: 60px; height: 60px;
@@ -1471,6 +1494,11 @@ function displayGames() {
                                 <div>${game.addedBy ? `Добавил: ${game.addedBy}` : ''}</div>
                                 ${game.lastUpdated ? `
                                     <div>Обновлена: ${new Date(game.lastUpdated).toLocaleDateString('ru-RU')}</div>
+                                ` : ''}
+                                ${game.imageUrl ? `
+                                    <div style="margin-top: 5px;">
+                                        <span style="color: #10b981;">🖼️ Есть изображение</span>
+                                    </div>
                                 ` : ''}
                             </div>
                         </div>
@@ -3527,24 +3555,68 @@ function displaySearchResults(accountsList, gameName) {
                             ПРОДАНО
                         </div>
                     ` : ''}
-                    
-                    <!-- ВЕРХ: ТОЛЬКО ЛОГИН КЛИКАБЕЛЬНЫЙ -->
+
+                    <!-- ВЕРХ: ЛОГИН КЛИКАБЕЛЬНЫЙ И КАРТИНКА -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <div style="
-                            font-size: 1.3em;
-                            font-weight: 700;
-                            color: ${isSold ? '#dc2626' : '#2d3748'};
-                            ${isSold ? 'text-decoration: line-through;' : ''};
-                            cursor: pointer;
-                            transition: all 0.2s ease;
-                        "
-                        onclick="openAccountEditModal(${account.id})"
-                        onmouseover="this.style.color='#4361ee';"
-                        onmouseout="this.style.color='${isSold ? '#dc2626' : '#2d3748'}';">
-                            ${account.psnLogin}
-                            <span style="font-size: 0.8em; color: #64748b; margin-left: 10px;">
-                                ${account.gameName || 'Свободный'}
-                            </span>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <!-- ===== КАРТИНКА ИГРЫ ===== -->
+                            ${(() => {
+                                const game = games.find(g => g.id === account.gameId);
+                                if (game && game.imageUrl) {
+                                    return `
+                                        <div style="position: relative; width: 50px; height: 50px;">
+                                            <img src="${game.imageUrl}" 
+                                                style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover; border: 2px solid ${isSold ? '#fecaca' : '#e2e8f0'};"
+                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                                onload="this.style.display='block'; this.nextElementSibling.style.display='none';">
+                                            <div style="
+                                                width: 50px; height: 50px;
+                                                background: linear-gradient(135deg, #4361ee 0%, #3a56d4 100%);
+                                                border-radius: 8px;
+                                                display: none;
+                                                align-items: center;
+                                                justify-content: center;
+                                                color: white;
+                                                font-size: 20px;
+                                                position: absolute;
+                                                top: 0;
+                                                left: 0;
+                                            ">🎮</div>
+                                        </div>
+                                    `;
+                                } else {
+                                    return `
+                                        <div style="
+                                            width: 50px; height: 50px;
+                                            background: linear-gradient(135deg, #4361ee 0%, #3a56d4 100%);
+                                            border-radius: 8px;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            color: white;
+                                            font-size: 20px;
+                                        ">🎮</div>
+                                    `;
+                                }
+                            })()}
+                            <!-- ===== КОНЕЦ КАРТИНКИ ===== -->
+                            
+                            <div style="
+                                font-size: 1.3em;
+                                font-weight: 700;
+                                color: ${isSold ? '#dc2626' : '#2d3748'};
+                                ${isSold ? 'text-decoration: line-through;' : ''};
+                                cursor: pointer;
+                                transition: all 0.2s ease;
+                            "
+                            onclick="openAccountEditModal(${account.id})"
+                            onmouseover="this.style.color='#4361ee';"
+                            onmouseout="this.style.color='${isSold ? '#dc2626' : '#2d3748'}';">
+                                ${account.psnLogin}
+                                <span style="font-size: 0.8em; color: #64748b; margin-left: 10px;">
+                                    ${account.gameName || 'Свободный'}
+                                </span>
+                            </div>
                         </div>
                         
                         <!-- ПРАВАЯ ЧАСТЬ: ДАТА ДЕАКТИВАЦИИ И КОММЕНТАРИИ -->
