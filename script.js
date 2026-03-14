@@ -550,14 +550,13 @@ function initMobileMenu() {
     const menuItems = [
         { icon: '🎮', text: 'Панель менеджера', page: 'manager.html', id: 'manager' },
         { icon: '➕', text: 'Добавить аккаунт', page: 'add-account.html', id: 'add-account' },
-        { icon: '📋', text: 'Список аккаунтов', page: 'accounts.html', id: 'accounts' },
         { icon: '💰', text: 'Ценники игр', page: 'prices.html', id: 'prices' },
-        { icon: '🆓', text: 'Свободные аккаунты', page: 'free-accounts.html', id: 'free-accounts' },
         { icon: '📦', text: 'Управление закупом', page: 'procurement.html', id: 'procurement' },
-        { icon: '🎯', text: 'Управление играми', page: 'games.html', id: 'games' },
         { icon: '📊', text: 'Отчеты', page: 'reports.html', id: 'reports' },
         { icon: '📈', text: 'Статистика работников', page: 'workers-stats.html', id: 'workers-stats' },
-        { icon: '🔥', text: 'Акции PS Store', page: 'discounts.html', id: 'discounts' },
+        { icon: '📋', text: 'Список аккаунтов', page: 'accounts.html', id: 'accounts' },
+        { icon: '🆓', text: 'Свободные аккаунты', page: 'free-accounts.html', id: 'free-accounts' },
+        { icon: '🎯', text: 'Управление играми', page: 'games.html', id: 'games' },
         { icon: '👑', text: 'Работники', page: 'workers.html', id: 'workers', adminOnly: true },
         { icon: '🔄', text: 'Синхронизация', onclick: 'syncData()', id: 'sync' }
     ];
@@ -940,6 +939,24 @@ function initPage(currentPage) {
             }
             setTimeout(() => {
                 setupGameSelectListener();
+            }, 500);
+            
+            // ===== ИНИЦИАЛИЗИРУЕМ КНОПКУ =====
+            setTimeout(() => {
+                if (typeof updateToggleButtonUI === 'function') {
+                    // Проверяем, есть ли активный поиск
+                    const searchInput = document.getElementById('managerGameSearch');
+                    const loginInput = document.getElementById('managerLogin');
+                    const searchResults = document.getElementById('searchResults');
+                    
+                    // Если есть результаты поиска или заполнены поля - обновляем кнопку
+                    if ((searchResults && searchResults.children.length > 0) || 
+                        (searchInput && searchInput.value.trim()) || 
+                        (loginInput && loginInput.value.trim())) {
+                        updateToggleButtonUI();
+                    }
+                    console.log('🔄 Кнопка переключения инициализирована');
+                }
             }, 500);
             break;
             
@@ -2905,66 +2922,47 @@ function loadGamesForManager() {
     }
 }
 
-function searchByGame() {
+// Обновим searchByGame, чтобы можно было передать параметр
+function searchByGame(silent = false) {
     const searchInput = document.getElementById('managerGameSearch');
     const searchTerm = searchInput.value.trim();
     
     if (!searchTerm) {
-        showNotification('Введите название игры для поиска', 'warning');
-        
-        // Скрываем кнопку статистики
-        const statsBtn = document.getElementById('showStatsBtn');
-        if (statsBtn) {
-            statsBtn.style.display = 'none';
-        }
-        
-        // Очищаем результаты
-        document.getElementById('searchResults').innerHTML = '';
-        
+        if (!silent) showNotification('Введите название игры для поиска', 'warning');
         return;
     }
     
-    // Ищем игру по названию (регистронезависимый поиск)
     const foundGame = games.find(game => 
         game.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     
     if (!foundGame) {
-        showNotification(`Игра "${searchTerm}" не найдена`, 'error');
-        
-        // Предлагаем похожие игры
-        const similarGames = games.filter(game => 
-            game.name.toLowerCase().includes(searchTerm.toLowerCase().substring(0, 3))
-        ).slice(0, 5);
-        
-        if (similarGames.length > 0) {
-            const similarList = similarGames.map(game => game.name).join(', ');
-            showNotification(`Возможно, вы искали: ${similarList}`, 'info');
+        if (!silent) {
+            showNotification(`Игра "${searchTerm}" не найдена`, 'error');
+            
+            const similarGames = games.filter(game => 
+                game.name.toLowerCase().includes(searchTerm.toLowerCase().substring(0, 3))
+            ).slice(0, 5);
+            
+            if (similarGames.length > 0) {
+                const similarList = similarGames.map(game => game.name).join(', ');
+                showNotification(`Возможно, вы искали: ${similarList}`, 'info');
+            }
         }
         
-        // Скрываем кнопку статистики
         const statsBtn = document.getElementById('showStatsBtn');
-        if (statsBtn) {
-            statsBtn.style.display = 'none';
-        }
+        if (statsBtn) statsBtn.style.display = 'none';
         
-        // Очищаем результаты
         document.getElementById('searchResults').innerHTML = `
             <div class="empty">
                 <h3>Игра "${searchTerm}" не найдена</h3>
-                ${similarGames.length > 0 ? `
-                    <p>Похожие игры: ${similarList}</p>
-                ` : ''}
             </div>
         `;
-        
         return;
     }
     
-    // Нашли игру - ищем аккаунты
     const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
     
-    // Показываем кнопку статистики только если есть аккаунты
     const statsBtn = document.getElementById('showStatsBtn');
     if (statsBtn) {
         if (gameAccounts.length > 0) {
@@ -2976,24 +2974,14 @@ function searchByGame() {
         }
     }
     
-    // Скрываем старую статистику
     document.getElementById('statsSection').style.display = 'none';
     
-    // Показываем результаты поиска
+    updateToggleButtonUI();
     displaySearchResults(gameAccounts, foundGame.name);
-    
-    // Обновляем поле поиска полным названием игры
     searchInput.value = foundGame.name;
     
-    // Если нет аккаунтов - показываем сообщение
-    if (gameAccounts.length === 0) {
+    if (gameAccounts.length === 0 && !silent) {
         showNotification(`По игре "${foundGame.name}" не найдено аккаунтов`, 'info');
-        document.getElementById('searchResults').innerHTML = `
-            <div class="empty">
-                <h3>По игре "${foundGame.name}" не найдено аккаунтов</h3>
-                <p>Добавьте аккаунты для этой игры</p>
-            </div>
-        `;
     }
 }
 
@@ -3334,11 +3322,13 @@ function searchByLogin() {
     document.getElementById('statsSection').style.display = 'none';
     
     displaySearchResults(foundAccounts, `по логину "${loginSearch}"`);
+    updateToggleButtonUI();
 }
 
 function clearSearchFields() {
     const gameSelect = document.getElementById('managerGame');
     const loginInput = document.getElementById('managerLogin');
+    const gameSearchInput = document.getElementById('managerGameSearch');
     
     if (gameSelect) {
         gameSelect.selectedIndex = 0;
@@ -3348,15 +3338,19 @@ function clearSearchFields() {
         loginInput.value = '';
     }
     
+    if (gameSearchInput) {
+        gameSearchInput.value = '';
+    }
+    
     // Скрываем кнопку статистики
     const statsBtn = document.getElementById('showStatsBtn');
     if (statsBtn) {
         statsBtn.style.display = 'none';
     }
-    
-    // Скрываем статистику
     document.getElementById('statsSection').style.display = 'none';
     document.getElementById('searchResults').innerHTML = '';
+    hideToggleButton();
+    showAllAccounts = false;
 }
 
 // ============================================
@@ -3458,41 +3452,8 @@ function displaySearchResults(accountsList, gameName) {
     // Генерируем HTML
     let html = '';
     
-    // Кнопка переключения показа
-    if (accountsList.length > 0 && hiddenCount > 0) {
-        html += `
-            <div style="
-                margin-bottom: 20px;
-                padding: 10px 15px;
-                background: #f0f9ff;
-                border-radius: 8px;
-                border: 1px solid #bae6fd;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            ">
-                <div style="color: #64748b; font-size: 0.9em;">
-                    Скрыто полностью проданных: ${hiddenCount}
-                </div>
-                
-                <button onclick="toggleShowAllAccounts()" 
-                        style="
-                            background: #3b82f6;
-                            color: white;
-                            border: none;
-                            padding: 6px 12px;
-                            border-radius: 6px;
-                            font-size: 13px;
-                            cursor: pointer;
-                            transition: all 0.3s ease;
-                        "
-                        onmouseover="this.style.opacity='0.9'; this.style.transform='translateY(-1px)'"
-                        onmouseout="this.style.opacity='1'; this.style.transform='translateY(0)'">
-                    ${showAllAccounts ? '👁️ Скрыть проданные' : '👁️‍🗨️ Показать все'}
-                </button>
-            </div>
-        `;
-    }
+    // ==== СТАРАЯ КНОПКА УДАЛЕНА ====
+    // Больше не добавляем блок с кнопкой здесь
     
     // Если после фильтрации ничего не осталось
     if (filteredAccounts.length === 0) {
@@ -3524,12 +3485,12 @@ function displaySearchResults(accountsList, gameName) {
                         "
                         onmouseover="this.style.opacity='0.9'; this.style.transform='translateY(-2px)'"
                         onmouseout="this.style.opacity='1'; this.style.transform='translateY(0)'">
-                    👁️‍🗨️ Показать проданные аккаунты
+                    ${showAllAccounts ? '👁️ Скрыть проданные' : '👁️‍🗨️ Показать проданные аккаунты'}
                 </button>
             </div>
         `;
     } else {
-        // Показываем аккаунты
+        // Показываем аккаунты (код без изменений)
         html += filteredAccounts.map(account => {
             const commentsCount = account.comments ? account.comments.length : 0;
             const isSold = isAccountFullySold(account);
@@ -3683,6 +3644,7 @@ function displaySearchResults(accountsList, gameName) {
     }
     
     resultsContainer.innerHTML = html;
+    updateToggleButtonUI();
 }
 
 // ============================================
@@ -3987,6 +3949,7 @@ async function saveAccountChanges() {
     
     showNotification('Изменения сохранены и синхронизированы! ✅', 'success');
 }
+
 function toggleShowAllAccounts() {
     // Переключаем флаг
     showAllAccounts = !showAllAccounts;
@@ -4004,7 +3967,6 @@ function toggleShowAllAccounts() {
     let searchTitle = '';
     
     if (searchInput && searchInput.value.trim()) {
-        // Если был поиск по игре
         const searchTerm = searchInput.value.trim();
         const foundGame = games.find(game => 
             game.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -4015,18 +3977,14 @@ function toggleShowAllAccounts() {
             searchTitle = foundGame.name;
         }
     } else if (loginInput && loginInput.value.trim()) {
-        // Если был поиск по логину
         const loginSearch = loginInput.value.trim().toLowerCase();
         accountsToShow = accounts.filter(acc => 
             acc.psnLogin.toLowerCase().includes(loginSearch)
         );
         searchTitle = `по логину "${loginSearch}"`;
     } else {
-        // Если нет поиска - показываем ВСЕ аккаунты из всех игр
         accountsToShow = accounts;
         searchTitle = 'все аккаунты';
-        
-        // Обновляем поле поиска
         if (searchInput) {
             searchInput.value = 'Все аккаунты';
         }
@@ -4035,8 +3993,9 @@ function toggleShowAllAccounts() {
     console.log(`📊 Показать: ${accountsToShow.length} аккаунтов`);
     displaySearchResults(accountsToShow, searchTitle);
     
-    // Показываем уведомление
-    showPremiumNotification(
+    // ===== ВАЖНО: Кнопка обновится внутри displaySearchResults, так что здесь не нужно =====
+    
+    showNotification(
         showAllAccounts ? 'Показаны все аккаунты' : 'Скрыты проданные аккаунты',
         'info'
     );
@@ -4391,9 +4350,6 @@ function handlePositionClick(accountId, positionType, positionName, positionInde
     }
 }
 
-// ============================================
-// ОФОРМЛЕНИЕ ПРОДАЖ
-// ============================================
 function openSaleModal(accountId, positionType, positionName, positionIndex) {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return;
@@ -4402,9 +4358,10 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
     window.currentSalePosition = positionType;
     window.currentSalePositionIndex = positionIndex;
     
-    const now = new Date();
-    const currentDate = now.toISOString().split('T')[0];
-    const currentTime = now.toTimeString().slice(0, 5);
+    // ==== ИСПРАВЛЕНИЕ: Используем московское время ====
+    const moscowTime = getSimpleMoscowDateTime();
+    const currentDate = moscowTime.date;
+    const currentTime = moscowTime.time;
     
     const currentUser = security.getCurrentUser();
     const isAdmin = currentUser && currentUser.role === 'admin';
@@ -4448,6 +4405,10 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
                     ${currentUser ? currentUser.name : 'Неизвестно'}
                     ${currentUser && currentUser.role === 'admin' ? ' 👑' : ' 👷'}
                 </span>
+            </div>
+            <!-- Добавим индикатор часового пояса -->
+            <div style="margin-top: 10px; font-size: 0.85em; color: #10b981; text-align: center; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
+                ⏰ Московское время (UTC+3)
             </div>
         </div>
         
@@ -4590,7 +4551,25 @@ async function confirmSaleAndShowData() {
         console.log(`💰 Funpay комиссия: ${price} - ${commissionData.commission} = ${finalPrice}`);
     }
     
-    const saleDateTime = saleDate && saleTime ? `${saleDate} ${saleTime}` : new Date().toLocaleString('ru-RU');
+    // ==== ИСПРАВЛЕНИЕ: Используем московское время для сохранения ====
+    let saleDateTime;
+    let timestamp;
+    
+    if (saleDate && saleTime) {
+        // Если дата и время выбраны вручную, создаем объект с учетом московского времени
+        const [year, month, day] = saleDate.split('-').map(Number);
+        const [hours, minutes] = saleTime.split(':').map(Number);
+        
+        // Создаем дату в московском времени
+        const moscowDate = new Date(Date.UTC(year, month - 1, day, hours - 3, minutes));
+        timestamp = moscowDate.getTime();
+        saleDateTime = `${saleDate} ${saleTime}`;
+    } else {
+        // Если не выбраны, используем текущее московское время
+        const moscowTime = getSimpleMoscowDateTime();
+        saleDateTime = moscowTime.datetime;
+        timestamp = moscowTime.timestamp;
+    }
     
     const accountIndex = accounts.findIndex(acc => acc.id === window.currentSaleAccount);
     if (accountIndex === -1) {
@@ -4599,7 +4578,6 @@ async function confirmSaleAndShowData() {
     }
     
     // ГЕНЕРАЦИЯ УНИКАЛЬНОГО ID С ТАЙМСТЭМПОМ
-    const timestamp = Date.now();
     const positionId = `${window.currentSaleAccount}_${window.currentSalePosition}_${window.currentSalePositionIndex}_${timestamp}`;
     
     const currentUser = security.getCurrentUser();
@@ -4616,22 +4594,26 @@ async function confirmSaleAndShowData() {
         originalPrice: marketplace === 'funpay' ? price : null,
         commission: marketplace === 'funpay' ? commissionData?.commission || 0 : 0,
         commissionPercent: marketplace === 'funpay' ? 3 : 0,
-        date: saleDate || new Date().toISOString().split('T')[0],
-        time: saleTime || new Date().toTimeString().slice(0, 5),
+        date: saleDate || new Date(timestamp).toISOString().split('T')[0],
+        time: saleTime || new Date(timestamp).toTimeString().slice(0, 5),
         datetime: saleDateTime,
         notes: saleNotes,
         timestamp: timestamp,
-        createdTimestamp: timestamp, // Дополнительное поле для отслеживания
+        createdTimestamp: timestamp,
         sold: true,
         positionIndex: window.currentSalePositionIndex,
         soldBy: currentUser ? currentUser.username : 'unknown',
         soldByName: currentUser ? currentUser.name : 'Неизвестно',
         managerRole: currentUser ? currentUser.role : 'unknown',
         marketplace: marketplace || 'telegram',
-        commissionApplied: marketplace === 'funpay'
+        commissionApplied: marketplace === 'funpay',
+        // Добавляем информацию о часовом поясе
+        timezone: 'Europe/Moscow',
+        timezoneOffset: '+03:00'
     };
     
     console.log('💾 Создана новая продажа:', newSale);
+    console.log('⏰ Время:', saleDateTime);
     
     try {
         // Шаг 1: Добавляем в локальный массив
@@ -4643,8 +4625,6 @@ async function confirmSaleAndShowData() {
         console.log('💾 Сохранено в localStorage');
         
         // Шаг 3: Пытаемся синхронизировать с Firebase
-        // ВАЖНО: Не перезаписываем весь список, а добавляем только новую продажу
-        
         if (window.dataSync && window.dataSync.saveSale) {
             console.log('🔄 Использую dataSync.saveSale...');
             const result = await window.dataSync.saveSale(newSale);
@@ -4657,20 +4637,16 @@ async function confirmSaleAndShowData() {
                 showNotification('✅ Продажа сохранена локально', 'warning');
             }
         } 
-        // ИЛИ если используешь прямой Firebase
         else if (firebase && firebase.database) {
             console.log('🔥 Записываю в Firebase напрямую...');
             const db = firebase.database();
             
-            // Ключевое исправление: используем push() вместо set() для новой записи
-            // Но сохраняем наш ID для последующего поиска
             const saleRef = db.ref('sales').child(positionId);
             await saleRef.set(newSale);
             
             console.log('✅ Продажа записана в Firebase с ID:', positionId);
             showNotification('✅ Продажа сохранена в облаке!', 'success');
         }
-        // ИЛИ сохраняем только локально
         else {
             console.log('📱 Firebase недоступен, только локальное сохранение');
             showNotification('✅ Продажа сохранена локально', 'warning');
@@ -4853,22 +4829,23 @@ function showAccountDataAfterSale(accountId) {
     // --- ТЕКСТЫ ДЛЯ ПЛАШЕК (Русский) ---
     const rulesP2_RU = `❗️ Чтобы гарантия на игру сохранялась — при любых ошибках пишем только в чат, где была куплена игра.
 Правила пользования игрой (П2):
-— Данные аккаунта не менять: пароль, аутентификатор, номер телефона.
+— Данные пользователя не менять: пароль, аутентификатор, номер телефона.
 — Играем только на той консоли, для которой была приобретена игра.
-— Одна игра — один пользователь: не покупаем игры или подписки на выданном аккаунте.
+— Одна игра — один пользователь: не покупаем игры или подписки на выданном пользователе.
 — Используем только одну личную консоль: добавлять игру на другие устройства запрещено.
 — Включать активацию для PS4 или общий доступ для PS5 нельзя, вы играете только с выданных данных с включенным интернетом.`;
 
-    const rulesP3_RU = `**Правила пользования выданной игрой с Активацией / Общим доступом (П3):**
-— Данные аккаунта не менять: пароль, аутентификатор, номер телефона.
+    const rulesP3_RU = `❗️ Чтобы гарантия на игру сохранялась — при любых ошибках пишем только в чат, где была куплена игра.
+Правила пользования выданной игрой с Активацией / Общим доступом (П3):
+— Данные пользователя не менять: пароль, аутентификатор, номер телефона.
 — Одна игра — один пользователь: не покупаем игры или подписки на выданные данные.
-— **Позиция с Активацией / Общим доступом — играем только с вашего личного пользователя.** На выданный аккаунт заходим **только для настройки**.
-— **Данные нельзя добавлять на несколько консолей.** Используем только одну личную консоль.
+— Позиция с Активацией / Общим доступом — играем только с вашего личного пользователя. На выданном пользователе заходим только для настройки.
+— Пользователя нельзя добавлять на несколько консолей. Используем только одну личную консоль.
 — Если на игре появился “замочек”, зайдите на пользователя с игрой и:
 • на PS4 — активируйте как основную систему,
 • на PS5 — включите общий доступ к консоли.
-— **Играем только на той консоли, для которой была приобретена игра.** Купить игру для PS4 и играть на PS5 — это потеря гарантии.
-— **При несоблюдении правил гарантии мы имеем право отобрать аккаунт без возврата денег.**`;
+— Играем только на той консоли, для которой была приобретена игра. Купить игру для PS4 и играть на PS5 — это потеря гарантии.
+— При несоблюдении правил гарантии мы имеем право отобрать пользователя без возврата денег.`;
 
     const review_RU = `🙏 Мы будем благодарны за ваш отзыв — он очень помогает нам развиваться!
 🎮 Приятной игры!
@@ -5251,8 +5228,30 @@ function showSaleDetails(sale) {
     const canChangeManager = security.canChangeSaleManager();
     const isAdmin = currentUser && currentUser.role === 'admin';
     
-    const saleDate = sale.date || new Date(sale.timestamp).toISOString().split('T')[0];
-    const saleTime = sale.time || new Date(sale.timestamp).toTimeString().slice(0, 5);
+    // ==== ИСПРАВЛЕНИЕ: Преобразуем время продажи в московское для отображения ====
+    let saleDate, saleTime;
+    
+    if (sale.datetime) {
+        // Если есть datetime, разбираем его
+        const parts = sale.datetime.split(' ');
+        saleDate = parts[0];
+        saleTime = parts[1] || '00:00';
+    } else if (sale.date) {
+        saleDate = sale.date;
+        saleTime = sale.time || '00:00';
+    } else if (sale.timestamp) {
+        // Если есть timestamp, конвертируем в московское время
+        const date = new Date(sale.timestamp);
+        // Добавляем 3 часа для Москвы
+        const moscowDate = new Date(date.getTime() + (3 * 60 * 60 * 1000));
+        saleDate = moscowDate.toISOString().split('T')[0];
+        saleTime = moscowDate.toTimeString().slice(0, 5);
+    } else {
+        // Если ничего нет, используем текущее московское
+        const moscowTime = getSimpleMoscowDateTime();
+        saleDate = moscowTime.date;
+        saleTime = moscowTime.time;
+    }
     
     // При редактировании показываем текущую цену (уже с вычтенной комиссией)
     const displayPrice = sale.price;
@@ -5293,6 +5292,9 @@ function showSaleDetails(sale) {
                 ">
                     ${sale.soldByName} ${sale.managerRole === 'admin' ? '👑' : '👷'}
                 </span>
+            </div>
+            <div style="margin-top: 10px; font-size: 0.85em; color: #10b981; text-align: center; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
+                ⏰ Московское время (UTC+3)
             </div>
         </div>
         
@@ -8594,4 +8596,203 @@ function runSalesDiagnostic() {
     
     // 5. Выводим результат
     resultsDiv.textContent = log;
+}
+
+function updateToggleButtonUI() {
+    const toggleBtn = document.getElementById('toggleSoldAccountsBtn');
+    const toggleContainer = document.getElementById('toggleButtonContainer');
+    
+    // Если кнопки нет на странице - ничего не делаем
+    if (!toggleBtn || !toggleContainer) return;
+    
+    // Получаем текущие результаты поиска
+    const searchResults = document.getElementById('searchResults');
+    const hasResults = searchResults && searchResults.children.length > 0;
+    
+    // Если нет результатов - сразу прячем кнопку
+    if (!hasResults) {
+        toggleContainer.style.display = 'none';
+        return;
+    }
+    
+    // Считаем количество скрытых аккаунтов
+    let hiddenCount = 0;
+    
+    // Получаем текущий список аккаунтов из результатов поиска
+    const searchInput = document.getElementById('managerGameSearch');
+    const loginInput = document.getElementById('managerLogin');
+    
+    let currentAccountsList = [];
+    
+    if (searchInput && searchInput.value.trim()) {
+        const searchTerm = searchInput.value.trim();
+        const foundGame = games.find(game => 
+            game.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        if (foundGame) {
+            currentAccountsList = accounts.filter(acc => acc.gameId === foundGame.id);
+        }
+    } else if (loginInput && loginInput.value.trim()) {
+        const loginSearch = loginInput.value.trim().toLowerCase();
+        currentAccountsList = accounts.filter(acc => 
+            acc.psnLogin.toLowerCase().includes(loginSearch)
+        );
+    }
+    
+    // Если нет аккаунтов в текущем поиске - прячем кнопку
+    if (currentAccountsList.length === 0) {
+        toggleContainer.style.display = 'none';
+        return;
+    }
+    
+    // Считаем полностью проданные
+    const fullySoldCount = currentAccountsList.filter(account => {
+        let totalPositions = 0;
+        let soldPositions = 0;
+        
+        ['p2_ps4', 'p3_ps4', 'p2_ps5', 'p3_ps5'].forEach(posType => {
+            const count = account.positions[posType] || 0;
+            totalPositions += count;
+            
+            for (let i = 1; i <= count; i++) {
+                if (getPositionSaleInfo(account.id, posType, i)) {
+                    soldPositions++;
+                }
+            }
+        });
+        
+        return totalPositions > 0 && soldPositions === totalPositions;
+    }).length;
+    
+    hiddenCount = fullySoldCount;
+    
+    // Показываем или скрываем контейнер в зависимости от наличия скрытых аккаунтов
+    if (hiddenCount > 0) {
+        toggleContainer.style.display = 'flex'; // Показываем кнопку
+    } else {
+        toggleContainer.style.display = 'none'; // Прячем кнопку
+        return;
+    }
+    
+    // Обновляем текст и стиль кнопки
+    const iconSpan = document.getElementById('toggleBtnIcon');
+    const textSpan = document.getElementById('toggleBtnText');
+
+    if (showAllAccounts) {
+        // Режим "Показать все"
+        toggleBtn.classList.remove('btn-secondary');
+        toggleBtn.classList.add('btn-primary');
+        if (iconSpan) iconSpan.textContent = '👁️‍🗨️';
+        if (textSpan) textSpan.textContent = `Скрыть проданные (${hiddenCount})`;
+        toggleBtn.title = 'Нажмите, чтобы скрыть полностью проданные аккаунты';
+    } else {
+        // Режим "Скрыть проданные"
+        toggleBtn.classList.remove('btn-primary');
+        toggleBtn.classList.add('btn-secondary');
+        if (iconSpan) iconSpan.textContent = '👁️';
+        if (textSpan) textSpan.textContent = `Показать все (+${hiddenCount})`;
+        toggleBtn.title = 'Нажмите, чтобы показать все аккаунты, включая проданные';
+    }
+}
+
+function hideToggleButton() {
+    const toggleContainer = document.getElementById('toggleButtonContainer');
+    if (toggleContainer) {
+        toggleContainer.style.display = 'none';
+    }
+}
+
+// Функция для получения даты и времени в Московском часовом поясе (UTC+3)
+function getMoscowDateTime() {
+    const now = new Date();
+    
+    // Получаем текущее время в UTC
+    const utcYear = now.getUTCFullYear();
+    const utcMonth = now.getUTCMonth();
+    const utcDay = now.getUTCDate();
+    const utcHours = now.getUTCHours();
+    const utcMinutes = now.getUTCMinutes();
+    
+    // Создаем новую дату, добавляя 3 часа (Москва UTC+3)
+    const moscowDate = new Date(Date.UTC(utcYear, utcMonth, utcDay, utcHours + 3, utcMinutes));
+    
+    // Форматируем для отображения
+    const year = moscowDate.getUTCFullYear();
+    const month = String(moscowDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(moscowDate.getUTCDate()).padStart(2, '0');
+    const hours = String(moscowDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(moscowDate.getUTCMinutes()).padStart(2, '0');
+    
+    return {
+        date: `${year}-${month}-${day}`,
+        time: `${hours}:${minutes}`,
+        datetime: `${year}-${month}-${day} ${hours}:${minutes}`,
+        timestamp: moscowDate.getTime(),
+        isoString: moscowDate.toISOString()
+    };
+}
+
+// Альтернативный простой способ через смещение
+function getSimpleMoscowDateTime() {
+    const now = new Date();
+    
+    // Смещение для Москвы (UTC+3)
+    const moscowOffset = 3 * 60; // 3 часа в минутах
+    
+    // Текущее смещение браузера в минутах
+    const browserOffset = now.getTimezoneOffset();
+    
+    // Разница между московским и браузерным временем
+    const diffMinutes = moscowOffset + browserOffset;
+    
+    // Применяем разницу
+    const moscowTime = new Date(now.getTime() + diffMinutes * 60000);
+    
+    const year = moscowTime.getFullYear();
+    const month = String(moscowTime.getMonth() + 1).padStart(2, '0');
+    const day = String(moscowTime.getDate()).padStart(2, '0');
+    const hours = String(moscowTime.getHours()).padStart(2, '0');
+    const minutes = String(moscowTime.getMinutes()).padStart(2, '0');
+    
+    return {
+        date: `${year}-${month}-${day}`,
+        time: `${hours}:${minutes}`,
+        datetime: `${year}-${month}-${day} ${hours}:${minutes}`,
+        timestamp: moscowTime.getTime()
+    };
+}
+
+// Новая функция для универсального поиска
+function performUnifiedSearch() {
+    const searchInput = document.getElementById('managerGameSearch');
+    const searchTerm = searchInput.value.trim();
+    
+    if (!searchTerm) {
+        showNotification('Введите название игры или логин для поиска', 'warning');
+        return;
+    }
+    
+    // Пытаемся определить, что ищем
+    // Если есть @ или специфичные символы - скорее всего логин
+    if (searchTerm.includes('@') || searchTerm.includes('_') || searchTerm.includes('-')) {
+        // Поиск по логину
+        const foundAccounts = accounts.filter(acc => 
+            acc.psnLogin.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        
+        if (foundAccounts.length > 0) {
+            document.getElementById('statsSection').style.display = 'none';
+            const statsBtn = document.getElementById('showStatsBtn');
+            if (statsBtn) statsBtn.style.display = 'none';
+            
+            updateToggleButtonUI();
+            displaySearchResults(foundAccounts, `по логину "${searchTerm}"`);
+        } else {
+            // Если не нашли по логину, пробуем найти игру
+            searchByGame(true); // true означает, что не показывать ошибку сразу
+        }
+    } else {
+        // Поиск по игре
+        searchByGame();
+    }
 }

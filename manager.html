@@ -50,31 +50,46 @@
     <div class="container">
         <h1><span>👨‍💼</span><span>Месси позор общества</span></h1>
         <div class="section">
-            <h2>🎯 Поиск аккаунтов</h2>
-            <div class="search-container">
-                <div class="search-group">
-                    <label>Поиск по игре:</label>
-                    <input type="text" 
-                        id="managerGameSearch" 
-                        placeholder="Начните вводить название игры..." 
-                        class="input autocomplete-input"
-                        style="width: 100%;">
-                    <button onclick="searchByGame()" class="btn btn-primary">Найти по игре</button>
-                    <button onclick="showGameStats()" class="btn btn-info" id="showStatsBtn" style="display: none;">📊 Показать статистику</button>
-                </div>
-                
-                <div class="search-group">
-                    <label>Поиск по логину:</label>
-                    <input type="text" id="managerLogin" placeholder="Введите логин PSN..." class="input">
-                    <button onclick="searchByLogin()" class="btn btn-primary">Найти по логину</button>
-                </div>
+    <h2>🎯 Поиск аккаунтов</h2>
+    <div class="search-container">
+        <div class="search-group" style="width: 100%;">
+            <label>🔍 Поиск:</label>
+           <div style="display: flex; gap: 10px; width: 100%;">
+                <input type="text" 
+                    id="managerGameSearch" 
+                    placeholder="Введите название игры или логин PSN..." 
+                    class="input unified-search"
+                    style="width: 75%;">
+                <button onclick="performUnifiedSearch()" 
+                        class="btn btn-primary" 
+                        style="width: 25%;">
+                    Найти
+                </button>
             </div>
         </div>
+        
+        <!-- Старое поле для поиска по логину скрываем -->
+        <div class="search-group" style="display: none;">
+            <label>Поиск по логину:</label>
+            <input type="text" id="managerLogin" placeholder="Введите логин PSN..." class="input">
+            <button onclick="searchByLogin()" class="btn btn-primary">Найти по логину</button>
+        </div>
+    </div>
+</div>
 
         <div id="statsSection" class="stats-section" style="display: none;"></div>
 
         <div class="section">
             <h2>📊 Результаты поиска</h2>
+            <div id="toggleButtonContainer" style="margin-bottom: 20px; display: flex; justify-content: flex-end; display: none;">
+        <button id="toggleSoldAccountsBtn" 
+                class="btn btn-secondary" 
+                onclick="toggleShowAllAccounts()"
+                style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+            <span id="toggleBtnIcon">👁️</span>
+            <span id="toggleBtnText">Показать все</span>
+        </button>
+    </div>
             <div id="searchResults" class="accounts-grid-horizontal"></div>
         </div>
     </div>
