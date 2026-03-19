@@ -775,14 +775,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     endInput.value = endDate.toISOString().split('T')[0];
                 }
             }
+
+            setTimeout(() => {
+                if (typeof addQuickSearchField === 'function') {
+                    addQuickSearchField();
+                }
+            }, 500);
             
-            // Показываем уведомление приветствия
-            const user = security.getCurrentUser();
-            if (user && typeof showNotification === 'function') {
-                setTimeout(() => {
-                    showNotification(`Добро пожаловать, ${user.name}! 👋`, 'info', 2000);
-                }, 1000);
-            }
         });
     }
 
@@ -812,7 +811,7 @@ async function loadAllDataWithSync() {
         games = JSON.parse(localStorage.getItem('games')) || [];
         accounts = JSON.parse(localStorage.getItem('accounts')) || [];
         sales = JSON.parse(localStorage.getItem('sales')) || [];
-        
+        syncGameNamesInAccounts();
         // Убедимся, что у всех аккаунтов есть массив комментариев
         accounts.forEach(account => {
             if (!account.comments) {
@@ -1323,6 +1322,7 @@ async function saveGameChanges() {
     };
     
     await saveToStorage('games', games);
+    syncGameNamesInAccounts();
     closeGameModal();
     displayGames();
     showNotification('Игра обновлена! ✅', 'success');
@@ -3386,15 +3386,12 @@ function clearSearchFields() {
 // ============================================
 
 function getPositionSaleInfo(accountId, positionType, positionIndex) {
-    // Ищем продажу с правильным ID (без timestamp)
-    const saleIdWithoutTimestamp = `${accountId}_${positionType}_${positionIndex}`;
-    
-    // Ищем продажу, ID которой начинается с saleIdWithoutTimestamp
+    // Ищем продажу с правильными параметрами, которая НЕ пересажена
     return sales.find(sale => {
-        if (!sale.id) return false;
-        // Проверяем начинается ли ID продажи с нужного шаблона
-        return sale.id.startsWith(saleIdWithoutTimestamp + '_') || 
-               sale.id === saleIdWithoutTimestamp;
+        return sale.accountId === accountId && 
+               sale.positionType === positionType &&
+               sale.positionIndex === positionIndex &&
+               !sale.isTransplanted; // Важно! Игнорируем пересаженные
     });
 }
 
@@ -3894,9 +3891,6 @@ async function refreshDataFromFirebase(dataType) {
         
         console.log(`✅ Данные "${dataType}" обновлены из Firebase`);
         
-        // Показываем уведомление
-        showNotification(`Данные "${dataType}" обновлены с другого устройства 🔄`, 'info', 3000);
-        
     } catch (error) {
         console.error(`❌ Ошибка обновления "${dataType}":`, error);
     }
@@ -4156,57 +4150,57 @@ function generateSimplePositionButtons(account, positionType, positionName, posi
             }
         }
         
-        buttons.push(`
+       buttons.push(`
+    <div style="
+        display: inline-block;
+        text-align: center;
+        margin-right: 8px;
+        margin-bottom: 8px;
+        position: relative;
+    ">
+        <button onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
+                style="
+                    width: 40px;
+                    height: 40px;
+                    background: ${isSold ? '#ef4444' : '#3b82f6'};
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    font-weight: 600;
+                    font-size: 14px;
+                    cursor: pointer;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s ease;
+                    margin-bottom: 2px;
+                    position: relative;
+                "
+                onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.05)'"
+                onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'"
+                title="${isSold ? 
+                    `Продано: ${saleDate || 'без даты'}\nПлощадка: ${saleInfo.marketplace || 'не указана'}\nМенеджер: ${saleInfo.soldByName || 'неизвестно'}` : 
+                    'Свободно'}">
+            <div>${i}</div>
+            <div style="font-size: 9px;">${positionLabel}</div>
+            ${marketplaceBadge}
+        </button>
+        
+        ${isSold && saleDate ? `
             <div style="
-                display: inline-block;
-                text-align: center;
-                margin-right: 8px;
-                margin-bottom: 8px;
-                position: relative;
+                font-size: 8px;
+                color: #ef4444;
+                font-weight: 700;
+                white-space: nowrap;
+                letter-spacing: -0.2px;
             ">
-                <button onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
-                        style="
-                            width: 40px;
-                            height: 40px;
-                            background: ${isSold ? '#ef4444' : '#3b82f6'};
-                            color: white;
-                            border: none;
-                            border-radius: 6px;
-                            font-weight: 600;
-                            font-size: 14px;
-                            cursor: pointer;
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                            justify-content: center;
-                            transition: all 0.2s ease;
-                            margin-bottom: 2px;
-                            position: relative;
-                        "
-                        onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.05)'"
-                        onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'"
-                        title="${isSold ? 
-                            `Продано: ${saleDate || 'без даты'}\nПлощадка: ${saleInfo.marketplace || 'не указана'}\nМенеджер: ${saleInfo.soldByName || 'неизвестно'}` : 
-                            'Свободно'}">
-                    <div>${i}</div>
-                    <div style="font-size: 9px;">${positionLabel}</div>
-                    ${marketplaceBadge}
-                </button>
-                
-                ${isSold && saleDate ? `
-                    <div style="
-                        font-size: 8px;
-                        color: #ef4444;
-                        font-weight: 700;
-                        white-space: nowrap;
-                        letter-spacing: -0.2px;
-                    ">
-                        ${saleDate}
-                    </div>
-                    ${managerInfo}
-                ` : ''}
+                ${saleDate}
             </div>
-        `);
+            ${managerInfo}
+        ` : ''}
+    </div>
+`);
     }
     
     return buttons.join('');
@@ -5300,11 +5294,13 @@ function showSaleDetails(sale) {
     const canChangeManager = security.canChangeSaleManager();
     const isAdmin = currentUser && currentUser.role === 'admin';
     
+    // Определяем, была ли уже пересадка
+    const isTransplanted = sale.isTransplanted || false;
+    
     // ==== ИСПРАВЛЕНИЕ: Преобразуем время продажи в московское для отображения ====
     let saleDate, saleTime;
     
     if (sale.datetime) {
-        // Если есть datetime, разбираем его
         const parts = sale.datetime.split(' ');
         saleDate = parts[0];
         saleTime = parts[1] || '00:00';
@@ -5312,23 +5308,17 @@ function showSaleDetails(sale) {
         saleDate = sale.date;
         saleTime = sale.time || '00:00';
     } else if (sale.timestamp) {
-        // Если есть timestamp, конвертируем в московское время
         const date = new Date(sale.timestamp);
-        // Добавляем 3 часа для Москвы
         const moscowDate = new Date(date.getTime() + (3 * 60 * 60 * 1000));
         saleDate = moscowDate.toISOString().split('T')[0];
         saleTime = moscowDate.toTimeString().slice(0, 5);
     } else {
-        // Если ничего нет, используем текущее московское
         const moscowTime = getSimpleMoscowDateTime();
         saleDate = moscowTime.date;
         saleTime = moscowTime.time;
     }
     
-    // При редактировании показываем текущую цену (уже с вычтенной комиссией)
     const displayPrice = sale.price;
-
-    // Скрытое поле для хранения оригинальной площадки
     const originalMarketplace = sale.marketplace || 'telegram';
     
     modalContent.innerHTML = `
@@ -5365,6 +5355,11 @@ function showSaleDetails(sale) {
                     ${sale.soldByName} ${sale.managerRole === 'admin' ? '👑' : '👷'}
                 </span>
             </div>
+            ${isTransplanted ? `
+                <div style="margin-top: 10px; background: #fef3c7; color: #92400e; padding: 8px; border-radius: 8px; text-align: center; border: 1px solid #fbbf24;">
+                    🔄 Пересадка (позиция освобождена)
+                </div>
+            ` : ''}
             <div style="margin-top: 10px; font-size: 0.85em; color: #10b981; text-align: center; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
                 ⏰ Московское время (UTC+3)
             </div>
@@ -5437,13 +5432,13 @@ function showSaleDetails(sale) {
             </div>
         </div>
         
-        <div class="sale-buttons">
-            <button class="btn btn-secondary" onclick="closeSaleModal()">Отмена</button>
-            <button class="btn btn-primary" onclick="updateSaleDetails('${sale.id}')">
-                💾 Сохранить изменения
+        <div class="sale-buttons" style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-secondary" onclick="closeSaleModal()" style="flex: 1;">Отмена</button>
+            <button class="btn btn-primary" onclick="updateSaleDetails('${sale.id}')" style="flex: 1;">
+                💾 Сохранить
             </button>
-            <button class="btn btn-danger" onclick="deleteSale('${sale.id}')">
-                🗑️ Удалить продажу
+            <button class="btn btn-danger" onclick="deleteSale('${sale.id}')" style="flex: 1;">
+                🗑️ Удалить
             </button>
         </div>
     `;
@@ -6092,34 +6087,18 @@ function updateCommission() {
     }
 }
 
-// Новая функция для обновления результатов поиска
 function refreshSearchResultsAfterSaleUpdate() {
     const searchInput = document.getElementById('managerGameSearch');
     const loginInput = document.getElementById('managerLogin');
     
+    // Просто перезапускаем текущий поиск
     if (searchInput && searchInput.value.trim()) {
-        // Если был поиск по игре - обновляем результаты
         searchByGame();
     } else if (loginInput && loginInput.value.trim()) {
-        // Если был поиск по логину - обновляем
         searchByLogin();
     } else {
-        // Если нет поиска - просто обновляем текущие результаты
-        const resultsContainer = document.getElementById('searchResults');
-        if (resultsContainer && resultsContainer.children.length > 0) {
-            // Сохраняем текущий поиск
-            const currentSearch = {
-                gameSearch: searchInput ? searchInput.value : '',
-                loginSearch: loginInput ? loginInput.value : ''
-            };
-            
-            // Если есть какая-то информация о текущем отображении
-            if (currentSearch.gameSearch) {
-                searchByGame();
-            } else if (currentSearch.loginSearch) {
-                searchByLogin();
-            }
-        }
+        // Если ничего не искали, очищаем результаты
+        document.getElementById('searchResults').innerHTML = '';
     }
 }
 
@@ -8866,5 +8845,289 @@ function performUnifiedSearch() {
     } else {
         // Поиск по игре
         searchByGame();
+    }
+}
+
+// ============================================
+// БЫСТРЫЙ ПОИСК ПО ЛОГИНУ (ШАПКА)
+// ============================================
+
+// Добавляем поле быстрого поиска в шапку
+function addQuickSearchField() {
+    // Проверяем, не на странице ли входа
+    if (window.location.pathname.includes('login.html') || 
+        window.location.pathname.includes('index.html')) {
+        return;
+    }
+    
+    // Проверяем, есть ли уже такое поле
+    if (document.getElementById('quickLoginSearch')) return;
+    
+    // Создаем контейнер для поля
+    const searchContainer = document.createElement('div');
+    searchContainer.id = 'quickSearchContainer';
+    searchContainer.style.cssText = `
+        position: fixed;
+        top: 30px;
+        right: 100px;
+        z-index: 9999;
+    `;
+    
+    // Создаем поле ввода
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'quickLoginSearch';
+    input.placeholder = '🔍 Быстрый поиск по логину...';
+    input.style.cssText = `
+        padding: 10px 20px;
+        width: 250px;
+        border: 2px solid #e2e8f0;
+        border-radius: 30px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        outline: none;
+        background: white;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    `;
+    
+    // Добавляем обработчики
+    input.addEventListener('focus', () => {
+        input.style.borderColor = '#4361ee';
+        input.style.boxShadow = '0 0 0 3px rgba(67, 97, 238, 0.1)';
+    });
+    
+    input.addEventListener('blur', () => {
+        input.style.borderColor = '#e2e8f0';
+        input.style.boxShadow = '0 2px 10px rgba(0,0,0,0.05)';
+    });
+    
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            quickSearchByLogin();
+        }
+    });
+    
+    searchContainer.appendChild(input);
+    document.body.appendChild(searchContainer);
+}
+
+// Функция поиска по логину из шапки
+function quickSearchByLogin() {
+    const input = document.getElementById('quickLoginSearch');
+    if (!input) return;
+    
+    const loginSearch = input.value.trim();
+    
+    if (!loginSearch) {
+        showNotification('Введите логин PSN', 'warning');
+        return;
+    }
+    
+    // Ищем аккаунт по точному совпадению (логины уникальны)
+    const account = accounts.find(acc => 
+        acc.psnLogin.toLowerCase() === loginSearch.toLowerCase()
+    );
+    
+    if (!account) {
+        showNotification(`Аккаунт "${loginSearch}" не найден`, 'error');
+        return;
+    }
+    
+    // Показываем модальное окно с продажами
+    showAccountSalesModal(account);
+}
+
+// Функция для показа модального окна с продажами аккаунта
+function showAccountSalesModal(account) {
+    // Получаем все продажи этого аккаунта
+    const accountSales = sales
+        .filter(sale => sale.accountId === account.id)
+        .sort((a, b) => new Date(b.datetime || b.timestamp) - new Date(a.datetime || a.timestamp));
+    
+    // Создаем модальное окно
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'accountSalesModal';
+    modal.style.display = 'block';
+    
+    // Заголовок в зависимости от наличия продаж
+    const title = accountSales.length > 0 
+        ? `📊 Продажи аккаунта ${account.psnLogin} (${accountSales.length})`
+        : `📊 Аккаунт ${account.psnLogin} - нет продаж`;
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+            <span class="close" onclick="document.getElementById('accountSalesModal').remove()">&times;</span>
+            
+            <h2 style="margin-bottom: 25px; color: #2d3748;">
+                <span style="margin-right: 10px;">💰</span>
+                ${title}
+            </h2>
+            
+            ${accountSales.length > 0 ? `
+                <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 0.9em; color: #64748b;">Всего продаж</div>
+                            <div style="font-size: 1.8em; font-weight: 700; color: #1e293b;">${accountSales.length}</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 0.9em; color: #64748b;">Общая выручка</div>
+                            <div style="font-size: 1.8em; font-weight: 700; color: #10b981;">
+                                ${accountSales.reduce((sum, s) => sum + s.price, 0).toLocaleString('ru-RU')} ₽
+                            </div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 0.9em; color: #64748b;">Средний чек</div>
+                            <div style="font-size: 1.8em; font-weight: 700; color: #4361ee;">
+                                ${Math.round(accountSales.reduce((sum, s) => sum + s.price, 0) / accountSales.length).toLocaleString('ru-RU')} ₽
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead style="background: #f1f5f9; position: sticky; top: 0;">
+                            <tr>
+                                <th style="padding: 12px; text-align: left;">Дата</th>
+                                <th style="padding: 12px; text-align: left;">Игра</th>
+                                <th style="padding: 12px; text-align: left;">Позиция</th>
+                                <th style="padding: 12px; text-align: left;">Цена</th>
+                                <th style="padding: 12px; text-align: left;">Площадка</th>
+                                <th style="padding: 12px; text-align: left;">Менеджер</th>
+                                <th style="padding: 12px; text-align: center;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${accountSales.map(sale => `
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 12px;">${sale.datetime || sale.date || ''}</td>
+                                    <td style="padding: 12px;">${sale.gameName || ''}</td>
+                                    <td style="padding: 12px;">${sale.positionName || sale.positionType || ''}</td>
+                                    <td style="padding: 12px; font-weight: 600; color: #10b981;">${sale.price} ₽</td>
+                                    <td style="padding: 12px;">
+                                        <span style="
+                                            padding: 4px 8px;
+                                            border-radius: 6px;
+                                            font-size: 0.85em;
+                                            background: ${sale.marketplace === 'funpay' ? '#fef3c7' : 
+                                                       sale.marketplace === 'telegram' ? '#dbeafe' : 
+                                                       sale.marketplace === 'avito' ? '#f0f9ff' : '#f1f5f9'};
+                                            color: ${sale.marketplace === 'funpay' ? '#92400e' : 
+                                                   sale.marketplace === 'telegram' ? '#1e40af' : 
+                                                   sale.marketplace === 'avito' ? '#0c4a6e' : '#374151'};
+                                        ">
+                                            ${sale.marketplace || 'Не указано'}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px;">
+                                        <div style="display: flex; align-items: center; gap: 5px;">
+                                            <span>${sale.soldByName || sale.soldBy || 'Неизвестно'}</span>
+                                            ${sale.managerRole === 'admin' ? '👑' : '👷'}
+                                        </div>
+                                    </td>
+                                    <td style="padding: 12px; text-align: center;">
+                                        <button onclick="quickEditSale('${sale.id}')" 
+                                                style="
+                                                    background: #4361ee;
+                                                    color: white;
+                                                    border: none;
+                                                    width: 30px;
+                                                    height: 30px;
+                                                    border-radius: 6px;
+                                                    cursor: pointer;
+                                                    margin-right: 5px;
+                                                "
+                                                title="Редактировать продажу">
+                                            ✏️
+                                        </button>
+                                        <button onclick="quickDeleteSale('${sale.id}')" 
+                                                style="
+                                                    background: #ef4444;
+                                                    color: white;
+                                                    border: none;
+                                                    width: 30px;
+                                                    height: 30px;
+                                                    border-radius: 6px;
+                                                    cursor: pointer;
+                                                "
+                                                title="Удалить продажу">
+                                            🗑️
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            ` : `
+                <div style="text-align: center; padding: 40px; background: #f8fafc; border-radius: 10px;">
+                    <div style="font-size: 3em; margin-bottom: 15px;">🔍</div>
+                    <h3 style="color: #64748b;">У этого аккаунта нет продаж</h3>
+                    <p style="color: #94a3b8; margin-top: 10px;">
+                        Аккаунт добавлен ${account.created || 'в системе'}, но еще не было продаж
+                    </p>
+                </div>
+            `}
+            
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: right;">
+                <button class="btn btn-secondary" onclick="document.getElementById('accountSalesModal').remove()">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+// Вспомогательные функции для редактирования/удаления из модального окна
+function quickEditSale(saleId) {
+    // Закрываем текущее модальное окно
+    document.getElementById('accountSalesModal').remove();
+    
+    // Находим продажу и открываем стандартное окно редактирования
+    const sale = sales.find(s => s.id === saleId);
+    if (sale) {
+        showSaleDetails(sale);
+    }
+}
+
+function quickDeleteSale(saleId) {
+    if (confirm('Удалить эту продажу?')) {
+        deleteSale(saleId);
+        // Закрываем модальное окно после удаления
+        setTimeout(() => {
+            document.getElementById('accountSalesModal')?.remove();
+        }, 500);
+    }
+}
+
+// Синхронизация названий игр в аккаунтах
+function syncGameNamesInAccounts() {
+    let updated = false;
+    
+    accounts.forEach(account => {
+        if (account.gameId && account.gameId !== 0) {
+            const game = games.find(g => g.id === account.gameId);
+            if (game && account.gameName !== game.name) {
+                account.gameName = game.name;
+                updated = true;
+            }
+        }
+    });
+    
+    if (updated) {
+        saveToStorage('accounts', accounts);
+        console.log('🔄 Названия игр в аккаунтах обновлены');
+        
+        // Обновляем отображение если на странице менеджера
+        if (window.location.pathname.includes('manager.html')) {
+            const searchInput = document.getElementById('managerGameSearch');
+            if (searchInput && searchInput.value.trim()) {
+                searchByGame();
+            }
+        }
     }
 }

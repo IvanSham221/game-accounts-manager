@@ -5231,3 +5231,16 @@ body.dark-theme .autocomplete-item:hover {
 body.dark-theme .autocomplete-item div {
     color: #e2e8f0 !important;
 }
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 768px) {
+    #quickSearchContainer {
+        top: 80px !important;
+        right: 20px !important;
+        left: 20px !important;
+    }
+    
+    #quickLoginSearch {
+        width: 100% !important;
+    }
+}
