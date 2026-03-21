@@ -49,6 +49,15 @@
 <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
     <div class="container">
         <h1><span>👨‍💼</span><span>Месси позор общества</span></h1>
+        
+        <!-- ========== КНОПКА СВОБОДНОЙ ПРОДАЖИ ========== -->
+        <div style="margin-bottom: 20px; text-align: right;">
+            <button onclick="openFreeSaleModal()" class="btn" style="background: #f97316; color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer;">
+                🆓 Свободная продажа
+            </button>
+        </div>
+        <!-- ========== КОНЕЦ КНОПКИ ========== -->
+        
         <div class="section">
     <h2>🎯 Поиск аккаунтов</h2>
     <div class="search-container">
@@ -107,6 +116,66 @@
         <div id="editForm" class="form-grid"></div>
     </div>
 </div>
+
+<!-- ========== МОДАЛЬНОЕ ОКНО СВОБОДНОЙ ПРОДАЖИ ========== -->
+<div id="freeSaleModal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <span class="close" onclick="closeFreeSaleModal()">&times;</span>
+        <h2 style="text-align: center; margin-bottom: 25px;">🆓 Свободная продажа</h2>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Тип продажи:</label>
+            <select id="freeSaleType" class="input" required>
+                <option value="Покупка на личный украинский">🇺🇦 Покупка на личный украинский</option>
+                <option value="Покупка на личный турецкий">🇹🇷 Покупка на личный турецкий</option>
+                <option value="Выдача личного пользователя">👤 Выдача личного пользователя</option>
+                <option value="Код">🔑 Код</option>
+            </select>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Цена продажи (₽):</label>
+            <input type="number" id="freeSalePrice" class="input" placeholder="Введите цену" required>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Сумма закупа (₽):</label>
+            <input type="number" id="freeSalePurchase" class="input" placeholder="Введите сумму закупа" value="0">
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Площадка продажи:</label>
+            <select id="freeSaleMarketplace" class="input" required>
+                <option value="funpay">Funpay (комиссия 3%)</option>
+                <option value="telegram">Telegram</option>
+                <option value="avito">Avito</option>
+            </select>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div>
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Дата продажи:</label>
+                <input type="date" id="freeSaleDate" class="input">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Время продажи:</label>
+                <input type="time" id="freeSaleTime" class="input">
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Примечания:</label>
+            <textarea id="freeSaleNotes" class="input" rows="3" placeholder="Дополнительная информация..."></textarea>
+        </div>
+        
+        <div style="display: flex; gap: 15px; margin-top: 25px;">
+            <button class="btn btn-secondary" onclick="closeFreeSaleModal()" style="flex: 1;">Отмена</button>
+            <button class="btn btn-success" onclick="confirmFreeSale()" style="flex: 2;">✅ Подтвердить продажу</button>
+        </div>
+    </div>
+</div>
+<!-- ========== КОНЕЦ МОДАЛЬНОГО ОКНА ========== -->
+
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="firebase.js"></script>

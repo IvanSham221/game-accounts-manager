@@ -6374,6 +6374,14 @@ function displayReportResults(salesData, startDate, endDate) {
         totalPurchaseAmount += account.purchaseAmount || 0;
     });
     
+    // ===== ДОБАВЛЯЕМ СУММУ ЗАКУПА ИЗ СВОБОДНЫХ ПРОДАЖ =====
+    salesData.forEach(sale => {
+        if (sale.isFreeSale && sale.purchaseAmount) {
+            totalPurchaseAmount += sale.purchaseAmount;
+        }
+    });
+    // ===== КОНЕЦ ДОБАВЛЕНИЯ =====
+    
     // Общая выручка из продаж
     const totalRevenue = salesData.reduce((sum, sale) => sum + sale.price, 0);
     const totalSales = salesData.length;
@@ -6856,7 +6864,7 @@ function getSalesListHTML(salesData) {
             try {
                 // Безопасное получение данных аккаунта
                 const account = accountsArray.find(acc => acc && acc.id === sale.accountId);
-                const purchaseAmount = account ? (account.purchaseAmount || 0) : 0;
+                const purchaseAmount = account ? (account.purchaseAmount || 0) : (sale.purchaseAmount || 0);
                 
                 // Проверяем права на удаление
                 const canDelete = isAdmin || (currentUser && sale.soldBy === currentUser.username);
@@ -6907,11 +6915,35 @@ function getSalesListHTML(salesData) {
                     marketplaceStyle = 'background: #f1f5f9; color: #374151; border-color: #e2e8f0;';
                 }
                 
+                // ===== СТИЛЬ ДЛЯ СВОБОДНЫХ ПРОДАЖ =====
+                let rowStyle = '';
+                let typeBadge = '';
+                
+                if (sale.isFreeSale) {
+                    rowStyle = 'background: #fff7ed; border-left: 3px solid #f97316;';
+                    typeBadge = `
+                        <span style="
+                            display: inline-block;
+                            background: #f97316;
+                            color: white;
+                            padding: 2px 8px;
+                            border-radius: 12px;
+                            font-size: 0.7em;
+                            font-weight: 600;
+                            margin-left: 8px;
+                        ">
+                            🆓
+                        </span>
+                    `;
+                }
+                // ===== КОНЕЦ СТИЛЯ =====
+                
                 // ВАЖНО: добавляем data-sale-id к строке таблицы для анимации удаления
                 tableRows += `
-                    <tr data-sale-id="${sale.id}" style="border-bottom: 1px solid #e2e8f0; transition: all 0.3s ease;">
+                    <tr data-sale-id="${sale.id}" style="border-bottom: 1px solid #e2e8f0; transition: all 0.3s ease; ${rowStyle}">
                         <td style="padding: 12px 15px; color: #64748b; font-size: 0.9em;">
                             ${displayDate}
+                            ${typeBadge}
                         </td>
                         <td style="padding: 12px 15px; font-weight: 500;">${sale.gameName || 'Не указано'}</td>
                         <td style="padding: 12px 15px; font-weight: 500;">${sale.accountLogin || 'Не указано'}</td>
@@ -9138,5 +9170,114 @@ function syncGameNamesInAccounts() {
                 searchByGame();
             }
         }
+    }
+}
+
+// ==================== СВОБОДНАЯ ПРОДАЖА ====================
+
+// Открыть модальное окно свободной продажи
+function openFreeSaleModal() {
+    const moscowTime = getSimpleMoscowDateTime();
+    document.getElementById('freeSaleDate').value = moscowTime.date;
+    document.getElementById('freeSaleTime').value = moscowTime.time;
+    document.getElementById('freeSalePrice').value = '';
+    document.getElementById('freeSalePurchase').value = '0';
+    document.getElementById('freeSaleNotes').value = '';
+    document.getElementById('freeSaleModal').style.display = 'block';
+}
+
+// Закрыть модальное окно свободной продажи
+function closeFreeSaleModal() {
+    document.getElementById('freeSaleModal').style.display = 'none';
+}
+
+// Подтвердить свободную продажу
+async function confirmFreeSale() {
+    const saleType = document.getElementById('freeSaleType').value;
+    const salePrice = parseFloat(document.getElementById('freeSalePrice').value);
+    const purchaseAmount = parseFloat(document.getElementById('freeSalePurchase').value) || 0;
+    const marketplace = document.getElementById('freeSaleMarketplace').value;
+    const saleDate = document.getElementById('freeSaleDate').value;
+    const saleTime = document.getElementById('freeSaleTime').value;
+    const notes = document.getElementById('freeSaleNotes').value;
+    
+    if (!salePrice || salePrice <= 0) {
+        showNotification('Введите корректную цену продажи', 'warning');
+        return;
+    }
+    
+    let finalPrice = salePrice;
+    let commission = 0;
+    let originalPrice = null;
+    
+    if (marketplace === 'funpay') {
+        const commissionData = calculateFPCommission(salePrice);
+        commission = commissionData.commission;
+        finalPrice = commissionData.final;
+        originalPrice = salePrice;
+    }
+    
+    const saleDateTime = saleDate && saleTime ? `${saleDate} ${saleTime}` : getSimpleMoscowDateTime().datetime;
+    const timestamp = saleDate && saleTime 
+        ? new Date(`${saleDate}T${saleTime}`).getTime() 
+        : getSimpleMoscowDateTime().timestamp;
+    
+    const currentUser = security.getCurrentUser();
+    
+    const newSale = {
+        id: `free_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        accountId: 'free_sale',
+        accountLogin: saleType,
+        gameName: saleType,
+        positionType: 'free_sale',
+        positionName: saleType,
+        price: finalPrice,
+        originalPrice: originalPrice,
+        commission: commission,
+        commissionPercent: marketplace === 'funpay' ? 3 : 0,
+        date: saleDate,
+        time: saleTime,
+        datetime: saleDateTime,
+        notes: notes,
+        timestamp: timestamp,
+        createdTimestamp: timestamp,
+        sold: true,
+        positionIndex: 1,
+        soldBy: currentUser ? currentUser.username : 'unknown',
+        soldByName: currentUser ? currentUser.name : 'Неизвестно',
+        managerRole: currentUser ? currentUser.role : 'unknown',
+        marketplace: marketplace,
+        commissionApplied: marketplace === 'funpay',
+        isFreeSale: true,
+        freeSaleType: saleType,
+        purchaseAmount: purchaseAmount,
+        timezone: 'Europe/Moscow',
+        timezoneOffset: '+03:00'
+    };
+    
+    try {
+        sales.push(newSale);
+        localStorage.setItem('sales', JSON.stringify(sales));
+        
+        if (window.dataSync && window.dataSync.saveSale) {
+            await window.dataSync.saveSale(newSale);
+            showNotification('✅ Свободная продажа сохранена и синхронизирована!', 'success');
+        } else if (firebase && firebase.database) {
+            const db = firebase.database();
+            await db.ref('sales/' + newSale.id).set(newSale);
+            showNotification('✅ Свободная продажа сохранена в облаке!', 'success');
+        } else {
+            showNotification('✅ Свободная продажа сохранена локально', 'warning');
+        }
+        
+        closeFreeSaleModal();
+        
+        if (window.location.pathname.includes('reports.html')) {
+            setTimeout(() => generateReport(), 500);
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка сохранения:', error);
+        showNotification('❌ Ошибка при сохранении', 'error');
     }
 }
