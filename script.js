@@ -447,9 +447,18 @@ function updateNavigation() {
     `;
     
     nav.innerHTML = navButtons;
-    
-    // Добавляем кнопку синхронизации
     setTimeout(addSyncButton, 100);
+    const mobileUserName = document.getElementById('mobileUserName');
+    if (mobileUserName) {
+        mobileUserName.textContent = user.name;
+    }
+
+    const userNameElements = document.querySelectorAll('.user-info span');
+    userNameElements.forEach(el => {
+        if (el.textContent.includes(user.role === 'admin' ? '👑' : '👷')) {
+            el.textContent = `${user.role === 'admin' ? '👑' : '👷'} ${user.name}`;
+        }
+    });
 }
 
 // КНОПКА ПРИНУДИТЕЛЬНОЙ СИНХРОНИЗАЦИИ

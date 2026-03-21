@@ -265,6 +265,54 @@
         <button onclick="showDebugInfo()" class="debug-btn">🐛 Дебаг</button>
     </div>
 
+    <div id="editWorkerModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <span class="close" onclick="closeEditWorkerModal()">&times;</span>
+            <h2>✏️ Редактировать работника</h2>
+            
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label for="editWorkerName" style="display: block; margin-bottom: 8px; font-weight: 600;">Имя работника:</label>
+                <input type="text" id="editWorkerName" class="input" placeholder="Введите имя">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label for="editWorkerUsername" style="display: block; margin-bottom: 8px; font-weight: 600;">Логин:</label>
+                <input type="text" id="editWorkerUsername" class="input" disabled style="background: #f1f5f9;">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label for="editWorkerPassword" style="display: block; margin-bottom: 8px; font-weight: 600;">Пароль:</label>
+                <input type="password" id="editWorkerPassword" class="input" placeholder="Оставьте пустым, чтобы не менять">
+                <div style="font-size: 0.85em; color: #64748b; margin-top: 5px;">
+                    Если нужно сменить пароль - введите новый
+                </div>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label for="editWorkerRole" style="display: block; margin-bottom: 8px; font-weight: 600;">Роль:</label>
+                <select id="editWorkerRole" class="input">
+                    <option value="worker">👷 Работник</option>
+                    <option value="admin">👑 Администратор</option>
+                </select>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="editWorkerActive" style="width: 18px; height: 18px;">
+                    <span style="font-weight: 600;">Активен</span>
+                </label>
+                <div style="font-size: 0.85em; color: #64748b; margin-top: 5px;">
+                    Неактивные работники не могут войти в систему
+                </div>
+            </div>
+            
+            <div class="modal-buttons" style="display: flex; gap: 15px; margin-top: 25px;">
+                <button class="btn btn-secondary" onclick="closeEditWorkerModal()" style="flex: 1;">Отмена</button>
+                <button class="btn btn-primary" onclick="saveWorkerChanges()" style="flex: 2;">💾 Сохранить изменения</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Подключение скриптов -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -446,6 +494,15 @@
                         ` : ''}
                         
                         <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                            <button class="btn btn-primary btn-small" onclick="editWorker('${worker.username}')">
+                                ✏️ Редактировать
+                            </button>
+                            
+                            <!-- НОВАЯ КНОПКА - ОБНОВИТЬ ИМЯ В ПРОДАЖАХ -->
+                            <button class="btn btn-info btn-small" onclick="refreshManagerNameInSales('${worker.username}', '${worker.name}')" style="background: #0ea5e9;">
+                                🔄 Обновить имя в продажах
+                            </button>
+                            
                             ${!isAdmin ? `
                                 <button class="btn btn-small ${isActive ? 'btn-warning' : 'btn-success'}" 
                                         onclick="toggleWorker('${worker.username}', ${isActive ? 'false' : 'true'})">
@@ -901,6 +958,71 @@ function fixAllWorkersPasswords() {
             }
         }
         
+        // ==================== НОВАЯ ФУНКЦИЯ: ОБНОВИТЬ ИМЯ В ПРОДАЖАХ ====================
+        function refreshManagerNameInSales(username, newName) {
+            if (!confirm(`Обновить имя "${newName}" во всех продажах этого работника?\n\nЭто затронет все продажи, где указан этот работник.`)) {
+                return;
+            }
+            
+            showDebugInfo(`🔄 Начинаю обновление имени "${newName}" для всех продаж...`, 'info');
+            
+            // Получаем продажи
+            let sales = JSON.parse(localStorage.getItem('sales') || '[]');
+            let updated = 0;
+            
+            // Обновляем имя во всех продажах этого работника
+            sales.forEach(sale => {
+                if (sale.soldBy === username) {
+                    if (sale.soldByName !== newName) {
+                        sale.soldByName = newName;
+                        updated++;
+                    }
+                }
+            });
+            
+            if (updated === 0) {
+                showDebugInfo(`ℹ️ Нет продаж для обновления (имя уже ${newName} или нет продаж)`, 'info');
+                return;
+            }
+            
+            // Сохраняем локально
+            localStorage.setItem('sales', JSON.stringify(sales));
+            
+            // Обновляем глобальную переменную
+            if (typeof window.sales !== 'undefined') {
+                window.sales = sales;
+            }
+            
+            // Синхронизируем с Firebase
+            if (typeof firebase !== 'undefined' && firebase.database) {
+                const db = firebase.database();
+                const salesObj = {};
+                sales.forEach(s => { salesObj[s.id] = s; });
+                
+                db.ref('sales').set(salesObj).then(() => {
+                    showDebugInfo(`✅ Обновлено ${updated} продаж! Данные синхронизированы с Firebase.`, 'success');
+                    
+                    // Предлагаем перезагрузить страницу менеджера
+                    if (confirm(`Обновлено ${updated} продаж!\n\nПерезагрузить страницу менеджера, чтобы увидеть изменения?`)) {
+                        window.location.href = 'manager.html';
+                    }
+                }).catch(error => {
+                    console.error('❌ Ошибка синхронизации Firebase:', error);
+                    showDebugInfo(`⚠️ Обновлено ${updated} продаж локально, но ошибка синхронизации с Firebase.`, 'warning');
+                    
+                    if (confirm(`Обновлено ${updated} продаж локально!\n\nПерезагрузить страницу менеджера?`)) {
+                        window.location.href = 'manager.html';
+                    }
+                });
+            } else {
+                showDebugInfo(`✅ Обновлено ${updated} продаж локально!`, 'success');
+                
+                if (confirm(`Обновлено ${updated} продаж!\n\nПерезагрузить страницу менеджера, чтобы увидеть изменения?`)) {
+                    window.location.href = 'manager.html';
+                }
+            }
+        }
+        
         // ==================== ИНСТРУМЕНТЫ ОТЛАДКИ ====================
         
         // Принудительная синхронизация
@@ -1243,6 +1365,240 @@ function fixAllWorkersPasswords() {
         
         function logout() {
             security.logout();
+        }
+        
+        // ==================== РЕДАКТИРОВАНИЕ РАБОТНИКА ====================
+
+        // Переменная для хранения текущего редактируемого работника
+        let currentEditingWorker = null;
+
+        // Открыть модальное окно редактирования
+        function editWorker(username) {
+            const worker = workers.find(w => w.username === username);
+            
+            if (!worker) {
+                showDebugInfo('❌ Работник не найден', 'error');
+                return;
+            }
+            
+            currentEditingWorker = username;
+            
+            // Заполняем форму
+            document.getElementById('editWorkerName').value = worker.name || '';
+            document.getElementById('editWorkerUsername').value = worker.username;
+            document.getElementById('editWorkerPassword').value = '';
+            document.getElementById('editWorkerRole').value = worker.role || 'worker';
+            document.getElementById('editWorkerActive').checked = worker.active !== false;
+            
+            // Открываем модальное окно
+            document.getElementById('editWorkerModal').style.display = 'block';
+        }
+
+        // Закрыть модальное окно
+        function closeEditWorkerModal() {
+            document.getElementById('editWorkerModal').style.display = 'none';
+            currentEditingWorker = null;
+        }
+
+        async function saveWorkerChanges() {
+            if (!currentEditingWorker) {
+                showDebugInfo('❌ Ошибка: работник не выбран', 'error');
+                return;
+            }
+            
+            const workerIndex = workers.findIndex(w => w.username === currentEditingWorker);
+            if (workerIndex === -1) {
+                showDebugInfo('❌ Работник не найден', 'error');
+                return;
+            }
+            
+            const newName = document.getElementById('editWorkerName').value.trim();
+            const newPassword = document.getElementById('editWorkerPassword').value.trim();
+            const newRole = document.getElementById('editWorkerRole').value;
+            const isActive = document.getElementById('editWorkerActive').checked;
+            
+            if (!newName) {
+                showDebugInfo('❌ Введите имя работника', 'warning');
+                return;
+            }
+            
+            // Запоминаем старое имя
+            const oldName = workers[workerIndex].name;
+            const username = workers[workerIndex].username;
+            
+            // Обновляем данные работника
+            const updatedWorker = {
+                ...workers[workerIndex],
+                name: newName,
+                role: newRole,
+                active: isActive,
+                lastUpdated: new Date().toISOString(),
+                updatedBy: security.getCurrentUser()?.name || 'Администратор'
+            };
+            
+            if (newPassword && newPassword.length >= 4) {
+                updatedWorker.password = fixedHashPassword(newPassword);
+                updatedWorker.passwordChanged = true;
+                updatedWorker.passwordChangedAt = new Date().toISOString();
+                showDebugInfo(`🔑 Пароль изменен для ${newName}`, 'success');
+            } else if (newPassword && newPassword.length < 4) {
+                showDebugInfo('⚠️ Пароль не изменен (минимум 4 символа)', 'warning');
+            }
+            
+            workers[workerIndex] = updatedWorker;
+            localStorage.setItem('workers', JSON.stringify(workers));
+            
+            // ===== МАССОВОЕ ОБНОВЛЕНИЕ ПРОДАЖ =====
+            showDebugInfo(`🔄 Обновляю имя в продажах для ${username}...`, 'info');
+            
+            const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+            let updatedCount = 0;
+            
+            sales.forEach(sale => {
+                if (sale.soldBy === username && sale.soldByName === oldName) {
+                    sale.soldByName = newName;
+                    updatedCount++;
+                }
+            });
+            
+            if (updatedCount > 0) {
+                localStorage.setItem('sales', JSON.stringify(sales));
+                if (typeof window.sales !== 'undefined') window.sales = sales;
+                showDebugInfo(`✅ Обновлено ${updatedCount} продаж!`, 'success');
+            } else {
+                showDebugInfo(`ℹ️ Нет продаж для обновления`, 'info');
+            }
+            
+            // Синхронизация с Firebase
+            try {
+                const db = firebase.database();
+                
+                // Обновляем работника
+                await db.ref('workers/' + username).set(updatedWorker);
+                
+                // Обновляем все продажи
+                if (updatedCount > 0) {
+                    const salesObj = {};
+                    sales.forEach(s => { salesObj[s.id] = s; });
+                    await db.ref('sales').set(salesObj);
+                }
+                
+                // Обновляем весь объект работников
+                const workersObj = {};
+                workers.forEach(w => workersObj[w.username] = w);
+                await db.ref('workers').set(workersObj);
+                
+                showDebugInfo(`✅ Данные синхронизированы с Firebase`, 'success');
+                
+                // Обновляем текущего пользователя если редактируем себя
+                const currentUser = security.getCurrentUser();
+                if (currentUser && currentUser.username === username) {
+                    const updatedUser = { ...currentUser, name: newName, role: newRole };
+                    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+                    if (security && security.currentUser) security.currentUser = updatedUser;
+                    if (typeof updateNavigation === 'function') updateNavigation();
+                    if (typeof initMobileMenu === 'function') initMobileMenu();
+                }
+                
+                closeEditWorkerModal();
+                displayWorkers();
+                
+                showDebugInfo(`🎉 Работник "${newName}" успешно обновлен! Обновлено ${updatedCount} продаж.`, 'success');
+                
+                // Перезагружаем страницу менеджера если она открыта
+                setTimeout(() => {
+                    if (window.location.pathname.includes('manager.html')) {
+                        location.reload();
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                console.error('❌ Ошибка Firebase:', error);
+                showDebugInfo(`⚠️ Работник обновлен локально, обновлено ${updatedCount} продаж.`, 'warning');
+                closeEditWorkerModal();
+                displayWorkers();
+            }
+        }
+        
+        // Обновить имя менеджера во всех продажах
+        async function updateManagerNameInSales(username, oldName, newName) {
+            console.log(`🔄 Обновляю имя менеджера "${oldName}" -> "${newName}" для всех продаж...`);
+            
+            // Загружаем продажи
+            const sales = JSON.parse(localStorage.getItem('sales') || '[]');
+            let updated = 0;
+            
+            // Обновляем имя во всех продажах этого менеджера
+            sales.forEach(sale => {
+                if (sale.soldBy === username && sale.soldByName === oldName) {
+                    sale.soldByName = newName;
+                    updated++;
+                }
+            });
+            
+            if (updated > 0) {
+                console.log(`✅ Обновлено ${updated} продаж`);
+                localStorage.setItem('sales', JSON.stringify(sales));
+                
+                // Обновляем глобальную переменную если она есть
+                if (typeof window.sales !== 'undefined') {
+                    window.sales = sales;
+                }
+                
+                // Синхронизируем с Firebase
+                try {
+                    const db = firebase.database();
+                    const salesObj = {};
+                    sales.forEach(s => { salesObj[s.id] = s; });
+                    await db.ref('sales').set(salesObj);
+                    console.log('✅ Продажи синхронизированы с Firebase');
+                } catch (error) {
+                    console.error('❌ Ошибка синхронизации продаж:', error);
+                }
+            }
+            
+            return updated;
+        }
+        
+        // Принудительно обновить имя менеджера во всех продажах
+        function forceUpdateManagerNameInAllSales(username, newName) {
+            console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ИМЕНИ');
+            
+            // Получаем продажи
+            let sales = JSON.parse(localStorage.getItem('sales') || '[]');
+            let changed = 0;
+            
+            // Проходим по всем продажам
+            for (let i = 0; i < sales.length; i++) {
+                if (sales[i].soldBy === username) {
+                    console.log(`Меняю: ${sales[i].soldByName} -> ${newName}`);
+                    sales[i].soldByName = newName;
+                    changed++;
+                }
+            }
+            
+            if (changed > 0) {
+                // Сохраняем
+                localStorage.setItem('sales', JSON.stringify(sales));
+                
+                // Обновляем глобальную переменную
+                if (typeof window.sales !== 'undefined') {
+                    window.sales = sales;
+                }
+                
+                // Синхронизируем с Firebase
+                if (typeof firebase !== 'undefined' && firebase.database) {
+                    const db = firebase.database();
+                    const salesObj = {};
+                    sales.forEach(s => { salesObj[s.id] = s; });
+                    db.ref('sales').set(salesObj);
+                }
+                
+                alert(`✅ Обновлено ${changed} продаж!\nСтраница будет перезагружена.`);
+                location.reload();
+            } else {
+                alert(`❌ Нет продаж для ${username}`);
+            }
         }
     </script>
 </body>
