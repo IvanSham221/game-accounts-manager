@@ -2604,7 +2604,6 @@ function openAccountEditModal(accountId) {
     }, 100);
 }
 
-// Функция для рендеринга комментариев в модальном окне редактирования
 function renderCommentsListForEditModal(comments, accountId) {
     if (!comments || comments.length === 0) {
         return '<div style="text-align: center; color: #94a3b8;">Нет комментариев</div>';
@@ -2619,22 +2618,21 @@ function renderCommentsListForEditModal(comments, accountId) {
                 </div>
             </div>
             <div style="color: #374151;">${sanitizeHTML(comment.text)}</div>
-            ${comment.authorUsername === security.getCurrentUser()?.username || security.getCurrentUser()?.role === 'admin' ? `
-                <div style="margin-top: 5px; text-align: right;">
-                    <button onclick="deleteCommentFromEditModal(${comment.id}, ${accountId})" 
-                            style="
-                                background: #fef2f2;
-                                color: #dc2626;
-                                border: 1px solid #fecaca;
-                                padding: 2px 8px;
-                                border-radius: 4px;
-                                font-size: 11px;
-                                cursor: pointer;
-                            ">
-                        Удалить
-                    </button>
-                </div>
-            ` : ''}
+            <!-- ===== КНОПКА УДАЛЕНИЯ ДЛЯ ВСЕХ ===== -->
+            <div style="margin-top: 5px; text-align: right;">
+                <button onclick="deleteCommentFromEditModal(${comment.id}, ${accountId})" 
+                        style="
+                            background: #fef2f2;
+                            color: #dc2626;
+                            border: 1px solid #fecaca;
+                            padding: 2px 8px;
+                            border-radius: 4px;
+                            font-size: 11px;
+                            cursor: pointer;
+                        ">
+                    Удалить
+                </button>
+            </div>
         </div>
     `).join('');
 }
@@ -8031,7 +8029,6 @@ function submitComment(accountId) {
     }
 }
 
-// Функция для рендеринга списка комментариев
 function renderCommentsList(comments, accountId) {
     if (!comments || comments.length === 0) {
         return `
@@ -8079,15 +8076,12 @@ function renderCommentsList(comments, accountId) {
                     </div>
                 </div>
                 
-                <div style="display: flex; gap: 5px;">
-                    ${comment.authorUsername === security.getCurrentUser()?.username || security.getCurrentUser()?.role === 'admin' ? `
-                        <button onclick="deleteCommentFromModal(${comment.id}, ${accountId})" 
-                                class="btn btn-small btn-danger" 
-                                style="padding: 4px 8px; font-size: 12px;">
-                            🗑️
-                        </button>
-                    ` : ''}
-                </div>
+                <!-- ===== КНОПКА УДАЛЕНИЯ ДЛЯ ВСЕХ ===== -->
+                <button onclick="deleteCommentFromModal(${comment.id}, ${accountId})" 
+                        class="btn btn-small btn-danger" 
+                        style="padding: 4px 8px; font-size: 12px;">
+                    🗑️
+                </button>
             </div>
             
             <div style="color: #374151; line-height: 1.5; white-space: pre-wrap;">
