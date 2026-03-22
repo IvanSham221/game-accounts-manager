@@ -2739,7 +2739,6 @@ function addCommentFromEditModal(accountId) {
     }
 }
 
-// Функция для удаления комментария из модального окна редактирования
 function deleteCommentFromEditModal(commentId, accountId) {
     if (deleteComment(accountId, commentId)) {
         // Обновляем список комментариев
@@ -7917,7 +7916,6 @@ function addCommentToAccount(accountId, commentText) {
     return true;
 }
 
-// Функция для удаления комментария
 function deleteComment(accountId, commentId) {
     const accountIndex = accounts.findIndex(acc => acc.id === accountId);
     if (accountIndex === -1) return false;
@@ -7930,11 +7928,8 @@ function deleteComment(accountId, commentId) {
     const comment = accounts[accountIndex].comments[commentIndex];
     const currentUser = security.getCurrentUser();
     
-    // Проверяем права: автор или администратор может удалять
-    if (comment.authorUsername !== currentUser.username && currentUser.role !== 'admin') {
-        showNotification('Вы можете удалять только свои комментарии', 'error');
-        return false;
-    }
+    // ===== УБИРАЕМ ПРОВЕРКУ ПРАВ =====
+    // Теперь любой может удалить любой комментарий
     
     if (confirm('Удалить этот комментарий?')) {
         accounts[accountIndex].comments.splice(commentIndex, 1);
@@ -7943,6 +7938,15 @@ function deleteComment(accountId, commentId) {
         // Обновляем отображение
         if (window.location.pathname.includes('manager.html')) {
             refreshAccountCommentsDisplay(accountId);
+        }
+        
+        // Если модальное окно открыто - обновляем его
+        const commentsList = document.getElementById('commentsList');
+        if (commentsList) {
+            const account = accounts.find(acc => acc.id === accountId);
+            if (account) {
+                commentsList.innerHTML = renderCommentsList(account.comments || [], account.id);
+            }
         }
         
         showNotification('Комментарий удален', 'info');
@@ -8094,7 +8098,6 @@ function renderCommentsList(comments, accountId) {
 }
 
 
-// Вспомогательная функция для удаления комментария из модального окна
 function deleteCommentFromModal(commentId, accountId) {
     if (deleteComment(accountId, commentId)) {
         // Обновляем отображение в модальном окне
