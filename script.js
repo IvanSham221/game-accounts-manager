@@ -807,7 +807,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// ФУНКЦИЯ ДЛЯ ЗАГРУЗКИ ВСЕХ ДАННЫХ С СИНХРОНИЗАЦИЕЙ
 async function loadAllDataWithSync() {
     try {
         console.log('🔄 Загружаем данные с синхронизацией...');
@@ -820,7 +819,11 @@ async function loadAllDataWithSync() {
         games = JSON.parse(localStorage.getItem('games')) || [];
         accounts = JSON.parse(localStorage.getItem('accounts')) || [];
         sales = JSON.parse(localStorage.getItem('sales')) || [];
-        syncGameNamesInAccounts();
+        
+        // ===== ДОБАВЛЯЕМ СИНХРОНИЗАЦИЮ НАЗВАНИЙ =====
+        await syncGameNamesInAllData();
+        // ===== КОНЕЦ ДОБАВЛЕНИЯ =====
+        
         // Убедимся, что у всех аккаунтов есть массив комментариев
         accounts.forEach(account => {
             if (!account.comments) {
@@ -1304,18 +1307,18 @@ async function saveGameChanges() {
         return;
     }
     
-    const gameName = document.getElementById('editGameName').value.trim();
-    const imageUrl = document.getElementById('editGameImageUrl').value.trim(); // НОВОЕ
+    const newName = document.getElementById('editGameName').value.trim();
+    const imageUrl = document.getElementById('editGameImageUrl').value.trim();
     const urlTR = document.getElementById('editGameUrlTR').value.trim();
     const urlUA = document.getElementById('editGameUrlUA').value.trim();
     
-    if (!gameName) {
+    if (!newName) {
         showNotification('Введите название игры', 'warning');
         return;
     }
     
     const duplicate = games.find((g, index) => 
-        index !== gameIndex && g.name.toLowerCase() === gameName.toLowerCase()
+        index !== gameIndex && g.name.toLowerCase() === newName.toLowerCase()
     );
     
     if (duplicate) {
@@ -1323,10 +1326,14 @@ async function saveGameChanges() {
         return;
     }
     
+    // Запоминаем старое название
+    const oldName = games[gameIndex].name;
+    
+    // Обновляем игру
     games[gameIndex] = {
         ...games[gameIndex],
-        name: gameName,
-        imageUrl: imageUrl || null, // НОВОЕ
+        name: newName,
+        imageUrl: imageUrl || null,
         storeLinks: {
             TR: urlTR,
             UA: urlUA
@@ -1339,10 +1346,66 @@ async function saveGameChanges() {
     };
     
     await saveToStorage('games', games);
-    syncGameNamesInAccounts();
+    
+    // ===== ОБНОВЛЯЕМ НАЗВАНИЕ ВО ВСЕХ АККАУНТАХ И ПРОДАЖАХ =====
+    if (oldName !== newName) {
+        console.log(`🔄 Обновляю "${oldName}" -> "${newName}" в аккаунтах и продажах...`);
+        
+        let accountsUpdated = 0;
+        let salesUpdated = 0;
+        
+        // Обновляем аккаунты
+        accounts.forEach(account => {
+            if (account.gameId === gameId && account.gameName === oldName) {
+                account.gameName = newName;
+                accountsUpdated++;
+            }
+        });
+        
+        // Обновляем продажи
+        sales.forEach(sale => {
+            if (sale.gameName === oldName) {
+                sale.gameName = newName;
+                salesUpdated++;
+            }
+        });
+        
+        console.log(`✅ Обновлено: ${accountsUpdated} аккаунтов, ${salesUpdated} продаж`);
+        
+        // Сохраняем изменения
+        if (accountsUpdated > 0) {
+            await saveToStorage('accounts', accounts);
+        }
+        if (salesUpdated > 0) {
+            await saveToStorage('sales', sales);
+        }
+        
+        // Обновляем отображение на странице отчетов если она открыта
+        if (window.location.pathname.includes('reports.html')) {
+            setTimeout(() => generateReport(), 500);
+        }
+        
+        // Обновляем отображение на странице аккаунтов
+        if (window.location.pathname.includes('accounts.html')) {
+            setTimeout(() => displayAccounts(), 500);
+        }
+        
+        // Обновляем поиск в панели менеджера
+        if (window.location.pathname.includes('manager.html')) {
+            const searchInput = document.getElementById('managerGameSearch');
+            if (searchInput && searchInput.value.trim() === oldName) {
+                searchInput.value = newName;
+                setTimeout(() => searchByGame(), 500);
+            }
+        }
+        
+        showNotification(`Игра "${newName}" обновлена! Обновлено ${accountsUpdated} аккаунтов и ${salesUpdated} продаж.`, 'success');
+    } else {
+        showNotification('Игра обновлена! ✅', 'success');
+    }
+    
     closeGameModal();
     displayGames();
-    showNotification('Игра обновлена! ✅', 'success');
 }
 
 // Функция удаления изображения игры
@@ -1750,6 +1813,66 @@ function openGameStats(gameId) {
     
     document.body.appendChild(modal);
     modal.style.display = 'block';
+}
+
+// Функция для обновления названий игр во всех данных
+async function syncGameNamesInAllData() {
+    console.log('🔄 Синхронизация названий игр...');
+    
+    const gamesList = games;
+    let accountsUpdated = 0;
+    let salesUpdated = 0;
+    
+    // Обновляем аккаунты
+    accounts.forEach(account => {
+        if (account.gameId && account.gameId !== 0) {
+            const game = gamesList.find(g => g.id === account.gameId);
+            if (game && account.gameName !== game.name) {
+                account.gameName = game.name;
+                accountsUpdated++;
+            }
+        }
+    });
+    
+    // Обновляем продажи
+    sales.forEach(sale => {
+        if (sale.gameName) {
+            const game = gamesList.find(g => g.name === sale.gameName);
+            // Если есть игра с таким же названием, но ID другой - не трогаем
+            // Просто проверяем, есть ли такая игра в списке
+            if (!game && sale.gameName !== 'Свободная продажа' && !sale.isFreeSale) {
+                // Ищем похожую игру
+                const similarGame = gamesList.find(g => 
+                    g.name.toLowerCase().includes(sale.gameName.toLowerCase()) ||
+                    sale.gameName.toLowerCase().includes(g.name.toLowerCase())
+                );
+                if (similarGame) {
+                    console.log(`⚠️ Найдена похожая игра: "${sale.gameName}" -> "${similarGame.name}"`);
+                    sale.gameName = similarGame.name;
+                    salesUpdated++;
+                }
+            }
+        }
+    });
+    
+    if (accountsUpdated > 0 || salesUpdated > 0) {
+        await saveToStorage('accounts', accounts);
+        await saveToStorage('sales', sales);
+        console.log(`✅ Обновлено: ${accountsUpdated} аккаунтов, ${salesUpdated} продаж`);
+        
+        // Обновляем отображение
+        if (window.location.pathname.includes('reports.html')) {
+            setTimeout(() => generateReport(), 500);
+        }
+        if (window.location.pathname.includes('accounts.html')) {
+            setTimeout(() => displayAccounts(), 500);
+        }
+        
+        return true;
+    }
+    
+    console.log('✅ Все названия игр синхронизированы');
+    return false;
 }
 
 function renderGameStats(game, gameAccounts, gameSales) {
@@ -2635,6 +2758,53 @@ function renderCommentsListForEditModal(comments, accountId) {
             </div>
         </div>
     `).join('');
+}
+
+// Обновить название игры во всех аккаунтах и продажах
+async function updateGameNameInAccounts(gameId, oldName, newName) {
+    console.log(`🔄 Обновляю название игры "${oldName}" -> "${newName}"...`);
+    
+    let updatedAccounts = 0;
+    let updatedSales = 0;
+    
+    // Обновляем в аккаунтах
+    accounts.forEach(account => {
+        if (account.gameId === gameId && account.gameName === oldName) {
+            account.gameName = newName;
+            updatedAccounts++;
+        }
+    });
+    
+    // Обновляем в продажах
+    sales.forEach(sale => {
+        if (sale.gameName === oldName) {
+            sale.gameName = newName;
+            updatedSales++;
+        }
+    });
+    
+    console.log(`✅ Обновлено: ${updatedAccounts} аккаунтов, ${updatedSales} продаж`);
+    
+    if (updatedAccounts > 0 || updatedSales > 0) {
+        await saveToStorage('accounts', accounts);
+        await saveToStorage('sales', sales);
+        
+        // Обновляем отображение
+        if (window.location.pathname.includes('accounts.html')) {
+            displayAccounts();
+        }
+        if (window.location.pathname.includes('manager.html')) {
+            const searchInput = document.getElementById('managerGameSearch');
+            if (searchInput && searchInput.value.trim()) {
+                searchByGame();
+            }
+        }
+        if (window.location.pathname.includes('reports.html')) {
+            setTimeout(() => generateReport(), 500);
+        }
+    }
+    
+    return { updatedAccounts, updatedSales };
 }
 
 // Функции для деактивации аккаунта
