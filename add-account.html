@@ -5,68 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Добавить аккаунт - Менеджер игровых аккаунтов</title>
     <link rel="stylesheet" href="style.css?v=20250115">
-    <style>
-        /* Добавим стиль для синей кнопки, если его нет в style.css */
-        .btn-info {
-            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-            color: white;
-        }
-        .btn-info:hover {
-            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-        }
-    </style>
 </head>
 <body>
     <div id="mobileMenu" class="mobile-menu">
-    <div class="mobile-menu-header">
-        <div class="user-info-mobile">
-            <div class="user-avatar">👤</div>
-            <div>
-                <div class="user-name" id="mobileUserName"></div>
-                <div class="user-role" id="mobileUserRole"></div>
+        <div class="mobile-menu-header">
+            <div class="user-info-mobile">
+                <div class="user-avatar">👤</div>
+                <div>
+                    <div class="user-name" id="mobileUserName"></div>
+                    <div class="user-role" id="mobileUserRole"></div>
+                </div>
             </div>
+            <button class="close-menu" onclick="toggleMobileMenu()">×</button>
         </div>
-        <button class="close-menu" onclick="toggleMobileMenu()">×</button>
+        <div class="mobile-menu-nav"></div>
+        <div class="mobile-menu-footer">
+            <button onclick="logout()" class="btn btn-danger btn-block">🚪 Выйти</button>
+        </div>
     </div>
-    
-    <div class="mobile-menu-nav">
-        <!-- Пункты меню будут добавляться скриптом -->
-    </div>
-    
-    <div class="mobile-menu-footer">
-        <button onclick="logout()" class="btn btn-danger btn-block">
-            <span>🚪</span> Выйти
+
+    <div class="burger-container">
+        <button class="burger-btn" onclick="toggleMobileMenu()">
+            <div class="burger-icon"><span></span><span></span><span></span></div>
+            <div class="burger-badge" id="menuBadge" style="display: none;"></div>
+            <div class="burger-label">Меню</div>
         </button>
     </div>
-</div>
+    <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
 
-<!-- Бургер-кнопка -->
-<div class="burger-container">
-    <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
-        <div class="burger-icon">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-        <!-- Опционально: бейдж с уведомлениями -->
-        <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
-        <!-- Текст при наведении (только на ПК) -->
-        <div class="burger-label">Меню</div>
-    </button>
-</div>
-
-<!-- Оверлей для закрытия меню -->
-<div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
     <div class="container">
         <h1><span>🎮</span><span>Добавить игровой аккаунт</span></h1>
-        
 
         <div class="section">
             <h2>👤 Добавить новый аккаунт</h2>
             <div class="form-grid">
-                <select id="accountGame" class="input" required>
-                    <option value="">Выберите игру</option>
-                </select>
+                <!-- ПОЛЕ С АВТОДОПОЛНЕНИЕМ ДЛЯ ИГРЫ -->
+                <div style="position: relative;">
+                    <input type="text" id="accountGameSearch" placeholder="Начните вводить название игры..." class="input" autocomplete="off" style="width: 100%;">
+                    <input type="hidden" id="accountGameId" value="">
+                    <div id="accountGameDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></div>
+                </div>
+                
                 <input type="number" id="purchaseAmount" placeholder="Сумма закупа" class="input" step="0.01">
                 <input type="text" id="psnLogin" placeholder="Логин PSN" class="input">
                 <input type="text" id="psnPassword" placeholder="Пароль PSN" class="input">
@@ -87,20 +66,71 @@
                     </div>
                 </div>
                 
-                <!-- 🔥 НОВАЯ КНОПКА: Вставить из буфера -->
-                <button type="button" class="btn btn-info" onclick="pasteFromClipboard()" style="grid-column: 1 / -1; margin-bottom: 10px;">
-                    📋 Вставить из буфера
-                </button>
-                
+                <button type="button" class="btn btn-info" onclick="pasteFromClipboard()" style="grid-column: 1 / -1;">📋 Вставить из буфера</button>
                 <button onclick="addAccount()" class="btn btn-success" style="grid-column: 1 / -1;">Добавить аккаунт</button>
             </div>
         </div>
     </div>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="firebase.js"></script>
     <script src="security.js"></script>
     <script src="script.js?v=20250115"></script>
     <script src="autocomplete.js"></script>
+    
+    <script>
+        // Инициализация поиска игр для add-account
+        function initGameSearchForAddAccount() {
+            const searchInput = document.getElementById('accountGameSearch');
+            const gameIdInput = document.getElementById('accountGameId');
+            const dropdown = document.getElementById('accountGameDropdown');
+            if (!searchInput) return;
+            
+            const gamesList = JSON.parse(localStorage.getItem('games') || '[]');
+            
+            searchInput.addEventListener('input', function() {
+                const term = this.value.trim();
+                if (term === '') {
+                    dropdown.style.display = 'none';
+                    gameIdInput.value = '';
+                    return;
+                }
+                
+                const filtered = gamesList.filter(g => g.name.toLowerCase().includes(term.toLowerCase())).slice(0, 10);
+                
+                if (filtered.length === 0) {
+                    dropdown.innerHTML = '<div style="padding:12px;text-align:center;color:#64748b;">🎮 Игры не найдены</div>';
+                    dropdown.style.display = 'block';
+                    return;
+                }
+                
+                dropdown.innerHTML = filtered.map(game => `
+                    <div style="padding:12px;cursor:pointer;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px;"
+                         onclick="document.getElementById('accountGameSearch').value='${game.name.replace(/'/g, "\\'")}';document.getElementById('accountGameId').value='${game.id}';document.getElementById('accountGameDropdown').style.display='none';">
+                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#4361ee,#3a56d4);border-radius:6px;display:flex;align-items:center;justify-content:center;color:white;font-size:18px;">🎮</div>
+                        <div><div style="font-weight:600;">${game.name}</div></div>
+                    </div>
+                `).join('');
+                dropdown.style.display = 'block';
+            });
+            
+            searchInput.addEventListener('focus', function() {
+                if (this.value.trim() !== '') {
+                    const event = new Event('input');
+                    this.dispatchEvent(event);
+                }
+            });
+            
+            document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        }
+        
+        // Запускаем инициализацию
+        setTimeout(initGameSearchForAddAccount, 500);
+    </script>
 </body>
 </html>

@@ -8,56 +8,49 @@
 </head>
 <body>
     <div id="mobileMenu" class="mobile-menu">
-    <div class="mobile-menu-header">
-        <div class="user-info-mobile">
-            <div class="user-avatar">👤</div>
-            <div>
-                <div class="user-name" id="mobileUserName"></div>
-                <div class="user-role" id="mobileUserRole"></div>
+        <div class="mobile-menu-header">
+            <div class="user-info-mobile">
+                <div class="user-avatar">👤</div>
+                <div>
+                    <div class="user-name" id="mobileUserName"></div>
+                    <div class="user-role" id="mobileUserRole"></div>
+                </div>
             </div>
+            <button class="close-menu" onclick="toggleMobileMenu()">×</button>
         </div>
-        <button class="close-menu" onclick="toggleMobileMenu()">×</button>
+        <div class="mobile-menu-nav"></div>
+        <div class="mobile-menu-footer">
+            <button onclick="logout()" class="btn btn-danger btn-block">🚪 Выйти</button>
+        </div>
     </div>
-    
-    <div class="mobile-menu-nav">
-        <!-- Пункты меню будут добавляться скриптом -->
-    </div>
-    
-    <div class="mobile-menu-footer">
-        <button onclick="logout()" class="btn btn-danger btn-block">
-            <span>🚪</span> Выйти
+
+    <div class="burger-container">
+        <button class="burger-btn" onclick="toggleMobileMenu()">
+            <div class="burger-icon"><span></span><span></span><span></span></div>
+            <div class="burger-badge" id="menuBadge" style="display: none;"></div>
+            <div class="burger-label">Меню</div>
         </button>
     </div>
-</div>
+    <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
 
-<!-- Бургер-кнопка -->
-<div class="burger-container">
-    <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
-        <div class="burger-icon">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-        <!-- Опционально: бейдж с уведомлениями -->
-        <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
-        <!-- Текст при наведении (только на ПК) -->
-        <div class="burger-label">Меню</div>
-    </button>
-</div>
-
-<!-- Оверлей для закрытия меню -->
-<div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
     <div class="container">
         <h1><span>📋</span><span>Список аккаунтов</span></h1>
 
         <div class="section">
-            <div class="filters">
-                <select id="filterGame" class="input">
-                    <option value="">Все игры</option>
-                </select>
-                <input type="text" id="searchAccount" placeholder="Поиск по логину или почте..." class="input">
-                <button onclick="filterAccounts()" class="btn btn-primary">Применить</button>
-                <button onclick="clearFilters()" class="btn btn-secondary">Сбросить</button>
+            <div class="filters" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                <div style="flex: 2; min-width: 200px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">🔍 Поиск по игре:</label>
+                    <input type="text" id="accountGameSearch" placeholder="Начните вводить название игры..." class="input" autocomplete="off" style="width: 100%;">
+                    <input type="hidden" id="filterGameId" value="">
+                </div>
+                <div style="flex: 2; min-width: 200px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">🔍 Поиск по логину или почте:</label>
+                    <input type="text" id="searchAccount" placeholder="Введите логин или почту..." class="input" style="width: 100%;">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="filterAccounts()" class="btn btn-primary">Применить</button>
+                    <button onclick="clearFilters()" class="btn btn-secondary">Сбросить</button>
+                </div>
             </div>
         </div>
 
@@ -74,6 +67,7 @@
             <div id="editForm" class="form-grid"></div>
         </div>
     </div>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="firebase.js"></script>
@@ -81,11 +75,216 @@
     <script src="script.js?v=20250115"></script>
     <script src="autocomplete.js"></script>
     <script src="totp.js"></script>
+    
     <script>
-// Переопределяем глобальную функцию closeModal для accounts.html
-window.closeModal = function() {
-    closeAnyModal('editModal');
+        // ==================== ПОИСК ИГР КАК В ПАНЕЛИ МЕНЕДЖЕРА ====================
+        (function() {
+            let accountsGameDropdown = null;
+            let accountsGameHideTimeout = null;
+            
+            function initAccountsGameSearch() {
+                const searchInput = document.getElementById('accountGameSearch');
+                if (!searchInput) return;
+                if (accountsGameDropdown) return;
+                
+                // Создаем dropdown в body
+                accountsGameDropdown = document.createElement('div');
+                accountsGameDropdown.id = 'accountsGameDropdown';
+                accountsGameDropdown.style.cssText = `
+                    display: none;
+                    position: absolute;
+                    background: white;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    max-height: 300px;
+                    overflow-y: auto;
+                    z-index: 999999;
+                    min-width: 250px;
+                `;
+                document.body.appendChild(accountsGameDropdown);
+                
+                function positionDropdown() {
+                    const rect = searchInput.getBoundingClientRect();
+                    accountsGameDropdown.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+                    accountsGameDropdown.style.left = (rect.left + window.scrollX) + 'px';
+                    accountsGameDropdown.style.width = rect.width + 'px';
+                }
+                
+                function searchGames() {
+                    const term = searchInput.value.trim();
+                    const gamesList = JSON.parse(localStorage.getItem('games') || '[]');
+                    
+                    if (term === '') {
+                        accountsGameDropdown.style.display = 'none';
+                        return;
+                    }
+                    
+                    const filtered = gamesList.filter(g => g.name.toLowerCase().includes(term.toLowerCase())).slice(0, 12);
+                    
+                    if (filtered.length === 0) {
+                        accountsGameDropdown.innerHTML = '<div style="padding:15px;text-align:center;color:#64748b;">🎮 Игры не найдены</div>';
+                        positionDropdown();
+                        accountsGameDropdown.style.display = 'block';
+                        return;
+                    }
+                    
+                    accountsGameDropdown.innerHTML = filtered.map(game => `
+                        <div class="accounts-game-item" 
+                             data-game-id="${game.id}"
+                             data-game-name="${game.name.replace(/'/g, "\\'")}"
+                             style="padding:12px 15px;cursor:pointer;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px;transition:background 0.2s;"
+                             onmouseover="this.style.background='#f1f5f9'"
+                             onmouseout="this.style.background='white'">
+                            <div style="width:40px;height:40px;background:linear-gradient(135deg,#4361ee,#3a56d4);border-radius:6px;display:flex;align-items:center;justify-content:center;color:white;font-size:18px;">🎮</div>
+                            <div><div style="font-weight:600;">${game.name}</div></div>
+                        </div>
+                    `).join('');
+                    
+                    // Добавляем обработчики кликов
+                    document.querySelectorAll('.accounts-game-item').forEach(el => {
+                        el.onclick = function() {
+                            const gameId = this.dataset.gameId;
+                            const gameName = this.dataset.gameName;
+                            document.getElementById('accountGameSearch').value = gameName;
+                            document.getElementById('filterGameId').value = gameId;
+                            accountsGameDropdown.style.display = 'none';
+                            filterAccounts();
+                        };
+                    });
+                    
+                    positionDropdown();
+                    accountsGameDropdown.style.display = 'block';
+                }
+                
+                searchInput.addEventListener('input', () => {
+                    clearTimeout(accountsGameHideTimeout);
+                    searchGames();
+                });
+                
+                searchInput.addEventListener('focus', () => {
+                    clearTimeout(accountsGameHideTimeout);
+                    if (searchInput.value.trim() !== '') searchGames();
+                });
+                
+                searchInput.addEventListener('blur', () => {
+                    accountsGameHideTimeout = setTimeout(() => {
+                        if (accountsGameDropdown) accountsGameDropdown.style.display = 'none';
+                    }, 200);
+                });
+                
+                if (accountsGameDropdown) {
+                    accountsGameDropdown.addEventListener('mouseenter', () => clearTimeout(accountsGameHideTimeout));
+                    accountsGameDropdown.addEventListener('mouseleave', () => {
+                        if (accountsGameDropdown) accountsGameDropdown.style.display = 'none';
+                    });
+                }
+                
+                window.addEventListener('scroll', () => {
+                    if (accountsGameDropdown && accountsGameDropdown.style.display === 'block') positionDropdown();
+                });
+                
+                window.addEventListener('resize', () => {
+                    if (accountsGameDropdown && accountsGameDropdown.style.display === 'block') positionDropdown();
+                });
+            }
+            
+            // Запускаем
+            setTimeout(initAccountsGameSearch, 500);
+        })();
+        
+        // ==================== ФУНКЦИИ ФИЛЬТРАЦИИ ====================
+        
+        window.filterAccounts = function() {
+    const gameId = document.getElementById('filterGameId').value;
+    const searchText = document.getElementById('searchAccount').value.toLowerCase();
+    
+    // Убеждаемся что accounts есть
+    let accountsData = window.accounts || JSON.parse(localStorage.getItem('accounts') || '[]');
+    
+    let filteredAccounts = accountsData;
+    
+    if (gameId) {
+        filteredAccounts = filteredAccounts.filter(acc => acc.gameId === parseInt(gameId));
+    }
+    
+    if (searchText) {
+        filteredAccounts = filteredAccounts.filter(acc => 
+            acc.psnLogin.toLowerCase().includes(searchText) ||
+            (acc.email && acc.email.toLowerCase().includes(searchText))
+        );
+    }
+    
+    console.log('Фильтр:', { gameId, searchText, всего: accountsData.length, найдено: filteredAccounts.length });
+    
+    if (typeof displayAccounts === 'function') {
+        displayAccounts(filteredAccounts);
+    }
+    
+    if (filteredAccounts.length === 0 && typeof showNotification === 'function') {
+        showNotification('Аккаунты не найдены', 'info');
+    }
 };
+        
+        window.clearFilters = function() {
+            document.getElementById('accountGameSearch').value = '';
+            document.getElementById('filterGameId').value = '';
+            document.getElementById('searchAccount').value = '';
+            if (typeof displayAccounts === 'function') {
+                displayAccounts();
+            }
+            if (typeof showNotification === 'function') {
+                showNotification('Фильтры сброшены', 'info');
+            }
+        };
+        
+        window.closeModal = function() {
+            const modal = document.getElementById('editModal');
+            if (modal) modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        };
+        
+        // Обновляем при изменении данных
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'games') {
+                setTimeout(() => {
+                    const searchInput = document.getElementById('accountGameSearch');
+                    if (searchInput && searchInput.value.trim() !== '') {
+                        const event = new Event('input');
+                        searchInput.dispatchEvent(event);
+                    }
+                }, 100);
+            }
+            if (e.key === 'accounts') {
+                setTimeout(() => {
+                    if (typeof displayAccounts === 'function') {
+                        displayAccounts();
+                    }
+                }, 100);
+            }
+        });
+    </script>
+    <script>
+    // Добавь это после остальных скриптов
+    setTimeout(function() {
+        console.log('accounts.length:', window.accounts ? window.accounts.length : 'нет accounts');
+        console.log('games.length:', window.games ? window.games.length : 'нет games');
+        
+        // Проверяем что данные загружены
+        if (!window.accounts || window.accounts.length === 0) {
+            console.log('Загружаю accounts из localStorage');
+            window.accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
+        }
+        if (!window.games || window.games.length === 0) {
+            console.log('Загружаю games из localStorage');
+            window.games = JSON.parse(localStorage.getItem('games') || '[]');
+        }
+        
+        // Принудительно показываем все аккаунты
+        if (typeof displayAccounts === 'function') {
+            displayAccounts();
+        }
+    }, 1000);
 </script>
 </body>
 </html>

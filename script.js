@@ -917,11 +917,22 @@ function initPage(currentPage) {
             if (typeof loadGamesForSelect === 'function') {
                 loadGamesForSelect();
             }
+            // Инициализация поиска игр для add-account
+            setTimeout(() => {
+                if (typeof initGameSearchForAddAccount === 'function') {
+                    initGameSearchForAddAccount();
+                }
+            }, 500);
+            
             // Слушаем изменения в localStorage
             window.addEventListener('storage', function(e) {
                 if (e.key === 'games' && window.location.pathname.includes('add-account.html')) {
-                    console.log('🔄 Обнаружено изменение игр, обновляем селект');
-                    setTimeout(loadGamesForSelect, 100);
+                    console.log('🔄 Обнаружено изменение игр, обновляем поиск');
+                    setTimeout(() => {
+                        if (typeof initGameSearchForAddAccount === 'function') {
+                            initGameSearchForAddAccount();
+                        }
+                    }, 100);
                 }
             });
             break;
@@ -949,15 +960,13 @@ function initPage(currentPage) {
                 setupGameSelectListener();
             }, 500);
             
-            // ===== ИНИЦИАЛИЗИРУЕМ КНОПКУ =====
+            // Инициализируем кнопку переключения
             setTimeout(() => {
                 if (typeof updateToggleButtonUI === 'function') {
-                    // Проверяем, есть ли активный поиск
                     const searchInput = document.getElementById('managerGameSearch');
                     const loginInput = document.getElementById('managerLogin');
                     const searchResults = document.getElementById('searchResults');
                     
-                    // Если есть результаты поиска или заполнены поля - обновляем кнопку
                     if ((searchResults && searchResults.children.length > 0) || 
                         (searchInput && searchInput.value.trim()) || 
                         (loginInput && loginInput.value.trim())) {
@@ -987,7 +996,6 @@ function initPage(currentPage) {
             break;
             
         case 'discounts.html':
-            // Инициализируем страницу скидок
             setTimeout(() => {
                 if (typeof initDiscountsPage === 'function') {
                     initDiscountsPage();
@@ -2036,15 +2044,14 @@ function refreshAllGameSelectsImmediately() {
 }
 
 function getAccountFormData() {
-    const gameSelect = document.getElementById('accountGame');
-    const gameId = parseInt(gameSelect.value);
+    // ===== ИСПРАВЛЕНО: Берем ID из скрытого поля =====
+    const gameIdInput = document.getElementById('accountGameId');
+    const gameId = gameIdInput ? parseInt(gameIdInput.value) || 0 : 0;
     const game = games.find(g => g.id === gameId);
     
     // Проверяем выбрана ли игра
     if (!gameId) {
         console.warn('⚠️ Игра не выбрана - создаем Свободный аккаунт');
-        // Можно добавить предупреждение, но не блокируем
-        // showNotification('Игра не выбрана - аккаунт будет Свободным', 'warning');
     }
     
     const psnLogin = document.getElementById('psnLogin').value.trim();
@@ -2744,22 +2751,38 @@ function deleteCommentFromEditModal(commentId, accountId) {
     }
 }
 
-// Функция удаления аккаунта из модального окна
 async function deleteAccountFromModal(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return;
     
     if (confirm(`Удалить аккаунт "${account.psnLogin}"? Это действие нельзя отменить.`)) {
+        // Удаляем из локального массива
         accounts = accounts.filter(acc => acc.id !== accountId);
-        await saveToStorage('accounts', accounts);
+        
+        // Сохраняем в localStorage
+        localStorage.setItem('accounts', JSON.stringify(accounts));
+        
+        // Сохраняем в Firebase
+        if (typeof firebase !== 'undefined' && firebase.database) {
+            try {
+                const db = firebase.database();
+                const accountsObj = {};
+                accounts.forEach(acc => {
+                    accountsObj[acc.id] = acc;
+                });
+                await db.ref('accounts').set(accountsObj);
+                console.log('✅ Аккаунт удален из Firebase');
+            } catch (error) {
+                console.error('❌ Ошибка Firebase:', error);
+            }
+        }
         
         closeAnyModal('editModal');
         
-        // Обновляем отображение на обеих страницах
+        // Обновляем отображение
         if (window.location.pathname.includes('accounts.html')) {
             displayAccounts();
         } else if (window.location.pathname.includes('manager.html')) {
-            // Обновляем результаты поиска если что-то искали
             const searchInput = document.getElementById('managerGameSearch');
             if (searchInput && searchInput.value.trim()) {
                 searchByGame();
@@ -2851,14 +2874,43 @@ async function saveAccountChanges() {
 }
 
 async function deleteAccount(accountId) {
+    console.log('🗑️ Удаление аккаунта:', accountId);
+    
     const account = accounts.find(acc => acc.id === accountId);
-    if (!account) return;
+    if (!account) {
+        showNotification('Аккаунт не найден', 'error');
+        return;
+    }
     
     if (confirm(`Удалить аккаунт "${account.psnLogin}"? Это действие нельзя отменить.`)) {
+        // Удаляем из локального массива
         accounts = accounts.filter(acc => acc.id !== accountId);
-        await saveToStorage('accounts', accounts);
-        displayAccounts();
-        showNotification(`Аккаунт "${account.psnLogin}" удален`, 'info');
+        
+        // Сохраняем в localStorage
+        localStorage.setItem('accounts', JSON.stringify(accounts));
+        
+        // Сохраняем в Firebase (обновляем весь список)
+        if (typeof firebase !== 'undefined' && firebase.database) {
+            try {
+                const db = firebase.database();
+                const accountsObj = {};
+                accounts.forEach(acc => {
+                    accountsObj[acc.id] = acc;
+                });
+                await db.ref('accounts').set(accountsObj);
+                console.log('✅ Аккаунт удален из Firebase');
+            } catch (error) {
+                console.error('❌ Ошибка Firebase:', error);
+                showNotification('Ошибка синхронизации, аккаунт удален только локально', 'warning');
+            }
+        }
+        
+        // Обновляем отображение
+        if (typeof displayAccounts === 'function') {
+            displayAccounts();
+        }
+        
+        showNotification(`Аккаунт "${account.psnLogin}" удален`, 'success');
     }
 }
 
@@ -9280,4 +9332,109 @@ async function confirmFreeSale() {
         console.error('❌ Ошибка сохранения:', error);
         showNotification('❌ Ошибка при сохранении', 'error');
     }
+}
+
+// ==================== ПОИСК ИГР ДЛЯ ADD-ACCOUNT ====================
+
+function initGameSearchForAddAccount() {
+    const searchInput = document.getElementById('accountGameSearch');
+    const gameIdInput = document.getElementById('accountGameId');
+    const dropdown = document.getElementById('accountGameDropdown');
+    
+    if (!searchInput) return;
+    
+    console.log('🔧 Инициализация поиска игр для add-account');
+    
+    // Обработчик ввода текста
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.trim();
+        
+        if (searchTerm === '') {
+            dropdown.style.display = 'none';
+            gameIdInput.value = '';
+            return;
+        }
+        
+        // Ищем игры
+        const filteredGames = games.filter(game => 
+            game.name.toLowerCase().includes(searchTerm.toLowerCase())
+        ).slice(0, 10);
+        
+        if (filteredGames.length === 0) {
+            dropdown.innerHTML = `
+                <div style="padding: 12px 15px; color: #64748b; text-align: center;">
+                    🎮 Игры не найдены
+                </div>
+            `;
+            dropdown.style.display = 'block';
+            return;
+        }
+        
+        // Показываем результаты
+        dropdown.innerHTML = filteredGames.map(game => `
+            <div class="game-search-item" 
+                 data-game-id="${game.id}"
+                 data-game-name="${game.name.replace(/'/g, "\\'")}"
+                 style="
+                    padding: 12px 15px;
+                    cursor: pointer;
+                    border-bottom: 1px solid #f1f5f9;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    transition: background 0.2s;
+                 "
+                 onmouseover="this.style.background='#f1f5f9'"
+                 onmouseleave="this.style.background='white'"
+                 onclick="selectGameForAccount(${game.id}, '${game.name.replace(/'/g, "\\'")}')">
+                
+                <div style="
+                    width: 40px; height: 40px;
+                    background: linear-gradient(135deg, #4361ee, #3a56d4);
+                    border-radius: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-size: 18px;
+                ">🎮</div>
+                
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #1e293b;">${game.name}</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
+                        ${accounts.filter(acc => acc.gameId === game.id).length} аккаунтов
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        dropdown.style.display = 'block';
+    });
+    
+    // Закрытие при клике вне
+    document.addEventListener('click', function(e) {
+        if (searchInput && dropdown && !searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+    
+    // Поиск при фокусе
+    searchInput.addEventListener('focus', function() {
+        if (this.value.trim() !== '') {
+            dropdown.style.display = 'block';
+        }
+    });
+}
+
+// Выбор игры
+function selectGameForAccount(gameId, gameName) {
+    const searchInput = document.getElementById('accountGameSearch');
+    const gameIdInput = document.getElementById('accountGameId');
+    const dropdown = document.getElementById('accountGameDropdown');
+    
+    if (searchInput) searchInput.value = gameName;
+    if (gameIdInput) gameIdInput.value = gameId;
+    if (dropdown) dropdown.style.display = 'none';
+    
+    console.log(`✅ Выбрана игра: ${gameName} (ID: ${gameId})`);
 }
