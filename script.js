@@ -1051,6 +1051,15 @@ function loadFromLocalStorage() {
     console.log(`📂 Загружено локально: ${games.length} игр, ${accounts.length} аккаунтов, ${sales.length} продаж`);
 }
 
+function editSaleFromReport(saleId) {
+    const sale = sales.find(s => s.id === saleId);
+    if (sale) {
+        showSaleDetails(sale);
+    } else {
+        showNotification('Продажа не найдена', 'error');
+    }
+}
+
 // ============================================
 // СИСТЕМА СОХРАНЕНИЯ И СИНХРОНИЗАЦИИ
 // ============================================
@@ -5097,7 +5106,7 @@ function getPositionName(positionType) {
 
 
 // ============================================
-// ПОКАЗ ДАННЫХ ПОСЛЕ ПРОДАЖИ (ТОЛЬКО ПРАВИЛА ДЛЯ ВЫБРАННОЙ ПОЗИЦИИ)
+// ПОКАЗ ДАННЫХ ПОСЛЕ ПРОДАЖИ
 // ============================================
 function showAccountDataAfterSale(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
@@ -5106,7 +5115,6 @@ function showAccountDataAfterSale(accountId) {
         return;
     }
 
-    // Получаем данные о последней проданной позиции
     const lastSale = sales
         .filter(s => s.accountId === accountId)
         .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
@@ -5120,17 +5128,174 @@ function showAccountDataAfterSale(accountId) {
     const positionType = lastSale.positionType;
     const isP2 = positionType.includes('p2');
 
-    // --- ТЕКСТЫ ДЛЯ ПЛАШЕК (Русский) ---
-    const rulesP2_RU = `❗️ Чтобы гарантия на игру сохранялась — при любых ошибках пишем только в чат, где была куплена игра.
-Правила пользования игрой (П2):
+    // --- ИНСТРУКЦИИ ДЛЯ FUNPAY (без правил и отзывов) ---
+    const funpayInstructions = {
+        p2_ps4: `🔐 Инструкция по активации П2 PS4:
+
+1️⃣ Добавьте нового пользователя
+На консоли выберите значок «➕» → Добавить пользователя
+⚠️ Не входите как гость.
+2️⃣ Нажмите «ВХОД ВРУЧНУЮ»
+3️⃣ Примите лицензионное соглашение → нажмите «ПОДТВЕРДИТЬ»
+4️⃣ Выберите вход вручную и введите выданные данные
+5️⃣ Код указан в данных (выше)
+6️⃣ В окне «Сбор данных» выберите «Только ограниченные данные»
+7️⃣ После входа перейдите:
+БИБЛИОТЕКА → Ваша коллекция → загрузить игру
+8️⃣ Зайдите в:
+НАСТРОЙКИ → УПРАВЛЕНИЕ УЧЁТНОЙ ЗАПИСЬЮ → АКТИВИРОВАТЬ КАК ОСНОВНУЮ PLAYSTATION 4
+Выберите: «ДЕАКТИВИРОВАТЬ»
+
+📩 Как только всё получится — пожалуйста, подтвердите выполнение заказа.  
+⭐ Будем благодарны за ваш отзыв — он помогает нам развиваться!`,
+
+        p3_ps4: `🔐 Инструкция по активации П3 PS4:
+
+1️⃣ Добавьте нового пользователя
+На консоли выберите значок «плюс» → Добавить пользователя
+⚠️ Важно: не входите как гость, выбирайте полноценного пользователя
+2️⃣ Нажмите «Вход вручную»
+3️⃣ Лицензионное соглашение — нажмите «Принять»
+4️⃣ Введите логин и пароль, которые мы вам предоставили
+5️⃣ Введите код для входа
+(код указан в данных выше)
+6️⃣ На информационном экране выберите «ОК»
+7️⃣ Включите общий доступ к консоли:
+Настройки → Управление учётной записью → Активировать как основную PlayStation 4 → Активировать
+8️⃣ На рабочем столе перейдите:
+Библиотека → Приобретено → начать загрузку игры
+9️⃣ После запуска загрузки вернитесь на свой основной аккаунт:
+Настройки → Питание → Сменить пользователя
+
+📩 Как только всё получится — пожалуйста, подтвердите выполнение заказа.  
+⭐ Будем благодарны за ваш отзыв — он помогает нам развиваться!`,
+
+        p2_ps5: `🔐 Инструкция по активации П2 PS5:
+
+1️⃣ Добавьте нового пользователя
+На консоли выберите значок «➕» → Добавить пользователя
+⚠️ Не входите как гость.
+2️⃣ Нажмите «ВХОД ВРУЧНУЮ»
+3️⃣ Примите лицензионное соглашение → нажмите «ПОДТВЕРДИТЬ»
+4️⃣ Выберите вход вручную и введите выданные данные
+5️⃣ Код указан в данных (выше)
+6️⃣ В окне «Сбор данных» выберите «Только ограниченные данные»
+7️⃣ После входа:
+Перейдите БИБЛИОТЕКА → Ваша коллекция → загрузить игру
+8️⃣ Зайдите в:
+[НАСТРОЙКИ] → [ПОЛЬЗОВАТЕЛИ И УЧЕТНЫЕ ЗАПИСИ] → [ДРУГОЕ] → [ОБЩИЙ ДОСТУП К КОНСОЛИ И АВТОНОМНАЯ ИГРА]
+Выберите «НЕ ВКЛЮЧАТЬ» или «ОТКЛЮЧИТЬ»
+
+📩 Как только всё получится — пожалуйста, подтвердите выполнение заказа!
+⭐ Мы будем благодарны за ваш отзыв — он помогает нам в развитии!`,
+
+        p3_ps5: `🔐 Инструкция по активации П3 PS5:
+
+1️⃣ Добавьте нового пользователя
+На консоли выберите значок «плюс» — Добавить пользователя
+⚠️ Не входите как гость.
+2️⃣ Нажмите «ВХОД В РУЧНУЮ»
+3️⃣ Лицензионное соглашение — «Принять»
+4️⃣ Введите логин и пароль, которые мы вам предоставим
+5️⃣ Введите код для входа
+(код указан в данных выше)
+6️⃣ Информационный экран — выбираем «ОК»
+7️⃣ Включите общий доступ к консоли:
+(НАСТРОЙКИ) → [ПОЛЬЗОВАТЕЛИ И УЧЕТНЫЕ ЗАПИСИ] → [ДРУГОЕ] →
+[ОБЩИЙ ДОСТУП К КОНСОЛИ И АВТОНОМНАЯ ИГРА] → «ВКЛЮЧИТЬ»
+8️⃣ На рабочем столе зайдите в Библиотека → Приобретено и начните загрузку игры
+9️⃣ После этого вернитесь на свой основной аккаунт
+Нажмите на аватарку → Сменить пользователя → выберите вашего личного пользователя
+
+📩 Как только всё получится — пожалуйста, подтвердите выполнение заказа!  
+⭐ Мы будем благодарны за ваш отзыв — он поможет нам в развитии!`
+    };
+
+    // --- ИНСТРУКЦИИ ДЛЯ AVITO (с правилами и ссылкой на отзыв) ---
+    const avitoInstructions = {
+        p2_ps4: `🔐 Инструкция по активации П2 PS4:
+
+1️⃣ Добавьте нового пользователя
+На консоли выберите значок «➕» → Добавить пользователя
+⚠️ Не входите как гость.
+2️⃣ Нажмите «ВХОД ВРУЧНУЮ»
+3️⃣ Примите лицензионное соглашение → нажмите «ПОДТВЕРДИТЬ»
+4️⃣ Выберите вход вручную и введите выданные данные
+5️⃣ Код указан в данных (выше)
+6️⃣ В окне «Сбор данных» выберите «Только ограниченные данные»
+7️⃣ После входа перейдите:
+БИБЛИОТЕКА → Ваша коллекция → загрузить игру
+8️⃣ Зайдите в:
+НАСТРОЙКИ → УПРАВЛЕНИЕ УЧЁТНОЙ ЗАПИСЬЮ → АКТИВИРОВАТЬ КАК ОСНОВНУЮ PLAYSTATION 4
+Выберите: «ДЕАКТИВИРОВАТЬ»`,
+
+        p3_ps4: `🔐 Инструкция по активации П3 PS4:
+
+1️⃣ Добавьте нового пользователя
+На консоли выберите значок «плюс» → Добавить пользователя
+⚠️ Важно: не входите как гость, выбирайте полноценного пользователя
+2️⃣ Нажмите «Вход вручную»
+3️⃣ Лицензионное соглашение — нажмите «Принять»
+4️⃣ Введите логин и пароль, которые мы вам предоставили
+5️⃣ Введите код для входа
+(код указан в данных выше)
+6️⃣ На информационном экране выберите «ОК»
+7️⃣ Включите общий доступ к консоли:
+Настройки → Управление учётной записью → Активировать как основную PlayStation 4 → Активировать
+8️⃣ На рабочем столе перейдите:
+Библиотека → Приобретено → начать загрузку игры
+9️⃣ После запуска загрузки вернитесь на свой основной аккаунт:
+Настройки → Питание → Сменить пользователя`,
+
+        p2_ps5: `🔐 Инструкция по активации П2 PS5:
+
+1️⃣ Добавьте нового пользователя
+На консоли выберите значок «➕» → Добавить пользователя
+⚠️ Не входите как гость.
+2️⃣ Нажмите «ВХОД ВРУЧНУЮ»
+3️⃣ Примите лицензионное соглашение → нажмите «ПОДТВЕРДИТЬ»
+4️⃣ Выберите вход вручную и введите выданные данные
+5️⃣ Код указан в данных (выше)
+6️⃣ В окне «Сбор данных» выберите «Только ограниченные данные»
+7️⃣ После входа:
+Перейдите БИБЛИОТЕКА → Ваша коллекция → загрузить игру
+8️⃣ Зайдите в:
+[НАСТРОЙКИ] → [ПОЛЬЗОВАТЕЛИ И УЧЕТНЫЕ ЗАПИСИ] → [ДРУГОЕ] → [ОБЩИЙ ДОСТУП К КОНСОЛИ И АВТОНОМНАЯ ИГРА]
+Выберите «НЕ ВКЛЮЧАТЬ» или «ОТКЛЮЧИТЬ»`,
+
+        p3_ps5: `🔐 Инструкция по активации П3 PS5:
+
+1️⃣ Добавьте нового пользователя
+На консоли выберите значок «плюс» — Добавить пользователя
+⚠️ Не входите как гость.
+2️⃣ Нажмите «ВХОД В РУЧНУЮ»
+3️⃣ Лицензионное соглашение — «Принять»
+4️⃣ Введите логин и пароль, которые мы вам предоставим
+5️⃣ Введите код для входа
+(код указан в данных выше)
+6️⃣ Информационный экран — выбираем «ОК»
+7️⃣ Включите общий доступ к консоли:
+(НАСТРОЙКИ) → [ПОЛЬЗОВАТЕЛИ И УЧЕТНЫЕ ЗАПИСИ] → [ДРУГОЕ] →
+[ОБЩИЙ ДОСТУП К КОНСОЛИ И АВТОНОМНАЯ ИГРА] → «ВКЛЮЧИТЬ»
+8️⃣ На рабочем столе зайдите в Библиотека → Приобретено и начните загрузку игры
+9️⃣ После этого вернитесь на свой основной аккаунт
+Нажмите на аватарку → Сменить пользователя → выберите вашего личного пользователя`
+    };
+
+    // --- ПРАВИЛА ДЛЯ AVITO ---
+    const avitoRules = {
+        p2: `❗️ Правила пользования игрой (П2):
 — Данные пользователя не менять: пароль, аутентификатор, номер телефона.
 — Играем только на той консоли, для которой была приобретена игра.
 — Одна игра — один пользователь: не покупаем игры или подписки на выданном пользователе.
 — Используем только одну личную консоль: добавлять игру на другие устройства запрещено.
-— Включать активацию для PS4 или общий доступ для PS5 нельзя, вы играете только с выданных данных с включенным интернетом.`;
+— Включать активацию для PS4 или общий доступ для PS5 нельзя, вы играете только с выданных данных с включенным интернетом.
 
-    const rulesP3_RU = `❗️ Чтобы гарантия на игру сохранялась — при любых ошибках пишем только в чат, где была куплена игра.
-Правила пользования выданной игрой с Активацией / Общим доступом (П3):
+Приятной игры! Нам важно ваше мнение. Будем признательны за отзыв — это займёт всего минуту.
+
+Оставить отзыв можно здесь: https://www.avito.ru/user/review?fid=2_QfCjrUkjJLKf5AG92Si4tujowHx4ZBZ87DElF8B0nlyL6RdaaYzvyPSWRjp4ZyNE`,
+
+        p3: `❗️ Правила пользования выданной игрой с Активацией / Общим доступом (П3):
 — Данные пользователя не менять: пароль, аутентификатор, номер телефона.
 — Одна игра — один пользователь: не покупаем игры или подписки на выданные данные.
 — Позиция с Активацией / Общим доступом — играем только с вашего личного пользователя. На выданном пользователе заходим только для настройки.
@@ -5139,46 +5304,253 @@ function showAccountDataAfterSale(accountId) {
 • на PS4 — активируйте как основную систему,
 • на PS5 — включите общий доступ к консоли.
 — Играем только на той консоли, для которой была приобретена игра. Купить игру для PS4 и играть на PS5 — это потеря гарантии.
-— При несоблюдении правил гарантии мы имеем право отобрать пользователя без возврата денег.`;
+— При несоблюдении правил гарантии мы имеем право отобрать пользователя без возврата денег.
 
-    const review_RU = `🙏 Мы будем благодарны за ваш отзыв — он очень помогает нам развиваться!
-🎮 Приятной игры!
+Приятной игры! Нам важно ваше мнение. Будем признательны за отзыв — это займёт всего минуту.
+
+Оставить отзыв можно здесь: https://www.avito.ru/user/review?fid=2_QfCjrUkjJLKf5AG92Si4tujowHx4ZBZ87DElF8B0nlyL6RdaaYzvyPSWRjp4ZyNE`
+    };
+
+    // --- ИНСТРУКЦИИ ДЛЯ TELEGRAM (с отзывом) ---
+    const telegramInstructions = {
+        p2_ps4: `🔐 Инструкция по активации П2 PS4:
+
+1️⃣ Добавьте нового пользователя  
+На консоли выберите значок «➕» → Добавить пользователя  
+⚠️ Не входите как гость.
+2️⃣ Нажмите «ВХОД ВРУЧНУЮ»
+3️⃣ Примите лицензионное соглашение → нажмите «ПОДТВЕРДИТЬ»
+4️⃣ Выберите вход вручную и введите выданные данные
+5️⃣ Код указан в данных (выше)
+6️⃣ В окне «Сбор данных» выберите «Только ограниченные данные»
+7️⃣ После входа перейдите:  
+БИБЛИОТЕКА → Ваша коллекция → загрузить игру
+8️⃣ Зайдите в:  
+[НАСТРОЙКИ] → [УПРАВЛЕНИЕ УЧЁТНОЙ ЗАПИСЬЮ] → [АКТИВИРОВАТЬ КАК ОСНОВНУЮ PLAYSTATION 4]  
+Выберите: «ДЕАКТИВИРОВАТЬ»`,
+
+        p3_ps4: `🔐 Инструкция по активации П3 PS4:
+
+1️⃣ Добавьте нового пользователя  
+На консоли выберите значок «➕» → Добавить пользователя  
+⚠️ Важно: не входите как гость
+2️⃣ Нажмите «ВХОД ВРУЧНУЮ»
+3️⃣ Лицензионное соглашение — нажмите «Принять»
+4️⃣ Введите логин и пароль, которые мы вам предоставили
+5️⃣ Введите код для входа  
+(код указан в данных выше)
+6️⃣ На информационном экране выберите «ОК»
+7️⃣ Включите общий доступ к консоли:  
+**[НАСТРОЙКИ] → [УПРАВЛЕНИЕ УЧЁТНОЙ ЗАПИСЬЮ] →  
+[АКТИВИРОВАТЬ КАК ОСНОВНУЮ PLAYSTATION 4] → «АКТИВИРОВАТЬ»**
+8️⃣ На рабочем столе перейдите:  
+БИБЛИОТЕКА → Приобретено → начать загрузку игры
+9️⃣ После запуска загрузки вернитесь на свой основной аккаунт:  
+Настройки → Питание → Сменить пользователя`,
+
+        p2_ps5: `🔐 Инструкция по активации П2 PS5:
+
+1️⃣ Добавьте нового пользователя  
+На консоли выберите значок «➕» → Добавить пользователя  
+⚠️ Не входите как гость.
+2️⃣ Нажмите «ВХОД ВРУЧНУЮ»
+3️⃣ Примите лицензионное соглашение → нажмите «ПОДТВЕРДИТЬ»
+4️⃣ Выберите вход вручную и введите выданные данные
+5️⃣ Код указан в данных (выше)
+6️⃣ В окне «Сбор данных» выберите «Только ограниченные данные»
+7️⃣ После входа:  
+Перейдите БИБЛИОТЕКА → Ваша коллекция → загрузить игру
+8️⃣ Зайдите в:  
+[НАСТРОЙКИ] → [ПОЛЬЗОВАТЕЛИ И УЧЕТНЫЕ ЗАПИСИ] → [ДРУГОЕ] → [ОБЩИЙ ДОСТУП К КОНСОЛИ И АВТОНОМНАЯ ИГРА]  
+Выберите «НЕ ВКЛЮЧАТЬ» или «ОТКЛЮЧИТЬ»`,
+
+        p3_ps5: `🔐 Инструкция по активации П3 PS5:
+
+1️⃣ Добавьте нового пользователя  
+На консоли выберите значок «плюс» — Добавить пользователя  
+⚠️ Не входите как гость.
+2️⃣ Нажмите «ВХОД В РУЧНУЮ»
+3️⃣ Лицензионное соглашение — «Принять»
+4️⃣ Введите логин и пароль, которые мы вам предоставим
+5️⃣ Введите код для входа  
+(код указан в данных выше)
+6️⃣ Информационный экран — выбираем «ОК»
+7️⃣ Включите общий доступ к консоли:  
+(НАСТРОЙКИ) → [ПОЛЬЗОВАТЕЛИ И УЧЕТНЫЕ ЗАПИСИ] → [ДРУГОЕ] →  
+[ОБЩИЙ ДОСТУП К КОНСОЛИ И АВТОНОМНАЯ ИГРА] → «ВКЛЮЧИТЬ»
+8️⃣ На рабочем столе зайдите в Библиотека → Приобретено и начните загрузку игры
+9️⃣ После этого вернитесь на свой основной аккаунт  
+Нажмите на аватарку → Сменить пользователя → выберите вашего личного пользователя`
+    };
+
+    // --- ПРАВИЛА ДЛЯ TELEGRAM (с отзывом) ---
+    const telegramRules = {
+        p2: `❗️ Правила пользования игрой (П2):
+— Данные пользователя не менять: пароль, аутентификатор, номер телефона.
+— Играем только на той консоли, для которой была приобретена игра.
+— Одна игра — один пользователь: не покупаем игры или подписки на выданном пользователе.
+— Используем только одну личную консоль: добавлять игру на другие устройства запрещено.
+— Включать активацию для PS4 или общий доступ для PS5 нельзя, вы играете только с выданных данных с включенным интернетом.
+
+🙏 Мы будем благодарны за ваш отзыв — он очень помогает нам развиваться!
 
 📝 Отзывы: https://t.me/pshubshoptg/29
-📌 Актуальные цены на игры: @pshubshoptg`;
+📌 Актуальные цены на игры: @pshubshoptg`,
 
-    // --- ТЕКСТЫ ДЛЯ ПЛАШЕК (Английский) ---
-    const rulesP2_EN = `❗️ To maintain the game warranty, please only write to the chat where the game was purchased if you encounter any errors.
-Rules for using the game (P2):
-— Do not change your account details: password, authenticator, phone number.
+        p3: `❗️ Правила пользования выданной игрой с Активацией / Общим доступом (П3):
+— Данные пользователя не менять: пароль, аутентификатор, номер телефона.
+— Одна игра — один пользователь: не покупаем игры или подписки на выданные данные.
+— Позиция с Активацией / Общим доступом — играем только с вашего личного пользователя. На выданном пользователе заходим только для настройки.
+— Пользователя нельзя добавлять на несколько консолей. Используем только одну личную консоль.
+— Если на игре появился “замочек”, зайдите на пользователя с игрой и:
+• на PS4 — активируйте как основную систему,
+• на PS5 — включите общий доступ к консоли.
+— Играем только на той консоли, для которой была приобретена игра. Купить игру для PS4 и играть на PS5 — это потеря гарантии.
+— При несоблюдении правил гарантии мы имеем право отобрать пользователя без возврата денег.
+
+🙏 Мы будем благодарны за ваш отзыв — он очень помогает нам развиваться!
+
+📝 Отзывы: https://t.me/pshubshoptg/29
+📌 Актуальные цены на игры: @pshubshoptg`
+    };
+
+    // --- АНГЛИЙСКИЕ ВЕРСИИ ---
+    const enInstructions = {
+        p2_ps4: `🔐 Activation instructions for P2 PS4:
+
+1️⃣ Add a new user
+On the console, select the "➕" icon → Add user
+⚠️ Do not log in as guest.
+2️⃣ Click "MANUAL LOGIN"
+3️⃣ Accept the license agreement → click "CONFIRM"
+4️⃣ Select manual login and enter the provided data
+5️⃣ The code is specified in the data above
+6️⃣ In the "Data Collection" window, select "Limited Data Only"
+7️⃣ After logging in:
+LIBRARY → Your collection → download the game
+8️⃣ Go to:
+SETTINGS → ACCOUNT MANAGEMENT → ACTIVATE AS PRIMARY PLAYSTATION 4
+Select: "DEACTIVATE"
+
+📩 Once everything is working, please confirm your order!  
+⭐ We would appreciate your feedback — it helps us improve!`,
+
+        p3_ps4: `🔐 Activation instructions for P3 PS4:
+
+1️⃣ Add a new user
+On the console, select the "plus" icon → Add user
+⚠️ Important: do not log in as guest, choose a full user
+2️⃣ Click "MANUAL LOGIN"
+3️⃣ License agreement — click "Accept"
+4️⃣ Enter the login and password provided
+5️⃣ Enter the login code (specified in the data above)
+6️⃣ On the information screen, select "OK"
+7️⃣ Enable console sharing:
+SETTINGS → ACCOUNT MANAGEMENT → ACTIVATE AS PRIMARY PLAYSTATION 4 → Activate
+8️⃣ On the desktop, go to:
+LIBRARY → Purchased → start downloading the game
+9️⃣ After the download starts, return to your main account:
+Settings → Power → Switch User
+
+📩 Once everything is working, please confirm your order!  
+⭐ We would appreciate your feedback — it helps us improve!`,
+
+        p2_ps5: `🔐 Activation instructions for P2 PS5:
+
+1️⃣ Add a new user
+On the console, select the "➕" icon → Add user
+⚠️ Do not log in as guest.
+2️⃣ Click "MANUAL LOGIN"
+3️⃣ Accept the license agreement → click "CONFIRM"
+4️⃣ Select manual login and enter the provided data
+5️⃣ The code is specified in the data above
+6️⃣ In the "Data Collection" window, select "Limited Data Only"
+7️⃣ After logging in:
+Go to LIBRARY → Your collection → download the game
+8️⃣ Go to:
+SETTINGS → USERS AND ACCOUNTS → OTHER → CONSOLE SHARING AND OFFLINE PLAY
+Select "DO NOT ENABLE" or "DISABLE"
+
+📩 Once everything is working, please confirm your order!
+⭐ We would appreciate your feedback — it helps us improve!`,
+
+        p3_ps5: `🔐 Activation instructions for P3 PS5:
+
+1️⃣ Add a new user
+On the console, select the "plus" icon — Add user
+⚠️ Do not log in as guest.
+2️⃣ Click "MANUAL LOGIN"
+3️⃣ License agreement — "Accept"
+4️⃣ Enter the login and password provided
+5️⃣ Enter the login code (specified in the data above)
+6️⃣ Information screen — select "OK"
+7️⃣ Enable console sharing:
+SETTINGS → USERS AND ACCOUNTS → OTHER → CONSOLE SHARING AND OFFLINE PLAY → "ENABLE"
+8️⃣ On the desktop, go to Library → Purchased and start downloading the game
+9️⃣ After that, return to your main account
+Click on the avatar → Switch User → select your personal user
+
+📩 Once everything is working, please confirm your order!  
+⭐ We would appreciate your feedback — it helps us improve!`
+    };
+
+    const enRules = {
+        p2: `❗️ Rules for using the game (P2):
+— Do not change user data: password, authenticator, phone number.
 — Only play on the console for which the game was purchased.
-— One game — one user: do not purchase games or subscriptions on the account provided.
+— One game — one user: do not purchase games or subscriptions using the issued data.
 — Use only one personal console: adding the game to other devices is prohibited.
-— Do not enable activation for PS4 or shared access for PS5; you can only play with the provided data with the internet enabled.`;
+— Do not enable activation for PS4 or shared access for PS5; you can only play with the provided data with the internet enabled.`,
 
-    const rulesP3_EN = `**Rules for using the game with Activation/Shared Access (P3):**
-— Do not change your account details: password, authenticator, phone number.
-— One game — one user: we do not purchase games or subscriptions for the issued details.
-— **Position with Activation/Shared Access — play only with your personal user.** Log in to the issued account **only for configuration**.
-— **Data cannot be added to multiple consoles.** Use only one personal console.
+        p3: `❗️ Rules for using the game with Activation/Shared Access (P3):
+— Do not change user data: password, authenticator, phone number.
+— One game — one user: do not purchase games or subscriptions using the issued data.
+— Position with Activation/Shared Access — play only from your personal user. Log in to the issued user only for setup.
+— Data cannot be added to multiple consoles. Use only one personal console.
 — If a "lock" appears on the game, log in to the user with the game and:
-  • on PS4 — activate it as the primary system,
-  • on PS5 — enable shared access to the console.`;
+• on PS4 — activate as the primary system,
+• on PS5 — enable console sharing.
+— Play only on the console for which the game was purchased. Buying a game for PS4 and playing on PS5 means loss of warranty.
+— If the warranty rules are not followed, we have the right to revoke the user without refund.`
+    };
 
-    const review_EN = `🙏 We would appreciate your feedback — it will help us improve!
-🎮 Enjoy the game!
+    const enReviewTelegram = `🙏 We would appreciate your feedback — it will help us improve!
 
 📝 Reviews: https://t.me/pshubshoptg/29
 📌 Current game prices: @pshubshoptg`;
 
-    // --- ИНСТРУКЦИИ ПО АКТИВАЦИИ ---
-    const instructionRU = isP2 ? 
-        POSITION_INSTRUCTIONS['p2_' + (positionType.includes('ps4') ? 'ps4' : 'ps5')] : 
-        POSITION_INSTRUCTIONS['p3_' + (positionType.includes('ps4') ? 'ps4' : 'ps5')];
-    
-    const instructionEN = isP2 ? 
-        POSITION_INSTRUCTIONS_EN['p2_' + (positionType.includes('ps4') ? 'ps4' : 'ps5')] : 
-        POSITION_INSTRUCTIONS_EN['p3_' + (positionType.includes('ps4') ? 'ps4' : 'ps5')];
+    const enReviewAvito = `Enjoy the game! Your opinion matters to us. We would be grateful for a review — it will only take a minute.
+
+Leave a review here: https://www.avito.ru/user/review?fid=2_QfCjrUkjJLKf5AG92Si4tujowHx4ZBZ87DElF8B0nlyL6RdaaYzvyPSWRjp4ZyNE`;
+
+    // Выбираем контент в зависимости от площадки
+    let instructionRU, instructionEN, rulesRU, rulesEN, reviewRU, reviewEN;
+    const isFunpay = marketplace === 'funpay';
+    const isAvito = marketplace === 'avito';
+    const isTelegram = marketplace === 'telegram';
+
+    if (isFunpay) {
+        instructionRU = funpayInstructions[positionType];
+        instructionEN = enInstructions[positionType];
+        rulesRU = null;
+        rulesEN = null;
+        reviewRU = null;
+        reviewEN = null;
+    } else if (isAvito) {
+        instructionRU = avitoInstructions[positionType];
+        instructionEN = enInstructions[positionType];
+        rulesRU = isP2 ? avitoRules.p2 : avitoRules.p3;
+        rulesEN = isP2 ? enRules.p2 : enRules.p3;
+        reviewRU = null;
+        reviewEN = enReviewAvito;
+    } else {
+        instructionRU = telegramInstructions[positionType];
+        instructionEN = enInstructions[positionType];
+        rulesRU = isP2 ? telegramRules.p2 : telegramRules.p3;
+        rulesEN = isP2 ? enRules.p2 : enRules.p3;
+        reviewRU = telegramRules.p2.includes('Отзывы') ? telegramRules.p2.split('🙏')[1] : null;
+        reviewEN = enReviewTelegram;
+    }
 
     // --- ДАННЫЕ АККАУНТА ---
     const psnCodesArray = account.psnCodes ? account.psnCodes.split(',').map(code => code.trim()).filter(code => code !== '') : [];
@@ -5195,23 +5567,32 @@ Rules for using the game (P2):
     }
 
     // --- ФУНКЦИИ КОПИРОВАНИЯ ---
+    window.copyInstruction = function() {
+        const text = window.currentLanguage === 'EN' ? instructionEN : instructionRU;
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification(window.currentLanguage === 'EN' ? '✅ Instructions copied!' : '✅ Инструкция скопирована!', 'success');
+        });
+    };
+
     window.copyRules = function() {
-        const text = window.currentLanguage === 'EN' 
-            ? (isP2 ? rulesP2_EN : rulesP3_EN)
-            : (isP2 ? rulesP2_RU : rulesP3_RU);
+        if (!rulesRU) {
+            showNotification(window.currentLanguage === 'EN' ? 'No rules for this platform' : 'Нет правил для этой площадки', 'info');
+            return;
+        }
+        const text = window.currentLanguage === 'EN' ? rulesEN : rulesRU;
         navigator.clipboard.writeText(text).then(() => {
             showNotification(window.currentLanguage === 'EN' ? '✅ Rules copied!' : '✅ Правила скопированы!', 'success');
         });
     };
 
     window.copyReview = function() {
-        if (marketplace !== 'telegram') {
-            showNotification(window.currentLanguage === 'EN' ? 'Feedback is only for Telegram' : 'Отзыв только для Telegram', 'info');
+        if (!reviewRU && !reviewEN) {
+            showNotification(window.currentLanguage === 'EN' ? 'No review for this platform' : 'Нет отзыва для этой площадки', 'info');
             return;
         }
-        const text = window.currentLanguage === 'EN' ? review_EN : review_RU;
+        const text = window.currentLanguage === 'EN' ? reviewEN : reviewRU;
         navigator.clipboard.writeText(text).then(() => {
-            showNotification(window.currentLanguage === 'EN' ? '✅ Feedback copied!' : '✅ Отзыв скопирован!', 'success');
+            showNotification(window.currentLanguage === 'EN' ? '✅ Review copied!' : '✅ Отзыв скопирован!', 'success');
         });
     };
 
@@ -5222,125 +5603,93 @@ Rules for using the game (P2):
         });
     };
 
-    window.copyInstruction = function() {
-        const text = window.currentLanguage === 'EN' ? instructionEN : instructionRU;
-        navigator.clipboard.writeText(text).then(() => {
-            showNotification(window.currentLanguage === 'EN' ? '✅ Instructions copied!' : '✅ Инструкция скопирована!', 'success');
-        });
-    };
-
     window.switchLanguage = function(lang) {
         window.currentLanguage = lang;
         renderModal();
     };
 
-    // --- ФУНКЦИЯ ДЛЯ ОТРИСОВКИ МОДАЛЬНОГО ОКНА ---
     function renderModal() {
         const isEn = window.currentLanguage === 'EN';
-        
-        // Текущие тексты
-        const currentOrderData = isEn ? window.currentOrderDataEN : window.currentOrderDataRU;
         const currentInstruction = isEn ? instructionEN : instructionRU;
-        const currentRules = isEn 
-            ? (isP2 ? rulesP2_EN : rulesP3_EN)
-            : (isP2 ? rulesP2_RU : rulesP3_RU);
-        const currentReview = isEn ? review_EN : review_RU;
-
-        // Тексты для кнопок и заголовков
-        const dataTitle = isEn ? 'Customer data:' : 'Данные для клиента:';
-        const instructionTitle = isEn ? `Instructions for ${getPositionName(positionType)}:` : `Инструкция для ${getPositionName(positionType)}:`;
-        const rulesTitle = isEn 
-            ? (isP2 ? 'Rules for P2:' : 'Rules for P3:')
-            : (isP2 ? 'Правила для П2:' : 'Правила для П3:');
-        const reviewTitle = isEn ? 'Feedback' : 'Отзыв';
-        const copyDataBtn = isEn ? 'Copy data' : 'Скопировать данные';
-        const copyInstructionBtn = isEn ? 'Copy instructions' : 'Скопировать инструкцию';
-        const copyRulesBtn = isEn ? 'Copy rules' : 'Скопировать правила';
-        const copyReviewBtn = isEn ? 'Copy feedback' : 'Скопировать отзыв';
-        const doneBtn = isEn ? 'Done' : 'Готово';
-
-        // Генерируем HTML блоков в зависимости от площадки
-        let marketplaceBlocksHTML = '';
-        
-        if (marketplace === 'telegram') {
-            marketplaceBlocksHTML = `
-                <!-- Правила (только для выбранной позиции) -->
-                <div class="instruction-section" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border-color: #ffc107; margin-top: 15px; padding: 20px; border-radius: 15px;">
-                    <h4 style="color: #856404; margin-bottom: 10px;">${rulesTitle}</h4>
-                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ffe69c; font-size: 13px; white-space: pre-wrap; margin-bottom: 10px;">${currentRules}</div>
-                    <button class="btn btn-warning btn-small" onclick="window.copyRules()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${copyRulesBtn}</button>
-                </div>
-                <!-- Отзыв -->
-                <div class="instruction-section" style="background: linear-gradient(135deg, #d1e7dd 0%, #b8dfd0 100%); border-color: #20c997; margin-top: 15px; padding: 20px; border-radius: 15px;">
-                    <h4 style="color: #0f5132; margin-bottom: 10px;">${reviewTitle}:</h4>
-                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #b8dfd0; font-size: 13px; white-space: pre-wrap; margin-bottom: 10px;">${currentReview}</div>
-                    <button class="btn btn-success btn-small" onclick="window.copyReview()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${copyReviewBtn}</button>
-                </div>
-            `;
-        } else if (marketplace === 'avito') {
-            marketplaceBlocksHTML = `
-                <!-- Правила (только для выбранной позиции) -->
-                <div class="instruction-section" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border-color: #ffc107; margin-top: 15px; padding: 20px; border-radius: 15px;">
-                    <h4 style="color: #856404; margin-bottom: 10px;">${rulesTitle}</h4>
-                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ffe69c; font-size: 13px; white-space: pre-wrap; margin-bottom: 10px;">${currentRules}</div>
-                    <button class="btn btn-warning btn-small" onclick="window.copyRules()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${copyRulesBtn}</button>
-                </div>
-            `;
-        }
+        const currentRules = isEn ? rulesEN : rulesRU;
+        const currentReview = isEn ? reviewEN : reviewRU;
+        const currentOrderData = isEn ? window.currentOrderDataEN : window.currentOrderDataRU;
 
         const modalContent = document.getElementById('saleModalContent');
-        modalContent.innerHTML = `
+        
+        let html = `
             <h2 style="text-align: center; margin-bottom: 25px;">
                 <span style="display: inline-block; margin-right: 10px;">✅</span>
-                Продажа оформлена!
+                ${isEn ? 'Sale completed!' : 'Продажа оформлена!'}
             </h2>
             
-            <!-- Языковая панель -->
             <div class="language-switcher" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; padding: 15px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 15px; border: 1px solid #e2e8f0;">
                 <button onclick="window.switchLanguage('RU')" class="language-btn" style="padding: 10px 25px; border-radius: 25px; border: 2px solid ${!isEn ? '#4361ee' : '#e2e8f0'}; background: ${!isEn ? '#4361ee' : 'white'}; color: ${!isEn ? 'white' : '#64748b'}; font-weight: 600; cursor: pointer;">🇷🇺 Русский</button>
                 <button onclick="window.switchLanguage('EN')" class="language-btn" style="padding: 10px 25px; border-radius: 25px; border: 2px solid ${isEn ? '#4361ee' : '#e2e8f0'}; background: ${isEn ? '#4361ee' : 'white'}; color: ${isEn ? 'white' : '#64748b'}; font-weight: 600; cursor: pointer;">🇬🇧 English</button>
             </div>
             
-            <!-- Данные для клиента -->
+            <!-- Данные -->
             <div id="orderDataSection" class="sale-success-section" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 25px; border-radius: 15px; border: 1px solid #bbf7d0; margin-bottom: 25px;">
-                <h3 style="color: #16a34a; margin-bottom: 20px;"><span>📋</span> <span>${dataTitle}</span></h3>
+                <h3 style="color: #16a34a; margin-bottom: 20px;"><span>📋</span> <span>${isEn ? 'Customer data:' : 'Данные для клиента:'}</span></h3>
                 <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.6; margin-bottom: 20px; white-space: pre-wrap; word-break: break-word;">${currentOrderData}</div>
-                <button class="btn btn-success btn-small" onclick="window.copyAccountData()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${copyDataBtn}</button>
+                <button class="btn btn-success btn-small" onclick="window.copyAccountData()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${isEn ? 'Copy data' : 'Скопировать данные'}</button>
             </div>
             
-            <!-- Инструкция по активации -->
+            <!-- Инструкция -->
             <div id="instructionSection" class="instruction-section" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 25px; border-radius: 15px; border: 1px solid #bfdbfe; margin-bottom: 25px;">
-                <h3 style="color: #2563eb; margin-bottom: 15px;"><span>📖</span> <span>${instructionTitle}</span></h3>
-                <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; max-height: 300px; overflow-y: auto; font-size: 13.5px; line-height: 1.5; color: #4b5563; white-space: pre-wrap; margin-bottom: 10px;">${currentInstruction.replace(/\n/g, '<br>')}</div>
-                <button class="btn btn-primary btn-small" onclick="window.copyInstruction()" style="width: 100%;"><span style="margin-right: 8px;">📝</span> ${copyInstructionBtn}</button>
+                <h3 style="color: #2563eb; margin-bottom: 15px;"><span>📖</span> <span>${isEn ? `Instructions for ${getPositionName(positionType)}:` : `Инструкция для ${getPositionName(positionType)}:`}</span></h3>
+                <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; max-height: 400px; overflow-y: auto; font-size: 13.5px; line-height: 1.5; color: #4b5563; white-space: pre-wrap; margin-bottom: 10px;">${currentInstruction.replace(/\n/g, '<br>')}</div>
+                <button class="btn btn-primary btn-small" onclick="window.copyInstruction()" style="width: 100%;"><span style="margin-right: 8px;">📝</span> ${isEn ? 'Copy instructions' : 'Скопировать инструкцию'}</button>
             </div>
-            
-            <!-- ДИНАМИЧЕСКИЕ БЛОКИ (только правила для выбранной позиции) -->
-            <div id="marketplaceBlocksContainer">
-                ${marketplaceBlocksHTML}
-            </div>
-            
-            <!-- Оставшиеся коды -->
-            ${psnCodesArray.length > 0 ? `
+        `;
+
+        // Правила (только для Avito и Telegram)
+        if (currentRules) {
+            html += `
+                <div id="rulesSection" class="instruction-section" style="background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%); padding: 25px; border-radius: 15px; border: 1px solid #fde68a; margin-bottom: 25px;">
+                    <h3 style="color: #92400e; margin-bottom: 15px;"><span>⚠️</span> <span>${isEn ? 'Rules:' : 'Правила:'}</span></h3>
+                    <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #fde68a; max-height: 300px; overflow-y: auto; font-size: 13px; line-height: 1.5; color: #78350f; white-space: pre-wrap; margin-bottom: 10px;">${currentRules.replace(/\n/g, '<br>')}</div>
+                    <button class="btn btn-warning btn-small" onclick="window.copyRules()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${isEn ? 'Copy rules' : 'Скопировать правила'}</button>
+                </div>
+            `;
+        }
+
+        // Отзыв (только для Telegram и Avito)
+        if (currentReview && !isFunpay) {
+            html += `
+                <div id="reviewSection" class="instruction-section" style="background: linear-gradient(135deg, #d1e7dd 0%, #b8dfd0 100%); padding: 25px; border-radius: 15px; border: 1px solid #20c997; margin-bottom: 25px;">
+                    <h3 style="color: #0f5132; margin-bottom: 15px;"><span>⭐</span> <span>${isEn ? 'Feedback:' : 'Отзыв:'}</span></h3>
+                    <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #b8dfd0; font-size: 13px; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px;">${currentReview.replace(/\n/g, '<br>')}</div>
+                    <button class="btn btn-success btn-small" onclick="window.copyReview()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${isEn ? 'Copy feedback' : 'Скопировать отзыв'}</button>
+                </div>
+            `;
+        }
+
+        // Оставшиеся коды
+        if (psnCodesArray.length > 0) {
+            html += `
                 <div class="remaining-codes" style="background: #f8fafc; padding: 20px; border-radius: 15px; border: 1px solid #e2e8f0; margin: 25px 0;">
                     <h4 style="color: #475569; margin-bottom: 15px;"><span>🔑</span> <span>${isEn ? `Remaining codes (${psnCodesArray.length}):` : `Оставшиеся коды (${psnCodesArray.length}):`}</span></h4>
                     <div class="codes-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
                         ${psnCodesArray.map(code => `<div style="background: white; padding: 10px 15px; border-radius: 8px; border: 1px solid #e2e8f0; font-family: 'Courier New', monospace; font-size: 12px; text-align: center; word-break: break-all;">${code}</div>`).join('')}
                     </div>
                 </div>
-            ` : ''}
-            
-            <!-- Кнопка закрытия -->
+            `;
+        }
+
+        // Кнопка закрытия
+        html += `
             <div class="order-buttons" style="display: flex; gap: 15px; justify-content: center; padding-top: 20px; border-top: 1px solid #e2e8f0;">
                 <button class="btn btn-primary" onclick="closeSaleModalAndRefresh()" style="padding: 12px 24px; flex: 1; background: #10b981; border-color: #10b981;" id="closeSaleBtn">
                     <span style="margin-right: 8px;">✅</span>
-                    ${doneBtn}
+                    ${isEn ? 'Done' : 'Готово'}
                 </button>
             </div>
         `;
+
+        modalContent.innerHTML = html;
     }
 
-    // Сохраняем данные глобально
     window.currentLanguage = 'RU';
     window.currentOrderDataRU = `Игра: ${account.gameName}
 Логин PSN: ${account.psnLogin}
@@ -5352,9 +5701,22 @@ PSN Login: ${account.psnLogin}
 PSN Password: ${account.psnPassword || 'Not specified'}
 PSN Authentication Code: ${currentCode}`;
 
-    // Отображаем модальное окно
     renderModal();
     openModal('saleModal');
+
+    // Временно добавим диагностику в начало showAccountDataAfterSale
+const originalShow = showAccountDataAfterSale;
+window.showAccountDataAfterSale = function(accountId) {
+    const lastSale = sales.filter(s => s.accountId === accountId).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
+    if (lastSale) {
+        console.log('=== ПОКАЗ ДАННЫХ ПОСЛЕ ПРОДАЖИ ===');
+        console.log('positionType из продажи:', lastSale.positionType);
+        console.log('positionName из продажи:', lastSale.positionName);
+        console.log('marketplace:', lastSale.marketplace);
+    }
+    originalShow(accountId);
+};
+console.log('✅ Диагностика добавлена. Теперь продай позицию и посмотри что вывелось после "ПОКАЗ ДАННЫХ"');
 }
 
 // Функция закрытия (оставляем)
@@ -6319,14 +6681,39 @@ function refreshSearchResultsAfterSaleUpdate() {
     const searchInput = document.getElementById('managerGameSearch');
     const loginInput = document.getElementById('managerLogin');
     
-    // Просто перезапускаем текущий поиск
-    if (searchInput && searchInput.value.trim()) {
-        searchByGame();
-    } else if (loginInput && loginInput.value.trim()) {
-        searchByLogin();
-    } else {
-        // Если ничего не искали, очищаем результаты
-        document.getElementById('searchResults').innerHTML = '';
+    // Проверяем, на какой мы странице
+    const currentPage = window.location.pathname.split('/').pop();
+    
+    // Если на странице менеджера
+    if (currentPage === 'manager.html') {
+        if (searchInput && searchInput.value.trim()) {
+            searchByGame();
+        } else if (loginInput && loginInput.value.trim()) {
+            searchByLogin();
+        } else {
+            const resultsContainer = document.getElementById('searchResults');
+            if (resultsContainer) {
+                resultsContainer.innerHTML = '';
+            }
+        }
+    }
+    
+    // Если на странице отчетов - обновляем отчет
+    if (currentPage === 'reports.html') {
+        setTimeout(() => {
+            if (typeof generateReport === 'function') {
+                generateReport();
+            }
+        }, 300);
+    }
+    
+    // Если на странице аккаунтов - обновляем список
+    if (currentPage === 'accounts.html') {
+        setTimeout(() => {
+            if (typeof displayAccounts === 'function') {
+                displayAccounts();
+            }
+        }, 300);
     }
 }
 
@@ -7163,7 +7550,7 @@ function getSalesListHTML(salesData) {
                         <td style="padding: 12px 15px; color: #64748b; font-size: 0.9em;">
                             ${displayDate}
                             ${typeBadge}
-                        </td>
+                         </td>
                         <td style="padding: 12px 15px; font-weight: 500;">${sale.gameName || 'Не указано'}</td>
                         <td style="padding: 12px 15px; font-weight: 500;">${sale.accountLogin || 'Не указано'}</td>
                         <td style="padding: 12px 15px; font-weight: 500;">${sale.positionName || 'Не указано'}</td>
@@ -7174,7 +7561,7 @@ function getSalesListHTML(salesData) {
                                     закуп: ${purchaseAmount} ₽
                                 </div>
                             ` : ''}
-                        </td>
+                         </td>
                         <td style="padding: 12px 15px;">
                             <span style="
                                 padding: 4px 10px;
@@ -7187,7 +7574,7 @@ function getSalesListHTML(salesData) {
                                 ${marketplaceName}
                                 ${sale.marketplace === 'funpay' ? ' (3%)' : ''}
                             </span>
-                        </td>
+                         </td>
                         <td style="padding: 12px 15px;">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span style="font-weight: 500;">${sale.soldByName || sale.soldBy || 'Неизвестно'}</span>
@@ -7195,31 +7582,27 @@ function getSalesListHTML(salesData) {
                                     '<span style="color: #f72585; font-size: 1.2em;">👑</span>' : 
                                     '<span style="color: #4361ee; font-size: 1.2em;">👷</span>'}
                             </div>
-                        </td>
+                         </td>
                         <td style="padding: 12px 15px; text-align: center;">
-                            <button onclick="deleteSaleFromReports('${sale.id}')" 
-                                    data-sale-id="${sale.id}"
-                                        style="
-                                            background: #ef4444;
-                                            color: white;
-                                            border: none;
-                                            width: 30px;
-                                            height: 30px;
-                                            border-radius: 6px;
-                                            cursor: pointer;
-                                            font-size: 16px;
-                                            display: flex;
-                                            align-items: center;
-                                            justify-content: center;
-                                            transition: all 0.2s;
-                                        "
+                            <div style="display: flex; gap: 5px; justify-content: center;">
+                                <button onclick="editSaleFromReport('${sale.id}')" 
+                                        style="background: #4361ee; color: white; border: none; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
+                                        onmouseover="this.style.background='#3a56d4'; this.style.transform='scale(1.1)'"
+                                        onmouseout="this.style.background='#4361ee'; this.style.transform='scale(1)'"
+                                        title="Редактировать продажу">
+                                    ✏️
+                                </button>
+                                <button onclick="deleteSaleFromReports('${sale.id}')" 
+                                        data-sale-id="${sale.id}"
+                                        style="background: #ef4444; color: white; border: none; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
                                         onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.1)'"
                                         onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'"
-                                        title="Удалить продажу ${sale.accountLogin} за ${sale.price} ₽">
+                                        title="Удалить продажу">
                                     🗑️
                                 </button>
-                        </td>
-                    </tr>
+                            </div>
+                         </td>
+                     </tr>
                 `;
             } catch (error) {
                 console.error('Ошибка при создании строки таблицы:', error);
@@ -7252,8 +7635,8 @@ function getSalesListHTML(salesData) {
                             <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151;">Цена</th>
                             <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151;">Площадка</th>
                             <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151;">Менеджер</th>
-                            <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151; width: 50px;">🗑️</th>
-                        </tr>
+                            <th style="padding: 12px 15px; text-align: left; font-weight: 600; color: #374151; width: 80px;">Действия</th>
+                         </tr>
                     </thead>
                     <tbody>
                         ${tableRows}
@@ -7314,6 +7697,7 @@ function getSalesListHTML(salesData) {
         `;
     }
 }
+
 // ИСПОЛЬЗУЙТЕ ЭТУ ВЕРСИЮ:
 async function deleteSaleFromReports(saleId) {
     console.log(`📊 Удаление продажи из отчетов: ${saleId}`);
@@ -9475,30 +9859,40 @@ async function confirmFreeSale() {
     };
     
     try {
-        sales.push(newSale);
-        localStorage.setItem('sales', JSON.stringify(sales));
+    // Сохраняем в localStorage
+    sales.push(newSale);
+    localStorage.setItem('sales', JSON.stringify(sales));
+    
+    // Сохраняем в Firebase напрямую
+    if (typeof firebase !== 'undefined' && firebase.database) {
+        const db = firebase.database();
         
-        if (window.dataSync && window.dataSync.saveSale) {
-            await window.dataSync.saveSale(newSale);
-            showNotification('✅ Свободная продажа сохранена и синхронизирована!', 'success');
-        } else if (firebase && firebase.database) {
-            const db = firebase.database();
-            await db.ref('sales/' + newSale.id).set(newSale);
-            showNotification('✅ Свободная продажа сохранена в облаке!', 'success');
-        } else {
-            showNotification('✅ Свободная продажа сохранена локально', 'warning');
-        }
+        // Получаем текущие продажи из Firebase
+        const snapshot = await db.ref('sales').once('value');
+        const currentSales = snapshot.val() || {};
         
-        closeFreeSaleModal();
+        // Добавляем новую продажу
+        currentSales[newSale.id] = newSale;
         
-        if (window.location.pathname.includes('reports.html')) {
-            setTimeout(() => generateReport(), 500);
-        }
+        // Сохраняем обратно
+        await db.ref('sales').set(currentSales);
         
-    } catch (error) {
-        console.error('❌ Ошибка сохранения:', error);
-        showNotification('❌ Ошибка при сохранении', 'error');
+        console.log('✅ Свободная продажа сохранена в Firebase');
+        showNotification('✅ Свободная продажа сохранена и синхронизирована!', 'success');
+    } else {
+        showNotification('✅ Свободная продажа сохранена локально', 'warning');
     }
+    
+    closeFreeSaleModal();
+    
+    if (window.location.pathname.includes('reports.html')) {
+        setTimeout(() => generateReport(), 500);
+    }
+    
+} catch (error) {
+    console.error('❌ Ошибка сохранения:', error);
+    showNotification('❌ Ошибка при сохранении', 'error');
+}
 }
 
 // ==================== ПОИСК ИГР ДЛЯ ADD-ACCOUNT ====================
