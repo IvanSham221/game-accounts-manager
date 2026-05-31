@@ -44,10 +44,6 @@ function checkAuth() {
 
 function initFirebaseListeners() {
     console.log('🔔 Инициализация Firebase слушателей...');
-    
-    // Твои слушатели уже работают в firebase.js, но мы можем добавить дополнительные
-    
-    // Принудительно обновляем селекты при загрузке страницы
     if (window.location.pathname.includes('add-account.html')) {
         setTimeout(() => {
             const freshGames = JSON.parse(localStorage.getItem('games')) || [];
@@ -217,14 +213,12 @@ function toggleMobileMenu() {
     const burgerBtn = document.querySelector('.burger-btn');
     
     if (menu.classList.contains('active')) {
-        // Закрываем
         menu.classList.remove('active');
         overlay.classList.remove('active');
         burgerBtn.classList.remove('active');
         document.body.style.cssText = '';
         document.body.style.overflow = 'auto';
     } else {
-        // Открываем
         menu.classList.add('active');
         overlay.classList.add('active');
         burgerBtn.classList.add('active');
@@ -251,13 +245,10 @@ function closeMobileMenu() {
         window.scrollTo(0, parseInt(scrollY || '0') * -1);
     }
 }
-
-// УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ОТКРЫТИЯ
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'block';
-        // ТОЛЬКО скрываем скролл, не трогаем position
         document.body.style.overflow = 'hidden';
     }
 }
@@ -266,7 +257,7 @@ function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'none';
-        document.body.style.overflow = 'auto'; // ВОССТАНАВЛИВАЕМ СКРОЛЛ
+        document.body.style.overflow = 'auto';
     }
 }
 
@@ -280,38 +271,24 @@ window.onclick = function(event) {
         }
     });
 }
-
-// Функция для обновления бейджа с уведомлениями
 function updateMenuBadge() {
     const badge = document.getElementById('menuBadge');
     if (!badge) return;
-    
-    // Считаем "горячие" уведомления (например, новые скидки)
     let notificationCount = 0;
-    
-    // 1. Проверяем большие скидки (например, > 60%)
     const discounts = JSON.parse(localStorage.getItem('discountsResults')) || [];
     const bigDiscounts = discounts.filter(d => 
         (d.discounts?.TR?.discount >= 70) || (d.discounts?.UA?.discount >= 70)
     );
     notificationCount += bigDiscounts.length;
-    
-    // 2. Проверяем новые продажи (за последние 24 часа)
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const recentSales = sales.filter(sale => 
         new Date(sale.timestamp) > yesterday
     );
     notificationCount += recentSales.length;
-    
-    // 3. Можно добавить другие типы уведомлений
-    
-    // Обновляем бейдж
     if (notificationCount > 0) {
         badge.textContent = notificationCount > 9 ? '9+' : notificationCount;
         badge.style.display = 'flex';
-        
-        // Анимация пульсации для новых уведомлений
         if (notificationCount > 0) {
             badge.style.animation = 'pulse 2s infinite';
         }
@@ -319,8 +296,6 @@ function updateMenuBadge() {
         badge.style.display = 'none';
     }
 }
-
-// Функция для анимации "тряски" кнопки
 function shakeBurgerButton() {
     const burgerBtn = document.querySelector('.burger-btn');
     if (burgerBtn && !burgerBtn.classList.contains('active')) {
@@ -330,8 +305,6 @@ function shakeBurgerButton() {
         }, 500);
     }
 }
-
-// Анимация тряски (добавь в CSS)
 const style = document.createElement('style');
 style.textContent = `
 @keyframes shake {
@@ -342,9 +315,6 @@ style.textContent = `
 }
 `;
 document.head.appendChild(style);
-
-
-// Закрытие по ESC
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeModal('editModal');
@@ -357,8 +327,6 @@ document.addEventListener('keydown', function(e) {
 setInterval(() => {
     refreshMobileMenu();
 }, 5000);
-
-// Выход из системы
 function logout() {
     if (security && security.logout) {
         security.logout();
@@ -376,8 +344,6 @@ function updateActivity() {
 
 document.addEventListener('click', updateActivity);
 document.addEventListener('keypress', updateActivity);
-
-// ==================== ОБНОВЛЕНИЕ НАВИГАЦИИ ====================
 function updateNavigation() {
     const nav = document.querySelector('.nav-buttons');
     if (!nav) return;
@@ -427,8 +393,6 @@ function updateNavigation() {
         <span class="nav-text">Акции PS Store</span>
     </button>
     `;
-    
-    // Только администратор видит кнопку "Работники"
     if (user.role === 'admin') {
         navButtons += `
             <button onclick="security.updateSession(); location.href='workers.html'" class="btn ${location.pathname.includes('workers.html') ? 'btn-primary' : 'btn-secondary'}">
@@ -437,8 +401,6 @@ function updateNavigation() {
             </button>
         `;
     }
-    
-    // Информация о пользователе и выход
     navButtons += `
         <div class="user-info">
             <span>${user.role === 'admin' ? '👑' : '👷'} ${user.name}</span>
@@ -460,8 +422,6 @@ function updateNavigation() {
         }
     });
 }
-
-// КНОПКА ПРИНУДИТЕЛЬНОЙ СИНХРОНИЗАЦИИ
 function addSyncButton() {
     const nav = document.querySelector('.nav-buttons');
     if (nav && !document.querySelector('#syncButton')) {
@@ -494,7 +454,6 @@ function addSyncButton() {
                     } else if (currentPage === 'free-accounts.html') {
                         displayFreeAccounts();
                     } else if (currentPage === 'reports.html') {
-                        // Если на странице отчетов, обновляем отчет
                         if (typeof generateFullReport === 'function') {
                             generateFullReport();
                         }
@@ -509,8 +468,6 @@ function addSyncButton() {
             syncBtn.disabled = false;
             syncBtn.innerHTML = '🔄 Синхронизировать';
         };
-        
-        // Добавляем кнопку перед кнопкой выхода
         const userInfo = nav.querySelector('.user-info');
         if (userInfo) {
             nav.insertBefore(syncBtn, userInfo);
@@ -522,7 +479,7 @@ function addSyncButton() {
 
 const originalSaveToStorage = saveToStorage;
 window.saveToStorage = function(dataType, data) {
-    security.updateSession(); // Обновляем сессию при действиях
+    security.updateSession();
     return originalSaveToStorage(dataType, data);
 };
 
@@ -531,31 +488,18 @@ window.saveToFirebase = function() {
     security.updateSession();
     return originalSaveToFirebase();
 };
-
-// Защита от XSS в полях ввода
 function sanitizeInput(input) {
     if (typeof input !== 'string') return input;
     return input.replace(/[<>"'`]/g, '');
 }
 
-// ============================================
-// МОБИЛЬНОЕ МЕНЮ И UI УЛУЧШЕНИЯ
-// ============================================
-
-// Инициализация меню
 function initMobileMenu() {
     const user = security.getCurrentUser();
     if (!user) return;
-    
-    // Обновляем информацию пользователя
     document.getElementById('mobileUserName').textContent = user.name;
     document.getElementById('mobileUserRole').textContent = 
         user.role === 'admin' ? 'Администратор 👑' : 'Работник 👷';
-    
-    // Определяем текущую страницу
     const currentPage = window.location.pathname.split('/').pop();
-    
-    // Пункты меню
     const menuItems = [
         { icon: '🎮', text: 'Панель менеджера', page: 'manager.html', id: 'manager' },
         { icon: '➕', text: 'Добавить аккаунт', page: 'add-account.html', id: 'add-account' },
@@ -569,14 +513,10 @@ function initMobileMenu() {
         { icon: '👑', text: 'Работники', page: 'workers.html', id: 'workers', adminOnly: true },
         { icon: '🔄', text: 'Синхронизация', onclick: 'syncData()', id: 'sync' }
     ];
-
-    
-    // Создаем меню
     const menuNav = document.querySelector('.mobile-menu-nav');
     menuNav.innerHTML = '';
     
     menuItems.forEach(item => {
-        // Проверяем права доступа
         if (item.adminOnly && user.role !== 'admin') return;
         
         const isActive = currentPage === item.page;
@@ -604,14 +544,8 @@ function initMobileMenu() {
         
         menuNav.appendChild(menuItem);
     });
-    
-    // Обновляем бургер-кнопку
     updateBurgerButton();
-
-     // Обновляем бейдж каждые 30 секунд
     setInterval(updateMenuBadge, 30000);
-    
-    // Первое обновление
     setTimeout(updateMenuBadge, 2000);
 }
 
@@ -620,8 +554,6 @@ function notifyNewDiscount() {
     shakeBurgerButton();
     updateMenuBadge();
 }
-
-    // Обновление состояния бургер-кнопки
 function updateBurgerButton() {
     const burgerBtn = document.querySelector('.burger-btn');
     if (burgerBtn) {
@@ -632,8 +564,6 @@ function updateBurgerButton() {
         `;
     }
 }
-
-// Функция синхронизации
 function syncData() {
     const syncBtn = document.querySelector('#syncButton');
     if (syncBtn) {
@@ -641,20 +571,13 @@ function syncData() {
         showNotification('Синхронизация запущена...', 'info');
     }
 }
-
-// Обновление меню при изменении данных
 function refreshMobileMenu() {
     initMobileMenu();
 }
-
-// UI улучшения (тема, уведомления)
 function initUIEnhancements() {
-    // Проверяем сохраненную тему
     if (localStorage.getItem('theme') === 'dark') {
         document.body.classList.add('dark-theme');
     }
-    
-    // Создаем кнопку переключения темы если её нет
     if (!document.querySelector('.theme-toggle')) {
         const themeToggle = document.createElement('div');
         themeToggle.className = 'theme-toggle';
@@ -665,8 +588,6 @@ function initUIEnhancements() {
         `;
         document.body.appendChild(themeToggle);
     }
-    
-    // Плавное появление
     document.addEventListener('DOMContentLoaded', () => {
         document.body.style.opacity = '0';
         document.body.style.transition = 'opacity 0.3s ease-in';
@@ -676,8 +597,6 @@ function initUIEnhancements() {
         }, 100);
     });
 }
-
-// Переключение темы
 function toggleTheme() {
     const body = document.body;
     const themeIcon = document.getElementById('themeIcon');
@@ -692,10 +611,7 @@ function toggleTheme() {
         localStorage.setItem('theme', 'light');
     }
 }
-
-// Система уведомлений
 function showNotification(message, type = 'info', duration = 3000) {
-    // Проверяем, есть ли уже уведомление
     const existingNotifications = document.querySelectorAll('.notification');
     existingNotifications.forEach(notification => {
         notification.remove();
@@ -718,12 +634,10 @@ function showNotification(message, type = 'info', duration = 3000) {
     
     document.body.appendChild(notification);
     
-    // Показываем уведомление
     setTimeout(() => {
         notification.classList.add('show');
     }, 10);
     
-    // Скрываем через duration
     setTimeout(() => {
         notification.classList.remove('show');
         setTimeout(() => {
@@ -733,13 +647,8 @@ function showNotification(message, type = 'info', duration = 3000) {
         }, 400);
     }, duration);
 }
-
-// ==================== ИНИЦИАЛИЗАЦИЯ ====================
 document.addEventListener('DOMContentLoaded', function() {
-    // Инициализация мобильного меню
     initMobileMenu();
-    
-    // Проверка сессии
     if (!security || !security.isSessionValid()) {
         const currentPage = window.location.pathname.split('/').pop();
         if (currentPage !== 'login.html' && currentPage !== 'index.html') {
@@ -748,18 +657,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
     }
-    
-    // Обновление навигации
     if (typeof updateNavigation === 'function') {
         updateNavigation();
     }
-    
-    // Загрузка данных
     if (typeof loadAllDataWithSync === 'function') {
         loadAllDataWithSync().then(() => {
             console.log('✅ Все данные загружены');
-            
-            // Инициализация страниц
             const currentPage = window.location.pathname.split('/').pop();
             
             if (currentPage === 'add-account.html' && typeof loadGamesForSelect === 'function') {
@@ -793,14 +696,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
         });
     }
-
-     // Скрываем кнопку статистики при загрузке
     const statsBtn = document.getElementById('showStatsBtn');
     if (statsBtn) {
         statsBtn.style.display = 'none';
     }
-    
-    // Скрываем секцию статистики
     const statsSection = document.getElementById('statsSection');
     if (statsSection) {
         statsSection.style.display = 'none';
@@ -814,17 +713,10 @@ async function loadAllDataWithSync() {
         if (window.dataSync && window.dataSync.forceFullSync) {
             await dataSync.forceFullSync();
         }
-        
-        // Обновляем глобальные переменные
         games = JSON.parse(localStorage.getItem('games')) || [];
         accounts = JSON.parse(localStorage.getItem('accounts')) || [];
         sales = JSON.parse(localStorage.getItem('sales')) || [];
-        
-        // ===== ДОБАВЛЯЕМ СИНХРОНИЗАЦИЮ НАЗВАНИЙ =====
         await syncGameNamesInAllData();
-        // ===== КОНЕЦ ДОБАВЛЕНИЯ =====
-        
-        // Убедимся, что у всех аккаунтов есть массив комментариев
         accounts.forEach(account => {
             if (!account.comments) {
                 account.comments = [];
@@ -846,7 +738,6 @@ function initApp() {
     const user = security.getCurrentUser();
     
     if (!user) {
-        // Если нет пользователя, перенаправляем на логин
         if (currentPage !== 'login.html' && currentPage !== 'index.html') {
             window.location.href = 'login.html';
         }
@@ -854,42 +745,22 @@ function initApp() {
     }
     
     console.log('👤 Пользователь:', user.name, `(${user.role})`);
-    
-    // Обновляем навигацию
     if (typeof updateNavigation === 'function') {
         updateNavigation();
     }
-    
-    // Инициализируем мобильное меню
     initMobileMenu();
-    
-    // Инициализируем UI улучшения
     initUIEnhancements();
-
-    // Инициализируем Firebase слушатели
     setTimeout(initFirebaseListeners, 1000);
-    
-    // Загружаем данные с синхронизацией
     loadAllDataWithSync().then(() => {
         console.log(`✅ Все данные загружены: ${games.length} игр, ${accounts.length} аккаунтов, ${sales.length} продаж`);
-        
-        // Инициализируем страницы
         initPage(currentPage);
-        
-        // Инициализируем автодополнение если есть
         initAutocomplete();
-        
-        // Запускаем проверку обновлений
         startSyncChecker();
-        
-        // Показываем уведомление
         showNotification(`Добро пожаловать, ${user.name}! 👋`, 'info', 2000);
         
     }).catch(error => {
         console.error('❌ Ошибка загрузки данных:', error);
         showNotification('Ошибка загрузки данных. Проверьте соединение.', 'error');
-        
-        // Пробуем загрузить из локального хранилища
         loadFromLocalStorage();
         initPage(currentPage);
     });
@@ -899,11 +770,7 @@ function initApp() {
     }, 100);
     function initAppWithDiagnostics() {
     initApp();
-    
-    // Добавляем кнопку диагностики
     setTimeout(addDiagnosticButton, 1000);
-    
-    // Автоматическая проверка при загрузке
     setTimeout(() => {
         const localSales = JSON.parse(localStorage.getItem('sales')) || [];
         if (Math.abs(sales.length - localSales.length) > 0) {
@@ -920,14 +787,11 @@ function initPage(currentPage) {
             if (typeof loadGamesForSelect === 'function') {
                 loadGamesForSelect();
             }
-            // Инициализация поиска игр для add-account
             setTimeout(() => {
                 if (typeof initGameSearchForAddAccount === 'function') {
                     initGameSearchForAddAccount();
                 }
             }, 500);
-            
-            // Слушаем изменения в localStorage
             window.addEventListener('storage', function(e) {
                 if (e.key === 'games' && window.location.pathname.includes('add-account.html')) {
                     console.log('🔄 Обнаружено изменение игр, обновляем поиск');
@@ -962,8 +826,6 @@ function initPage(currentPage) {
             setTimeout(() => {
                 setupGameSelectListener();
             }, 500);
-            
-            // Инициализируем кнопку переключения
             setTimeout(() => {
                 if (typeof updateToggleButtonUI === 'function') {
                     const searchInput = document.getElementById('managerGameSearch');
@@ -1007,7 +869,6 @@ function initPage(currentPage) {
             break;
             
         case 'workers.html':
-            // Страница работников инициализируется своим скриптом
             break;
             
         default:
@@ -1016,11 +877,8 @@ function initPage(currentPage) {
 }
 
 function initAutocomplete() {
-    // Проверяем, подключен ли скрипт автодополнения
     if (typeof window.autoComplete !== 'undefined') {
         console.log('🔍 Инициализирую автодополнение...');
-        
-        // Даем время на загрузку DOM
         setTimeout(() => {
             try {
                 window.autoComplete.setupAllSelects();
@@ -1041,8 +899,6 @@ function refreshAutocomplete() {
         console.log('🔄 Автодополнение обновлено');
     }
 }
-
-// Функция загрузки из локального хранилища (запасной вариант)
 function loadFromLocalStorage() {
     games = JSON.parse(localStorage.getItem('games')) || [];
     accounts = JSON.parse(localStorage.getItem('accounts')) || [];
@@ -1064,21 +920,14 @@ function editSaleFromReport(saleId) {
 // СИСТЕМА СОХРАНЕНИЯ И СИНХРОНИЗАЦИИ
 // ============================================
 
-// Функция сохранения данных с синхронизацией
 async function saveToStorage(dataType, data) {
     console.log(`💾 Сохранение ${dataType}...`);
-    
-    // Сохраняем в локальное хранилище для быстрого доступа
     localStorage.setItem(dataType, JSON.stringify(data));
-    
-    // Обновляем глобальные переменные
     switch(dataType) {
         case 'games': games = data; break;
         case 'accounts': accounts = data; break;
         case 'sales': sales = data; break;
     }
-    
-    // Синхронизируем с Firebase
     if (window.dataSync && window.dataSync.saveData) {
         const result = await dataSync.saveData(dataType, data);
         
@@ -1096,8 +945,6 @@ async function saveToStorage(dataType, data) {
     
     return { success: true, local: true };
 }
-
-// Совместимость со старым кодом
 async function saveToFirebase() {
     const results = [];
     
@@ -1107,8 +954,6 @@ async function saveToFirebase() {
     
     return results;
 }
-
-// ФУНКЦИЯ ДЛЯ ЗАГРУЗКИ ДАННЫХ ПРИ РЕДАКТИРОВАНИИ
 async function refreshData(dataType) {
     try {
         if (window.dataSync && window.dataSync.loadData) {
@@ -1151,13 +996,9 @@ async function refreshData(dataType) {
 // ФУНКЦИИ ДЛЯ ИГР
 // ============================================
 
-// ============================================
-// ФУНКЦИИ ДЛЯ ИГР
-// ============================================
-
 async function addGame() {
     const gameName = document.getElementById('gameName').value.trim();
-    const imageUrl = document.getElementById('gameImageUrl').value.trim(); // НОВОЕ
+    const imageUrl = document.getElementById('gameImageUrl').value.trim(); 
     const urlTR = document.getElementById('gameUrlTR').value.trim();
     const urlUA = document.getElementById('gameUrlUA').value.trim();
     
@@ -1165,14 +1006,10 @@ async function addGame() {
         showNotification('Введите название игры', 'warning');
         return;
     }
-    
-    // Проверяем на дубликаты среди уже загруженных игр
     if (games.find(game => game.name.toLowerCase() === gameName.toLowerCase())) {
         showNotification('Игра с таким названием уже существует', 'error');
         return;
     }
-    
-    // Валидация ссылок (если указаны)
     if (urlTR && !isValidPSStoreUrl(urlTR, 'TR')) {
         showNotification('Некорректная ссылка на турецкий PS Store', 'warning');
         return;
@@ -1182,14 +1019,12 @@ async function addGame() {
         showNotification('Некорректная ссылка на украинский PS Store', 'warning');
         return;
     }
-    
-    // Сначала показываем уведомление о начале сохранения
     showNotification(`Добавляем игру "${gameName}"...`, 'info', 1000);
     
     const newGame = {
         id: Date.now(),
         name: gameName,
-        imageUrl: imageUrl || null, // НОВОЕ ПОЛЕ
+        imageUrl: imageUrl || null, 
         storeLinks: {
             TR: urlTR || '',
             UA: urlUA || ''
@@ -1205,10 +1040,8 @@ async function addGame() {
     
     games.push(newGame);
     const result = await saveToStorage('games', games);
-    
-    // Очищаем форму
     document.getElementById('gameName').value = '';
-    document.getElementById('gameImageUrl').value = ''; // НОВОЕ
+    document.getElementById('gameImageUrl').value = ''; 
     document.getElementById('gameUrlTR').value = '';
     document.getElementById('gameUrlUA').value = '';
     
@@ -1228,8 +1061,6 @@ async function addGame() {
     
     displayGames();
 }
-
-// Функция редактирования игры
 function editGame(gameId) {
     const game = games.find(g => g.id === gameId);
     if (!game) {
@@ -1334,11 +1165,7 @@ async function saveGameChanges() {
         showNotification('Игра с таким названием уже существует', 'error');
         return;
     }
-    
-    // Запоминаем старое название
     const oldName = games[gameIndex].name;
-    
-    // Обновляем игру
     games[gameIndex] = {
         ...games[gameIndex],
         name: newName,
@@ -1355,23 +1182,17 @@ async function saveGameChanges() {
     };
     
     await saveToStorage('games', games);
-    
-    // ===== ОБНОВЛЯЕМ НАЗВАНИЕ ВО ВСЕХ АККАУНТАХ И ПРОДАЖАХ =====
     if (oldName !== newName) {
         console.log(`🔄 Обновляю "${oldName}" -> "${newName}" в аккаунтах и продажах...`);
         
         let accountsUpdated = 0;
         let salesUpdated = 0;
-        
-        // Обновляем аккаунты
         accounts.forEach(account => {
             if (account.gameId === gameId && account.gameName === oldName) {
                 account.gameName = newName;
                 accountsUpdated++;
             }
         });
-        
-        // Обновляем продажи
         sales.forEach(sale => {
             if (sale.gameName === oldName) {
                 sale.gameName = newName;
@@ -1380,26 +1201,18 @@ async function saveGameChanges() {
         });
         
         console.log(`✅ Обновлено: ${accountsUpdated} аккаунтов, ${salesUpdated} продаж`);
-        
-        // Сохраняем изменения
         if (accountsUpdated > 0) {
             await saveToStorage('accounts', accounts);
         }
         if (salesUpdated > 0) {
             await saveToStorage('sales', sales);
         }
-        
-        // Обновляем отображение на странице отчетов если она открыта
         if (window.location.pathname.includes('reports.html')) {
             setTimeout(() => generateReport(), 500);
         }
-        
-        // Обновляем отображение на странице аккаунтов
         if (window.location.pathname.includes('accounts.html')) {
             setTimeout(() => displayAccounts(), 500);
         }
-        
-        // Обновляем поиск в панели менеджера
         if (window.location.pathname.includes('manager.html')) {
             const searchInput = document.getElementById('managerGameSearch');
             if (searchInput && searchInput.value.trim() === oldName) {
@@ -1416,8 +1229,6 @@ async function saveGameChanges() {
     closeGameModal();
     displayGames();
 }
-
-// Функция удаления изображения игры
 async function removeGameImage(gameId) {
     const gameIndex = games.findIndex(g => g.id === gameId);
     
@@ -1431,15 +1242,11 @@ async function removeGameImage(gameId) {
         };
         
         await saveToStorage('games', games);
-        
-        // Обновляем форму редактирования
         editGame(gameId);
         
         showNotification('Изображение удалено', 'info');
     }
 }
-
-// Функция закрытия модального окна редактирования игры
 function closeGameModal() {
     document.getElementById('editGameModal').style.display = 'none';
 }
@@ -1447,14 +1254,10 @@ function closeGameModal() {
 function displayGames() {
     const list = document.getElementById('gamesList');
     if (!list) return;
-    
-    // Проверяем, есть ли активный поиск
     const searchInput = document.getElementById('searchGamesInput');
     const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
     
     let gamesToShow = games;
-    
-    // Фильтруем игры если есть поисковый запрос
     if (searchTerm) {
         gamesToShow = games.filter(game => 
             game.name.toLowerCase().includes(searchTerm)
@@ -1481,8 +1284,6 @@ function displayGames() {
         `;
         return;
     }
-    
-    // Сортируем игры по дате добавления (новые сначала)
     const sortedGames = [...gamesToShow].sort((a, b) => {
         const dateA = new Date(a.created || a.timestamp || 0);
         const dateB = new Date(b.created || b.timestamp || 0);
@@ -1490,11 +1291,8 @@ function displayGames() {
     });
     
     list.innerHTML = sortedGames.map(game => {
-        // Определяем, есть ли связанные аккаунты
         const accountsWithThisGame = accounts.filter(acc => acc.gameId === game.id);
         const hasAccounts = accountsWithThisGame.length > 0;
-        
-        // Определяем статус игры
         let statusBadge = '';
         if (game.storeLinks?.TR && game.storeLinks?.UA) {
             statusBadge = `<span style="padding: 3px 8px; background: #dcfce7; color: #166534; border-radius: 10px; font-size: 0.8em; font-weight: 600;">✅ Полная</span>`;
@@ -1767,25 +1565,14 @@ function displayGames() {
             </div>
         `;
     }).join('');
-    
-    // Добавляем обработчики для поиска
     if (searchInput) {
         searchInput.addEventListener('input', searchGamesList);
     }
 }
-// ============================================
-// ПЕРЕОПРЕДЕЛЕНИЕ ФУНКЦИИ С АВТОДОПОЛНЕНИЕМ
-// ============================================
 
-// Сохраняем оригинальную функцию
 const originalDisplayGames = displayGames;
-
-// Переопределяем функцию displayGames
 window.displayGames = function() {
-    // Вызываем оригинальную функцию
     originalDisplayGames();
-    
-    // Обновляем автодополнение после отображения игр
     setTimeout(() => {
         refreshAutocomplete();
     }, 500);
@@ -1802,8 +1589,6 @@ function openGameStats(gameId) {
         const account = gameAccounts.find(acc => acc.id === sale.accountId);
         return account !== undefined;
     });
-    
-    // Создаем модальное окно со статистикой
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'gameStatsModal';
@@ -1823,16 +1608,12 @@ function openGameStats(gameId) {
     document.body.appendChild(modal);
     modal.style.display = 'block';
 }
-
-// Функция для обновления названий игр во всех данных
 async function syncGameNamesInAllData() {
     console.log('🔄 Синхронизация названий игр...');
     
     const gamesList = games;
     let accountsUpdated = 0;
     let salesUpdated = 0;
-    
-    // Обновляем аккаунты
     accounts.forEach(account => {
         if (account.gameId && account.gameId !== 0) {
             const game = gamesList.find(g => g.id === account.gameId);
@@ -1842,15 +1623,10 @@ async function syncGameNamesInAllData() {
             }
         }
     });
-    
-    // Обновляем продажи
     sales.forEach(sale => {
         if (sale.gameName) {
             const game = gamesList.find(g => g.name === sale.gameName);
-            // Если есть игра с таким же названием, но ID другой - не трогаем
-            // Просто проверяем, есть ли такая игра в списке
             if (!game && sale.gameName !== 'Свободная продажа' && !sale.isFreeSale) {
-                // Ищем похожую игру
                 const similarGame = gamesList.find(g => 
                     g.name.toLowerCase().includes(sale.gameName.toLowerCase()) ||
                     sale.gameName.toLowerCase().includes(g.name.toLowerCase())
@@ -1868,8 +1644,6 @@ async function syncGameNamesInAllData() {
         await saveToStorage('accounts', accounts);
         await saveToStorage('sales', sales);
         console.log(`✅ Обновлено: ${accountsUpdated} аккаунтов, ${salesUpdated} продаж`);
-        
-        // Обновляем отображение
         if (window.location.pathname.includes('reports.html')) {
             setTimeout(() => generateReport(), 500);
         }
@@ -1999,8 +1773,6 @@ function exportGameStats(gameId) {
         const account = gameAccounts.find(acc => acc.id === sale.accountId);
         return account !== undefined;
     });
-    
-    // Создаем CSV
     const headers = ['Дата', 'Аккаунт', 'Позиция', 'Цена', 'Менеджер', 'Примечания'];
     const rows = gameSales.map(sale => [
         sale.datetime || sale.date || '',
@@ -2021,8 +1793,6 @@ function exportGameStats(gameId) {
         ...headers.join(','),
         ...rows.map(row => row.join(','))
     ].join('\n');
-    
-    // Создаем и скачиваем файл
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     
@@ -2069,23 +1839,13 @@ async function deleteGame(gameId) {
     showNotification(`Игра "${game.name}" удалена`, 'info');
 }
 
-// ============================================
-// ФУНКЦИИ ДЛЯ АККАУНТОВ
-// ============================================
-
 async function addAccount() {
     console.log('➕ Добавляем новый аккаунт...');
-    
-    // Получаем данные из формы
     const formData = getAccountFormData();
     if (!formData) {
         return;
     }
-    
-    // Показываем в консоли куда добавляем
     console.log(`🎮 Добавляем аккаунт в игру: ${formData.gameName}`);
-    
-    // Создаем новый аккаунт
     const newAccount = {
         id: Date.now(),
         ...formData,
@@ -2093,21 +1853,12 @@ async function addAccount() {
         timestamp: new Date().toISOString(),
         comments: []
     };
-
-    // Добавляем в массив
     accounts.push(newAccount);
     
     try {
-        // Сохраняем
         await saveToStorage('accounts', accounts);
-        
-        // Очищаем форму (игра остается выбранной!)
         clearAccountForm();
-        
-        // Показываем успешное сообщение
         showNotification(`Аккаунт добавлен в "${formData.gameName}"! 🎮`, 'success');
-        
-        // Выводим в консоль для отладки
         console.log(`✅ Аккаунт "${formData.psnLogin}" добавлен к игре "${formData.gameName}"`);
         console.log(`📊 Всего аккаунтов в системе: ${accounts.length}`);
         
@@ -2116,16 +1867,10 @@ async function addAccount() {
         showNotification('Ошибка при добавлении аккаунта ❌', 'error');
     }
 }
-
-// 🔥 НОВАЯ ФУНКЦИЯ: мгновенное обновление селектов
 function refreshAllGameSelectsImmediately() {
     console.log('🔥 Мгновенное обновление селектов');
-    
-    // Обновляем глобальную переменную games из localStorage
     const freshGames = JSON.parse(localStorage.getItem('games')) || [];
     games = freshGames;
-    
-    // Обновляем селекты без задержек
     if (window.location.pathname.includes('add-account.html')) {
         const select = document.getElementById('accountGame');
         if (select) {
@@ -2149,8 +1894,6 @@ function refreshAllGameSelectsImmediately() {
             }
         }
     }
-    
-    // Обновляем другие селекты если они есть на странице
     const managerSelect = document.getElementById('managerGame');
     if (managerSelect && window.location.pathname.includes('manager.html')) {
         const currentValue = managerSelect.value;
@@ -2167,8 +1910,6 @@ function refreshAllGameSelectsImmediately() {
             managerSelect.value = currentValue;
         }
     }
-    
-    // Обновляем автодополнение если есть
     if (window.autoComplete && typeof window.autoComplete.loadGames === 'function') {
         window.autoComplete.loadGames();
         window.autoComplete.setupAllSelects();
@@ -2176,12 +1917,9 @@ function refreshAllGameSelectsImmediately() {
 }
 
 function getAccountFormData() {
-    // ===== ИСПРАВЛЕНО: Берем ID из скрытого поля =====
     const gameIdInput = document.getElementById('accountGameId');
     const gameId = gameIdInput ? parseInt(gameIdInput.value) || 0 : 0;
     const game = games.find(g => g.id === gameId);
-    
-    // Проверяем выбрана ли игра
     if (!gameId) {
         console.warn('⚠️ Игра не выбрана - создаем Свободный аккаунт');
     }
@@ -2191,8 +1929,6 @@ function getAccountFormData() {
         showNotification('Введите логин PSN!', 'warning');
         return null;
     }
-    
-    // Проверка на дубликат логина
     const duplicate = accounts.find(acc => 
         acc.psnLogin.toLowerCase() === psnLogin.toLowerCase()
     );
@@ -2231,8 +1967,6 @@ function getAccountFormData() {
 
 function clearAccountForm() {
     console.log('🧹 Очищаю форму (игра остается выбранной)');
-    
-    // Очищаем ВСЕ поля КРОМЕ выбранной игры
     document.getElementById('purchaseAmount').value = '';
     document.getElementById('psnLogin').value = '';
     document.getElementById('psnPassword').value = '';
@@ -2243,13 +1977,11 @@ function clearAccountForm() {
     document.getElementById('psnCodes').value = '';
     document.getElementById('psnAuthenticator').value = '';
     
-    // Сбрасываем позиции на 0
     document.getElementById('p2_ps4').value = '0';
     document.getElementById('p3_ps4').value = '0';
     document.getElementById('p2_ps5').value = '0';
     document.getElementById('p3_ps5').value = '0';
     
-    // Фокус на поле логина для быстрого ввода следующего аккаунта
     setTimeout(() => {
         const loginField = document.getElementById('psnLogin');
         if (loginField) {
@@ -2259,11 +1991,6 @@ function clearAccountForm() {
     
     console.log('✅ Форма очищена (игра осталась выбранной)');
 }
-
-
-// ============================================
-// ОТОБРАЖЕНИЕ АККАУНТОВ
-// ============================================
 
 function displayAccounts(accountsToShow = accounts) {
     const list = document.getElementById('accountsList');
@@ -2323,8 +2050,6 @@ function displayAccounts(accountsToShow = accounts) {
         </div>
     `).join('');
 }
-
-// Свободные аккаунты
 function displayFreeAccounts() {
     const freeAccounts = accounts.filter(acc => !acc.gameId || acc.gameId === 0);
     const list = document.getElementById('freeAccountsList');

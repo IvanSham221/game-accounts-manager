@@ -1,20 +1,15 @@
-// psstore-api.js - API клиент для PS Store
 class PSStoreAPI {
     constructor(serverUrl = 'https://ps-store-api.onrender.com') {
-        // Автоматически определяем URL сервера
         if (serverUrl) {
             this.serverUrl = serverUrl;
         } else {
-            // Проверяем, работает ли локальный сервер
             const isLocalhost = window.location.hostname === 'localhost' || 
                                window.location.hostname === '127.0.0.1';
             
             if (isLocalhost) {
                 this.serverUrl = 'http://localhost:3001';
             } else {
-                // Используем Render сервер
                 this.serverUrl = 'https://ps-store-api.onrender.com';
-                // Или ваш домен на Render
             }
         }
         
@@ -73,13 +68,9 @@ class PSStoreAPI {
             
         } catch (error) {
             console.error(`❌ Ошибка запроса ${productId}:`, error.message);
-            
-            // Возвращаем демо-данные при ошибке
             return this.getFallbackData(productId, region);
         }
     }
-
-    // Массовая проверка игр
     async getBatchGamesInfo(gamesList) {
         console.log(`🔄 Массовая проверка ${gamesList.length} игр`);
         
@@ -104,8 +95,6 @@ class PSStoreAPI {
             
         } catch (error) {
             console.error('❌ Ошибка массовой проверки:', error);
-            
-            // Возвращаем демо-данные для каждой игры
             return gamesList.map(game => ({
                 productId: game.productId,
                 region: game.region,
