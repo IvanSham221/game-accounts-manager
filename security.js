@@ -42,7 +42,7 @@ const SecurityManager = {
     }
     
     // ===== НОВАЯ ЧАСТЬ: проверка через сервер =====
-    const serverUrl = 'http://localhost:3001';
+    const serverUrl = 'https://ps-store-api.onrender.com';
     
     try {
         // Отправляем запрос на сервер
