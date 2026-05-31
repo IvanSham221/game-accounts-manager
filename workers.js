@@ -1,7 +1,6 @@
 // workers.js
 class WorkersManager {
     addWorker(workerData) {
-        // Только администратор может добавлять работников
         if (!auth.isAdmin()) {
             alert('Недостаточно прав для добавления работников');
             return false;
@@ -16,7 +15,7 @@ class WorkersManager {
         const newWorker = {
             id: Date.now(),
             ...workerData,
-            role: 'worker', // Все новые пользователи - работники
+            role: 'worker', 
             created: new Date().toISOString(),
             active: true
         };
@@ -27,7 +26,6 @@ class WorkersManager {
     }
 
     getWorkers() {
-        // Только администратор может видеть список работников
         if (!auth.isAdmin()) {
             alert('Недостаточно прав для просмотра списка работников');
             return [];
@@ -40,13 +38,10 @@ class WorkersManager {
     }
 
     deleteWorker(workerId) {
-        // Только администратор может удалять работников
         if (!auth.isAdmin()) {
             alert('Недостаточно прав для удаления работников');
             return false;
         }
-
-        // Не позволяем удалить самого себя
         if (workerId === auth.currentUser.id) {
             alert('Нельзя удалить собственный аккаунт');
             return false;
