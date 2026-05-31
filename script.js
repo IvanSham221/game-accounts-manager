@@ -2121,13 +2121,10 @@ function refreshGamesPage() {
             displayGames();
             console.log('🔄 UI игр обновлен');
         }
-        
-        // Отправляем событие обновления игр
         window.dispatchEvent(new Event('gamesUpdated'));
     }
 }
 
-// Функция для обновления страницы аккаунтов
 function refreshAccountsPage() {
     const freshAccounts = JSON.parse(localStorage.getItem('accounts')) || [];
     if (JSON.stringify(freshAccounts) !== JSON.stringify(accounts)) {
@@ -2145,41 +2142,30 @@ function refreshAccountsPage() {
     }
 }
 
-
-// Функция для обновления всех селектов с играми
-// Функция для обновления всех селектов с играми
 function refreshAllGameSelects() {
     console.log('🔄 Обновляем все селекты с играми');
-    
-    // Обновляем данные из localStorage
     const freshGames = JSON.parse(localStorage.getItem('games')) || [];
     if (JSON.stringify(freshGames) !== JSON.stringify(games)) {
         games = freshGames;
     }
     
-    // Обновляем все селекты на разных страницах
     setTimeout(() => {
-        // На странице добавления аккаунта
         if (typeof loadGamesForSelect === 'function' && 
             window.location.pathname.includes('add-account.html')) {
             loadGamesForSelect();
         }
         
-        // На странице фильтрации аккаунтов
         if (typeof loadGamesForFilter === 'function' && 
             window.location.pathname.includes('accounts.html')) {
             loadGamesForFilter();
         }
         
-        // На странице менеджера
         if (typeof loadGamesForManager === 'function' && 
             window.location.pathname.includes('manager.html')) {
             loadGamesForManager();
         }
         
         console.log('✅ Все селекты обновлены');
-        
-        // Обновляем автодополнение если есть
         if (window.autoComplete && typeof window.autoComplete.loadGames === 'function') {
             setTimeout(() => {
                 window.autoComplete.loadGames();
@@ -2191,8 +2177,6 @@ function refreshAllGameSelects() {
     }, 100);
 }
 
-
-// Проверка обновлений каждые 3 секунды
 function startSyncChecker() {
     if (window.syncChecker) clearInterval(window.syncChecker);
     
@@ -2202,10 +2186,6 @@ function startSyncChecker() {
         refreshAllGameSelects();
     }, 3000);
 }
-
-// ============================================
-// ФИЛЬТРАЦИЯ И ПОИСК
-// ============================================
 
 function filterAccounts() {
     const gameFilter = document.getElementById('filterGame').value;
@@ -2238,18 +2218,11 @@ function clearFilters() {
     showNotification('Фильтры сброшены', 'info');
 }
 
-// ============================================
-// РЕДАКТИРОВАНИЕ АККАУНТОВ
-// ============================================
 
 function editAccount(accountId) {
-    // Просто открываем наше универсальное модальное окно
     openAccountEditModal(accountId);
 }
 
-// ============================================
-// УНИВЕРСАЛЬНОЕ РЕДАКТИРОВАНИЕ АККАУНТОВ
-// ============================================
 
 function openAccountEditModal(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
@@ -2453,8 +2426,6 @@ function openAccountEditModal(accountId) {
     `;
     
     openModal('editModal');
-    
-    // Автофокус на первом поле
     setTimeout(() => {
         const firstInput = editForm.querySelector('input, select');
         if (firstInput) firstInput.focus();
@@ -2493,23 +2464,17 @@ function renderCommentsListForEditModal(comments, accountId) {
         </div>
     `).join('');
 }
-
-// Обновить название игры во всех аккаунтах и продажах
 async function updateGameNameInAccounts(gameId, oldName, newName) {
     console.log(`🔄 Обновляю название игры "${oldName}" -> "${newName}"...`);
     
     let updatedAccounts = 0;
     let updatedSales = 0;
-    
-    // Обновляем в аккаунтах
     accounts.forEach(account => {
         if (account.gameId === gameId && account.gameName === oldName) {
             account.gameName = newName;
             updatedAccounts++;
         }
     });
-    
-    // Обновляем в продажах
     sales.forEach(sale => {
         if (sale.gameName === oldName) {
             sale.gameName = newName;
@@ -2522,8 +2487,6 @@ async function updateGameNameInAccounts(gameId, oldName, newName) {
     if (updatedAccounts > 0 || updatedSales > 0) {
         await saveToStorage('accounts', accounts);
         await saveToStorage('sales', sales);
-        
-        // Обновляем отображение
         if (window.location.pathname.includes('accounts.html')) {
             displayAccounts();
         }
@@ -2541,7 +2504,6 @@ async function updateGameNameInAccounts(gameId, oldName, newName) {
     return { updatedAccounts, updatedSales };
 }
 
-// Функции для деактивации аккаунта
 function toggleAccountDeactivation(accountId) {
     const accountIndex = accounts.findIndex(acc => acc.id === accountId);
     if (accountIndex === -1) return;
@@ -2549,7 +2511,6 @@ function toggleAccountDeactivation(accountId) {
     const isCurrentlyDeactivated = accounts[accountIndex].deactivated;
     
     if (!isCurrentlyDeactivated) {
-        // Деактивируем
         if (confirm('Деактивировать этот аккаунт?')) {
             accounts[accountIndex] = {
                 ...accounts[accountIndex],
@@ -2560,8 +2521,6 @@ function toggleAccountDeactivation(accountId) {
             };
             
             saveToStorage('accounts', accounts);
-            
-            // Обновляем UI в модальном окне
             const btn = document.getElementById('toggleDeactivationBtn');
             if (btn) {
                 btn.className = 'btn btn-danger';
@@ -2571,7 +2530,6 @@ function toggleAccountDeactivation(accountId) {
             showNotification('Аккаунт деактивирован', 'success');
         }
     } else {
-        // Активируем
         if (confirm('Активировать этот аккаунт?')) {
             accounts[accountIndex] = {
                 ...accounts[accountIndex],
@@ -2582,8 +2540,6 @@ function toggleAccountDeactivation(accountId) {
             };
             
             saveToStorage('accounts', accounts);
-            
-            // Обновляем UI в модальном окне
             const btn = document.getElementById('toggleDeactivationBtn');
             if (btn) {
                 btn.className = 'btn btn-secondary';
@@ -2616,8 +2572,6 @@ function updateDeactivationDate(accountId) {
     saveToStorage('accounts', accounts);
     showNotification('Дата деактивации обновлена', 'success');
 }
-
-// Функция для добавления комментария из модального окна редактирования
 function addCommentFromEditModal(accountId) {
     const textarea = document.getElementById('newAccountComment');
     const commentText = textarea.value.trim();
@@ -2629,8 +2583,6 @@ function addCommentFromEditModal(accountId) {
     
     if (addCommentToAccount(accountId, commentText)) {
         textarea.value = '';
-        
-        // Обновляем список комментариев
         const account = accounts.find(acc => acc.id === accountId);
         if (account) {
             document.getElementById('accountCommentsList').innerHTML = 
@@ -2643,7 +2595,6 @@ function addCommentFromEditModal(accountId) {
 
 function deleteCommentFromEditModal(commentId, accountId) {
     if (deleteComment(accountId, commentId)) {
-        // Обновляем список комментариев
         const account = accounts.find(acc => acc.id === accountId);
         if (account) {
             document.getElementById('accountCommentsList').innerHTML = 
@@ -2657,13 +2608,8 @@ async function deleteAccountFromModal(accountId) {
     if (!account) return;
     
     if (confirm(`Удалить аккаунт "${account.psnLogin}"? Это действие нельзя отменить.`)) {
-        // Удаляем из локального массива
         accounts = accounts.filter(acc => acc.id !== accountId);
-        
-        // Сохраняем в localStorage
         localStorage.setItem('accounts', JSON.stringify(accounts));
-        
-        // Сохраняем в Firebase
         if (typeof firebase !== 'undefined' && firebase.database) {
             try {
                 const db = firebase.database();
@@ -2679,8 +2625,6 @@ async function deleteAccountFromModal(accountId) {
         }
         
         closeAnyModal('editModal');
-        
-        // Обновляем отображение
         if (window.location.pathname.includes('accounts.html')) {
             displayAccounts();
         } else if (window.location.pathname.includes('manager.html')) {
@@ -2718,8 +2662,6 @@ async function saveAccountChanges() {
         showNotification('Введите логин PSN', 'warning');
         return;
     }
-    
-    // Проверяем уникальность логина (кроме текущего аккаунта)
     const duplicate = accounts.find((acc, index) => 
         index !== accountIndex && 
         acc.psnLogin.toLowerCase() === psnLogin.toLowerCase()
@@ -2729,8 +2671,6 @@ async function saveAccountChanges() {
         showNotification(`Логин "${psnLogin}" уже существует у другого аккаунта!`, 'error');
         return;
     }
-    
-    // Обновляем аккаунт
     accounts[accountIndex] = {
         ...accounts[accountIndex],
         gameId: gameId,
@@ -2757,12 +2697,9 @@ async function saveAccountChanges() {
     await saveToStorage('accounts', accounts);
     
     closeAnyModal('editModal');
-    
-    // Обновляем отображение на обеих страницах
     if (window.location.pathname.includes('accounts.html')) {
         displayAccounts();
     } else if (window.location.pathname.includes('manager.html')) {
-        // Обновляем результаты поиска если что-то искали
         const searchInput = document.getElementById('managerGameSearch');
         if (searchInput && searchInput.value.trim()) {
             searchByGame();
@@ -2784,13 +2721,8 @@ async function deleteAccount(accountId) {
     }
     
     if (confirm(`Удалить аккаунт "${account.psnLogin}"? Это действие нельзя отменить.`)) {
-        // Удаляем из локального массива
         accounts = accounts.filter(acc => acc.id !== accountId);
-        
-        // Сохраняем в localStorage
         localStorage.setItem('accounts', JSON.stringify(accounts));
-        
-        // Сохраняем в Firebase (обновляем весь список)
         if (typeof firebase !== 'undefined' && firebase.database) {
             try {
                 const db = firebase.database();
@@ -2805,8 +2737,6 @@ async function deleteAccount(accountId) {
                 showNotification('Ошибка синхронизации, аккаунт удален только локально', 'warning');
             }
         }
-        
-        // Обновляем отображение
         if (typeof displayAccounts === 'function') {
             displayAccounts();
         }
@@ -2815,9 +2745,6 @@ async function deleteAccount(accountId) {
     }
 }
 
-// ============================================
-// МОДАЛЬНЫЕ ОКНА
-// ============================================
 
 function attachGameToAccount(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
@@ -2911,8 +2838,6 @@ function loadGamesForManager() {
             games.map(game => `<option value="${game.id}">${game.name}</option>`).join('');
     }
 }
-
-// Обновим searchByGame, чтобы можно было передать параметр
 function searchByGame(silent = false) {
     const searchInput = document.getElementById('managerGameSearch');
     const searchTerm = searchInput.value.trim();
@@ -2987,8 +2912,6 @@ function showGameStats() {
         showNotification('Введите название игры для просмотра статистики', 'warning');
         return;
     }
-    
-    // Ищем игру по названию
     const foundGame = games.find(game => 
         game.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -3004,74 +2927,50 @@ function showGameStats() {
         showNotification('Нет аккаунтов для этой игры', 'info');
         return;
     }
-    
-    // Рассчитываем статистику
     const stats = calculateGameStats(gameAccounts);
-    
-    // Показываем статистику
     displayGameStats(foundGame.name, stats);
-    
-    // Прокручиваем к статистике
     const statsSection = document.getElementById('statsSection');
     if (statsSection) {
         statsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 }
-
-// Функция расчета статистики
 function calculateGameStats(gameAccounts) {
     let stats = {
         totalAccounts: gameAccounts.length,
-        
-        // Все позиции
         totalPositions: 0,
         freePositions: 0,
         soldPositions: 0,
-        
-        // По типам позиций
         p2_ps4: { total: 0, free: 0, sold: 0 },
         p3_ps4: { total: 0, free: 0, sold: 0 },
         p2_ps5: { total: 0, free: 0, sold: 0 },
         p3_ps5: { total: 0, free: 0, sold: 0 },
-        
-        // Продажи
         totalRevenue: 0,
         avgPrice: 0,
         salesCount: 0
     };
-    
-    // Собираем все ID аккаунтов для быстрого поиска продаж
     const accountIds = gameAccounts.map(acc => acc.id);
     const gameSales = sales.filter(sale => accountIds.includes(sale.accountId));
     
     stats.salesCount = gameSales.length;
     stats.totalRevenue = gameSales.reduce((sum, sale) => sum + sale.price, 0);
     stats.avgPrice = stats.salesCount > 0 ? stats.totalRevenue / stats.salesCount : 0;
-    
-    // Рассчитываем позиции
     gameAccounts.forEach(account => {
-        // P2 PS4
         const p2_ps4_count = account.positions.p2_ps4 || 0;
         stats.p2_ps4.total += p2_ps4_count;
         stats.totalPositions += p2_ps4_count;
         
-        // P3 PS4
         const p3_ps4_count = account.positions.p3_ps4 || 0;
         stats.p3_ps4.total += p3_ps4_count;
         stats.totalPositions += p3_ps4_count;
         
-        // P2 PS5
         const p2_ps5_count = account.positions.p2_ps5 || 0;
         stats.p2_ps5.total += p2_ps5_count;
         stats.totalPositions += p2_ps5_count;
         
-        // P3 PS5
         const p3_ps5_count = account.positions.p3_ps5 || 0;
         stats.p3_ps5.total += p3_ps5_count;
         stats.totalPositions += p3_ps5_count;
     });
-    
-    // Рассчитываем проданные позиции по каждой категории
     gameSales.forEach(sale => {
         switch(sale.positionType) {
             case 'p2_ps4':
@@ -3092,8 +2991,6 @@ function calculateGameStats(gameAccounts) {
                 break;
         }
     });
-    
-    // Рассчитываем свободные позиции
     stats.p2_ps4.free = stats.p2_ps4.total - stats.p2_ps4.sold;
     stats.p3_ps4.free = stats.p3_ps4.total - stats.p3_ps4.sold;
     stats.p2_ps5.free = stats.p2_ps5.total - stats.p2_ps5.sold;
@@ -3106,8 +3003,6 @@ function calculateGameStats(gameAccounts) {
 
 function displayGameStats(gameName, stats) {
     const statsSection = document.getElementById('statsSection');
-    
-    // Компактная версия статистики
     statsSection.style.display = 'block';
     statsSection.innerHTML = `
         <div class="stats-header">
@@ -3243,8 +3138,6 @@ function displayGameStats(gameName, stats) {
             </button>
         </div>
     `;
-    
-    // Сохраняем текущую статистику для экспорта
     window.currentGameStats = { gameName, stats };
 }
 
@@ -3255,26 +3148,19 @@ function hideStats() {
         showNotification('Статистика скрыта', 'info');
     }
 }
-
-// Добавьте эту функцию для обработки изменений в выпадающем списке
 function setupGameSelectListener() {
     const gameSelect = document.getElementById('managerGame');
     if (!gameSelect) return;
     
     gameSelect.addEventListener('change', function() {
-        // При смене игры скрываем статистику
         const statsSection = document.getElementById('statsSection');
         if (statsSection) {
             statsSection.style.display = 'none';
         }
-        
-        // Скрываем кнопку статистики пока не нажата кнопка поиска
         const statsBtn = document.getElementById('showStatsBtn');
         if (statsBtn) {
             statsBtn.style.display = 'none';
         }
-        
-        // Очищаем результаты поиска
         document.getElementById('searchResults').innerHTML = '';
     });
 }
@@ -3301,14 +3187,10 @@ function searchByLogin() {
         showNotification(`Аккаунты с логином "${loginSearch}" не найдены`, 'info');
         return;
     }
-    
-    // Скрываем кнопку статистики при поиске по логину
     const statsBtn = document.getElementById('showStatsBtn');
     if (statsBtn) {
         statsBtn.style.display = 'none';
     }
-    
-    // Скрываем статистику
     document.getElementById('statsSection').style.display = 'none';
     
     displaySearchResults(foundAccounts, `по логину "${loginSearch}"`);
@@ -3332,7 +3214,6 @@ function clearSearchFields() {
         gameSearchInput.value = '';
     }
     
-    // Скрываем кнопку статистики
     const statsBtn = document.getElementById('showStatsBtn');
     if (statsBtn) {
         statsBtn.style.display = 'none';
@@ -3343,17 +3224,12 @@ function clearSearchFields() {
     showAllAccounts = false;
 }
 
-// ============================================
-// СИСТЕМА ПРОДАЖ
-// ============================================
-
 function getPositionSaleInfo(accountId, positionType, positionIndex) {
-    // Ищем продажу с правильными параметрами, которая НЕ пересажена
     return sales.find(sale => {
         return sale.accountId === accountId && 
                sale.positionType === positionType &&
                sale.positionIndex === positionIndex &&
-               !sale.isTransplanted; // Важно! Игнорируем пересаженные
+               !sale.isTransplanted; 
     });
 }
 
@@ -3373,8 +3249,6 @@ function debugPositionSales(accountId, positionType, positionIndex) {
     
     if (allSalesForPosition.length === 0) {
         console.log('❌ Продажи не найдены в фильтре по полям');
-        
-        // Ищем по ID
         const byId = sales.find(s => s.id && s.id.includes(expectedId));
         console.log('Поиск по части ID:', byId);
     }
@@ -3396,35 +3270,24 @@ function displaySearchResults(accountsList, gameName) {
         `;
         return;
     }
-    
-    // Функция проверки, полностью ли продан аккаунт
     function isAccountFullySold(account) {
         let totalPositions = 0;
         let soldPositions = 0;
-        
-        // Считаем все позиции
         ['p2_ps4', 'p3_ps4', 'p2_ps5', 'p3_ps5'].forEach(posType => {
             const count = account.positions[posType] || 0;
             totalPositions += count;
-            
-            // Считаем сколько из них продано
             for (let i = 1; i <= count; i++) {
                 if (getPositionSaleInfo(account.id, posType, i)) {
                     soldPositions++;
                 }
             }
         });
-        
-        // Если есть позиции и все проданы
         return totalPositions > 0 && soldPositions === totalPositions;
     }
-    
-    // Фильтруем аккаунты в зависимости от настройки
     let filteredAccounts = accountsList;
     let hiddenCount = 0;
     
     if (!showAllAccounts) {
-        // Скрываем полностью проданные
         filteredAccounts = accountsList.filter(account => !isAccountFullySold(account));
         hiddenCount = accountsList.length - filteredAccounts.length;
     }
@@ -3435,14 +3298,7 @@ function displaySearchResults(accountsList, gameName) {
         скрыто: hiddenCount,
         showAllAccounts: showAllAccounts
     });
-    
-    // Генерируем HTML
     let html = '';
-    
-    // ==== СТАРАЯ КНОПКА УДАЛЕНА ====
-    // Больше не добавляем блок с кнопкой здесь
-    
-    // Если после фильтрации ничего не осталось
     if (filteredAccounts.length === 0) {
         html += `
             <div style="
@@ -3477,7 +3333,6 @@ function displaySearchResults(accountsList, gameName) {
             </div>
         `;
     } else {
-        // Показываем аккаунты (код без изменений)
         html += filteredAccounts.map(account => {
             const commentsCount = account.comments ? account.comments.length : 0;
             const isSold = isAccountFullySold(account);
@@ -3678,18 +3533,9 @@ function displaySearchResults(accountsList, gameName) {
     updateToggleButtonUI();
 }
 
-// ============================================
-// СИНХРОНИЗАЦИЯ МЕЖДУ ВКЛАДКАМИ ЧЕРЕЗ FIREBASE
-// ============================================
-
-// Модифицируем функцию saveToStorage для работы с Firebase
 async function saveToStorageWithFirebase(dataType, data) {
     console.log(`💾 Сохранение ${dataType} в Firebase...`);
-    
-    // Сохраняем в локальное хранилище для быстрого доступа
     localStorage.setItem(dataType, JSON.stringify(data));
-    
-    // Обновляем глобальные переменные
     switch(dataType) {
         case 'games': 
             games = data; 
@@ -3701,22 +3547,16 @@ async function saveToStorageWithFirebase(dataType, data) {
             sales = data; 
             break;
         case 'workers':
-            // workers уже обрабатывается отдельно
             break;
         case 'gamePrices':
-            // gamePrices уже обрабатывается отдельно
             break;
     }
-    
-    // Синхронизируем с Firebase через dataSync
     if (window.dataSync && window.dataSync.saveData) {
         try {
             const result = await window.dataSync.saveData(dataType, data);
             
             if (result.synced) {
                 console.log(`✅ ${dataType} синхронизированы с Firebase`);
-                
-                // Отправляем уведомление через Firebase Realtime Database для других вкладок
                 if (firebaseSync && firebaseSync.db) {
                     const timestamp = Date.now();
                     firebaseSync.db.ref('lastUpdate').set({
@@ -3740,41 +3580,26 @@ async function saveToStorageWithFirebase(dataType, data) {
             
         } catch (error) {
             console.error(`❌ Ошибка синхронизации ${dataType}:`, error);
-            
-            // Сохраняем только локально при ошибке
             localStorage.setItem(dataType, JSON.stringify(data));
             
             return { success: true, local: true, error: error.message };
         }
     }
-    
-    // Fallback - только локальное сохранение
     return { success: true, local: true };
 }
-
-// Переопределяем старую функцию saveToStorage
 window.saveToStorage = saveToStorageWithFirebase;
-
-// Настраиваем слушатель Firebase для обновлений в реальном времени
 function setupFirebaseUpdateListener() {
     if (!firebaseSync || !firebaseSync.db) return;
-    
-    // Слушаем общие обновления
     firebaseSync.db.ref('lastUpdate').on('value', (snapshot) => {
         if (snapshot.exists()) {
             const update = snapshot.val();
             console.log('📢 Получено уведомление об обновлении:', update);
-            
-            // Если это не наше собственное обновление
             if (update.user !== (security.getCurrentUser()?.name || 'Неизвестно')) {
-                // Обновляем данные указанного типа
                 refreshDataFromFirebase(update.dataType);
             }
         }
     });
 }
-
-// Функция для обновления данных из Firebase
 async function refreshDataFromFirebase(dataType) {
     if (!window.dataSync || !window.dataSync.loadData) return;
     
@@ -3787,14 +3612,10 @@ async function refreshDataFromFirebase(dataType) {
             case 'games':
                 games = freshData;
                 localStorage.setItem('games', JSON.stringify(games));
-                
-                // Обновляем UI игр
                 if (typeof displayGames === 'function' && 
                     window.location.pathname.includes('games.html')) {
                     displayGames();
                 }
-                
-                // Обновляем все селекты с играми
                 if (typeof loadGamesForSelect === 'function' && 
                     window.location.pathname.includes('add-account.html')) {
                     loadGamesForSelect();
@@ -3815,7 +3636,6 @@ async function refreshDataFromFirebase(dataType) {
                 accounts = freshData;
                 localStorage.setItem('accounts', JSON.stringify(accounts));
                 
-                // Обновляем UI аккаунтов
                 if (typeof displayAccounts === 'function' && 
                     window.location.pathname.includes('accounts.html')) {
                     displayAccounts();
@@ -3826,7 +3646,6 @@ async function refreshDataFromFirebase(dataType) {
                     displayFreeAccounts();
                 }
                 
-                // Обновляем результаты поиска в менеджере
                 if (typeof displaySearchResults === 'function' && 
                     window.location.pathname.includes('manager.html')) {
                     const searchInput = document.getElementById('managerGameSearch');
@@ -3839,8 +3658,6 @@ async function refreshDataFromFirebase(dataType) {
             case 'sales':
                 sales = freshData;
                 localStorage.setItem('sales', JSON.stringify(sales));
-                
-                // Обновляем отчеты если открыты
                 if (window.location.pathname.includes('reports.html')) {
                     setTimeout(() => {
                         if (typeof generateReport === 'function') {
@@ -3857,15 +3674,11 @@ async function refreshDataFromFirebase(dataType) {
         console.error(`❌ Ошибка обновления "${dataType}":`, error);
     }
 }
-
-// Запускаем слушатель при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         setupFirebaseUpdateListener();
     }, 2000);
 });
-
-// Модифицируем функцию saveAccountChanges для работы с Firebase
 async function saveAccountChanges() {
     const accountId = parseInt(document.getElementById('editAccountId').value);
     const accountIndex = accounts.findIndex(acc => acc.id === accountId);
@@ -3886,8 +3699,6 @@ async function saveAccountChanges() {
         showNotification('Введите логин PSN', 'warning');
         return;
     }
-    
-    // Проверяем уникальность логина (кроме текущего аккаунта)
     const duplicate = accounts.find((acc, index) => 
         index !== accountIndex && 
         acc.psnLogin.toLowerCase() === psnLogin.toLowerCase()
@@ -3898,7 +3709,6 @@ async function saveAccountChanges() {
         return;
     }
     
-    // Сохраняем оригинальный аккаунт для отслеживания изменений
     const originalAccount = accounts[accountIndex];
     
     // Обновляем аккаунт
@@ -3926,11 +3736,9 @@ async function saveAccountChanges() {
         modifiedByUsername: security.getCurrentUser()?.username || 'unknown'
     };
     
-    // Сохраняем с синхронизацией через Firebase
     const result = await saveToStorage('accounts', accounts);
     
     if (result.synced) {
-        // Отправляем уведомление о конкретном изменении
         if (firebaseSync && firebaseSync.db) {
             const changes = {
                 accountId: accountId,
@@ -3940,7 +3748,6 @@ async function saveAccountChanges() {
                 changes: {}
             };
             
-            // Отмечаем какие поля изменились
             if (originalAccount.gameName !== accounts[accountIndex].gameName) {
                 changes.changes.gameName = {
                     from: originalAccount.gameName,
@@ -3955,18 +3762,15 @@ async function saveAccountChanges() {
                 };
             }
             
-            // Логируем изменение
             firebaseSync.db.ref('accountChanges').push(changes);
         }
     }
     
     closeAnyModal('editModal');
     
-    // Обновляем отображение на обеих страницах
     if (window.location.pathname.includes('accounts.html')) {
         displayAccounts();
     } else if (window.location.pathname.includes('manager.html')) {
-        // Обновляем результаты поиска если что-то искали
         const searchInput = document.getElementById('managerGameSearch');
         if (searchInput && searchInput.value.trim()) {
             searchByGame();
@@ -3979,15 +3783,12 @@ async function saveAccountChanges() {
 }
 
 function toggleShowAllAccounts() {
-    // Переключаем флаг
     showAllAccounts = !showAllAccounts;
     
     console.log('🔄 Переключение показа аккаунтов:', {
         showAllAccounts: showAllAccounts,
         текущая_страница: window.location.pathname
     });
-    
-    // Обновляем отображение ВСЕХ аккаунтов текущей игры
     const searchInput = document.getElementById('managerGameSearch');
     const loginInput = document.getElementById('managerLogin');
     
@@ -4021,8 +3822,6 @@ function toggleShowAllAccounts() {
     console.log(`📊 Показать: ${accountsToShow.length} аккаунтов`);
     displaySearchResults(accountsToShow, searchTitle);
     
-    // ===== ВАЖНО: Кнопка обновится внутри displaySearchResults, так что здесь не нужно =====
-    
     showNotification(
         showAllAccounts ? 'Показаны все аккаунты' : 'Скрыты проданные аккаунты',
         'info'
@@ -4037,14 +3836,11 @@ function generateSimplePositionButtons(account, positionType, positionName, posi
     for (let i = 1; i <= positionCount; i++) {
         const saleInfo = getPositionSaleInfo(account.id, positionType, i);
         const isSold = !!saleInfo;
-        
-        // Форматируем дату продажи в формат ДД/ММ/ГГ
         let saleDate = '';
         let managerInfo = '';
         let marketplaceBadge = '';
         
         if (saleInfo) {
-            // Дата
             if (saleInfo.datetime) {
                 try {
                     const dateObj = new Date(saleInfo.datetime);
@@ -4056,8 +3852,6 @@ function generateSimplePositionButtons(account, positionType, positionName, posi
                     console.warn('Ошибка форматирования даты:', saleInfo.datetime);
                 }
             }
-            
-            // Информация о менеджере
             if (saleInfo.soldByName) {
                 const managerIcon = saleInfo.managerRole === 'admin' ? '👑' : '👷';
                 managerInfo = `
@@ -4071,8 +3865,6 @@ function generateSimplePositionButtons(account, positionType, positionName, posi
                     </div>
                 `;
             }
-            
-            // Площадка продажи
             if (saleInfo.marketplace) {
                 const marketplaceColors = {
                     'telegram': '#0088cc',
@@ -4167,8 +3959,6 @@ function generateSimplePositionButtons(account, positionType, positionName, posi
     
     return buttons.join('');
 }
-
-// В функции displayReportResults добавим статистику по площадкам:
 function getMarketplaceStats(salesData) {
     const marketplaceStats = {};
     
@@ -4184,8 +3974,6 @@ function getMarketplaceStats(salesData) {
         marketplaceStats[marketplace].sales += 1;
         marketplaceStats[marketplace].revenue += sale.price;
     });
-    
-    // Рассчитываем средний чек
     Object.keys(marketplaceStats).forEach(marketplace => {
         const stats = marketplaceStats[marketplace];
         stats.avgPrice = stats.sales > 0 ? stats.revenue / stats.sales : 0;
@@ -4193,8 +3981,6 @@ function getMarketplaceStats(salesData) {
     
     return marketplaceStats;
 }
-
-// Добавим эту статистику в отчеты
 function displayMarketplaceStats(stats) {
     const sortedMarketplaces = Object.entries(stats)
         .sort(([,a], [,b]) => b.revenue - a.revenue);
@@ -4245,8 +4031,6 @@ function displayMarketplaceStats(stats) {
         </div>
     `;
 }
-
-// Функция для получения названия площадки
 function getMarketplaceName(marketplace) {
     const names = {
         'telegram': 'Telegram 📱',
@@ -4255,15 +4039,11 @@ function getMarketplaceName(marketplace) {
     };
     return names[marketplace] || marketplace;
 }
-
-// Функция для получения списка работников для селекта
 function getWorkersOptions(sale) {
     const workers = JSON.parse(localStorage.getItem('workers')) || [];
     const currentUser = security.getCurrentUser();
     
     let options = '';
-    
-    // Добавляем всех активных работников
     workers.filter(w => w.active !== false).forEach(worker => {
         const selected = sale.soldBy === worker.username ? 'selected' : '';
         const adminBadge = worker.role === 'admin' ? ' 👑' : ' 👷';
@@ -4271,8 +4051,6 @@ function getWorkersOptions(sale) {
             ${worker.name}${adminBadge}
         </option>`;
     });
-    
-    // Добавляем текущего пользователя если он не в списке работников
     if (currentUser && !workers.find(w => w.username === currentUser.username)) {
         const selected = sale.soldBy === currentUser.username ? 'selected' : '';
         const adminBadge = currentUser.role === 'admin' ? ' 👑' : ' 👷';
@@ -4283,8 +4061,6 @@ function getWorkersOptions(sale) {
     
     return options;
 }
-
-// Вспомогательная функция для генерации кнопок позиций
 function generatePositionButtons(account, positionType, positionName, positionLabel) {
     const positionCount = account.positions[positionType] || 0;
     
@@ -4385,8 +4161,6 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
     window.currentSaleAccount = accountId;
     window.currentSalePosition = positionType;
     window.currentSalePositionIndex = positionIndex;
-    
-    // ==== ИСПРАВЛЕНИЕ: Используем московское время ====
     const moscowTime = getSimpleMoscowDateTime();
     const currentDate = moscowTime.date;
     const currentTime = moscowTime.time;
@@ -4547,8 +4321,6 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
     `;
     
     openModal('saleModal');
-    
-    // Автофокус на поле цены
     setTimeout(() => {
         const priceInput = document.getElementById('salePrice');
         if (priceInput) priceInput.focus();
@@ -4568,8 +4340,6 @@ async function confirmSaleAndShowData() {
     }
     
     let price = parseFloat(salePrice);
-    
-    // РАСЧЕТ КОМИССИИ ТОЛЬКО ДЛЯ НОВЫХ ПРОДАЖ
     let finalPrice = price;
     let commissionData = null;
     
@@ -4578,22 +4348,16 @@ async function confirmSaleAndShowData() {
         finalPrice = commissionData.final;
         console.log(`💰 Funpay комиссия: ${price} - ${commissionData.commission} = ${finalPrice}`);
     }
-    
-    // ==== ИСПРАВЛЕНИЕ: Используем московское время для сохранения ====
     let saleDateTime;
     let timestamp;
     
     if (saleDate && saleTime) {
-        // Если дата и время выбраны вручную, создаем объект с учетом московского времени
         const [year, month, day] = saleDate.split('-').map(Number);
         const [hours, minutes] = saleTime.split(':').map(Number);
-        
-        // Создаем дату в московском времени
         const moscowDate = new Date(Date.UTC(year, month - 1, day, hours - 3, minutes));
         timestamp = moscowDate.getTime();
         saleDateTime = `${saleDate} ${saleTime}`;
     } else {
-        // Если не выбраны, используем текущее московское время
         const moscowTime = getSimpleMoscowDateTime();
         saleDateTime = moscowTime.datetime;
         timestamp = moscowTime.timestamp;
@@ -4604,13 +4368,9 @@ async function confirmSaleAndShowData() {
         showNotification('Аккаунт не найден', 'error');
         return;
     }
-    
-    // ГЕНЕРАЦИЯ УНИКАЛЬНОГО ID С ТАЙМСТЭМПОМ
     const positionId = `${window.currentSaleAccount}_${window.currentSalePosition}_${window.currentSalePositionIndex}_${timestamp}`;
     
     const currentUser = security.getCurrentUser();
-    
-    // СОЗДАЕМ ЗАПИСЬ О ПРОДАЖЕ
     const newSale = {
         id: positionId,
         accountId: window.currentSaleAccount,
@@ -4635,7 +4395,6 @@ async function confirmSaleAndShowData() {
         managerRole: currentUser ? currentUser.role : 'unknown',
         marketplace: marketplace || 'telegram',
         commissionApplied: marketplace === 'funpay',
-        // Добавляем информацию о часовом поясе
         timezone: 'Europe/Moscow',
         timezoneOffset: '+03:00'
     };
@@ -4644,15 +4403,10 @@ async function confirmSaleAndShowData() {
     console.log('⏰ Время:', saleDateTime);
     
     try {
-        // Шаг 1: Добавляем в локальный массив
         sales.push(newSale);
         console.log('📱 Добавлено в локальный массив. Всего продаж:', sales.length);
-        
-        // Шаг 2: Сохраняем локально
         localStorage.setItem('sales', JSON.stringify(sales));
         console.log('💾 Сохранено в localStorage');
-        
-        // Шаг 3: Пытаемся синхронизировать с Firebase
         if (window.dataSync && window.dataSync.saveSale) {
             console.log('🔄 Использую dataSync.saveSale...');
             const result = await window.dataSync.saveSale(newSale);
@@ -4679,18 +4433,12 @@ async function confirmSaleAndShowData() {
             console.log('📱 Firebase недоступен, только локальное сохранение');
             showNotification('✅ Продажа сохранена локально', 'warning');
         }
-        
-        // Шаг 4: Обновляем отображение
         refreshSearchResultsAfterSaleUpdate();
-        
-        // Шаг 5: Показываем данные клиенту
         showAccountDataAfterSale(window.currentSaleAccount);
         
     } catch (error) {
         console.error('❌ Критическая ошибка при сохранении продажи:', error);
         showNotification('❌ Ошибка при сохранении продажи. Проверьте консоль.', 'error');
-        
-        // Сохраняем хотя бы локально при ошибке
         try {
             localStorage.setItem('sales', JSON.stringify(sales));
             showNotification('✅ Продажа сохранена локально (ошибка синхронизации)', 'warning');
@@ -4700,8 +4448,6 @@ async function confirmSaleAndShowData() {
         }
     }
 }
-
-// Добавь в script.js
 function logSaleOperation(operation, sale, success, error = null) {
     const log = {
         timestamp: new Date().toISOString(),
@@ -4716,24 +4462,19 @@ function logSaleOperation(operation, sale, success, error = null) {
     };
     
     console.log('📝 Лог продажи:', log);
-    
-    // Сохраняем лог в localStorage
     try {
         const logs = JSON.parse(localStorage.getItem('saleLogs') || '[]');
         logs.push(log);
-        localStorage.setItem('saleLogs', JSON.stringify(logs.slice(-100))); // Храним последние 100 записей
+        localStorage.setItem('saleLogs', JSON.stringify(logs.slice(-100))); 
     } catch (e) {
         console.error('Ошибка сохранения лога:', e);
     }
 }
 
-// Добавь в script.js
 function validateAndFixSalesData() {
     console.log('🔍 Проверка целостности данных продаж...');
     
     const originalLength = sales.length;
-    
-    // 1. Удаляем дубликаты по ID
     const uniqueSales = [];
     const seenIds = new Set();
     
@@ -4742,15 +4483,12 @@ function validateAndFixSalesData() {
             seenIds.add(sale.id);
             uniqueSales.push(sale);
         } else if (sale && !sale.id) {
-            // Восстанавливаем ID для продаж без него
             const newId = `${sale.accountId}_${sale.positionType}_${sale.positionIndex}_${Date.now()}`;
             sale.id = newId;
             uniqueSales.push(sale);
             console.log('🔄 Восстановлен ID для продажи:', sale);
         }
     });
-    
-    // 2. Проверяем обязательные поля
     const validSales = uniqueSales.filter(sale => {
         return sale && 
                sale.id && 
@@ -4758,17 +4496,12 @@ function validateAndFixSalesData() {
                sale.price !== undefined &&
                sale.timestamp;
     });
-    
-    // 3. Сортируем по времени
     validSales.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     
-    // 4. Сохраняем если есть изменения
     if (validSales.length !== originalLength) {
         console.log(`🔄 Исправлены данные: было ${originalLength}, стало ${validSales.length}`);
         sales = validSales;
         localStorage.setItem('sales', JSON.stringify(sales));
-        
-        // Показываем уведомление если много ошибок
         const lostCount = originalLength - validSales.length;
         if (lostCount > 0) {
             showNotification(`Обнаружено ${lostCount} повреждённых записей продаж`, 'warning');
@@ -4777,21 +4510,15 @@ function validateAndFixSalesData() {
     
     return validSales.length;
 }
-
-// Вызывай при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         validateAndFixSalesData();
     }, 2000);
 });
-
-// В firebase.js или в script.js
 function setupSalesSyncMonitor() {
     if (!firebase || !firebase.database) return;
     
     const db = firebase.database();
-    
-    // Мониторим изменения в продажах
     db.ref('sales').on('value', (snapshot) => {
         const firebaseSales = snapshot.val() || {};
         const firebaseCount = Object.keys(firebaseSales).length;
@@ -4801,17 +4528,13 @@ function setupSalesSyncMonitor() {
         
         if (Math.abs(firebaseCount - localCount) > 5) {
             console.warn('⚠️ Большое расхождение в данных продаж!');
-            
-            // Загружаем данные из Firebase
             const firebaseArray = Object.values(firebaseSales);
             
-            // Синхронизируем
             sales = firebaseArray;
             localStorage.setItem('sales', JSON.stringify(sales));
             
             showNotification('Данные продаж синхронизированы с облаком 🔄', 'info');
             
-            // Обновляем отображение
             if (typeof refreshSearchResultsAfterSaleUpdate === 'function') {
                 refreshSearchResultsAfterSaleUpdate();
             }
@@ -4852,8 +4575,6 @@ function showAccountDataAfterSale(accountId) {
     const marketplace = lastSale.marketplace;
     const positionType = lastSale.positionType;
     const isP2 = positionType.includes('p2');
-
-    // --- ИНСТРУКЦИИ ДЛЯ FUNPAY (без правил и отзывов) ---
     const funpayInstructions = {
         p2_ps4: `🔐 Инструкция по активации П2 PS4:
 
@@ -5007,7 +4728,6 @@ function showAccountDataAfterSale(accountId) {
 Нажмите на аватарку → Сменить пользователя → выберите вашего личного пользователя`
     };
 
-    // --- ПРАВИЛА ДЛЯ AVITO ---
     const avitoRules = {
         p2: `❗️ Правила пользования игрой (П2):
 — Данные пользователя не менять: пароль, аутентификатор, номер телефона.
@@ -5036,7 +4756,6 @@ function showAccountDataAfterSale(accountId) {
 Оставить отзыв можно здесь: https://www.avito.ru/user/review?fid=2_QfCjrUkjJLKf5AG92Si4tujowHx4ZBZ87DElF8B0nlyL6RdaaYzvyPSWRjp4ZyNE`
     };
 
-    // --- ИНСТРУКЦИИ ДЛЯ TELEGRAM (с отзывом) ---
     const telegramInstructions = {
         p2_ps4: `🔐 Инструкция по активации П2 PS4:
 
@@ -5108,7 +4827,6 @@ function showAccountDataAfterSale(accountId) {
 Нажмите на аватарку → Сменить пользователя → выберите вашего личного пользователя`
     };
 
-    // --- ПРАВИЛА ДЛЯ TELEGRAM (с отзывом) ---
     const telegramRules = {
         p2: `❗️ Правила пользования игрой (П2):
 — Данные пользователя не менять: пароль, аутентификатор, номер телефона.
@@ -5138,8 +4856,6 @@ function showAccountDataAfterSale(accountId) {
 📝 Отзывы: https://t.me/pshubshoptg/29
 📌 Актуальные цены на игры: @pshubshoptg`
     };
-
-    // --- АНГЛИЙСКИЕ ВЕРСИИ ---
     const enInstructions = {
         p2_ps4: `🔐 Activation instructions for P2 PS4:
 
@@ -5248,7 +4964,6 @@ Click on the avatar → Switch User → select your personal user
 
 Leave a review here: https://www.avito.ru/user/review?fid=2_QfCjrUkjJLKf5AG92Si4tujowHx4ZBZ87DElF8B0nlyL6RdaaYzvyPSWRjp4ZyNE`;
 
-    // Выбираем контент в зависимости от площадки
     let instructionRU, instructionEN, rulesRU, rulesEN, reviewRU, reviewEN;
     const isFunpay = marketplace === 'funpay';
     const isAvito = marketplace === 'avito';
@@ -5277,7 +4992,6 @@ Leave a review here: https://www.avito.ru/user/review?fid=2_QfCjrUkjJLKf5AG92Si4
         reviewEN = enReviewTelegram;
     }
 
-    // --- ДАННЫЕ АККАУНТА ---
     const psnCodesArray = account.psnCodes ? account.psnCodes.split(',').map(code => code.trim()).filter(code => code !== '') : [];
     const currentCode = psnCodesArray.length > 0 ? psnCodesArray[0] : 'По запросу / On request';
 
@@ -5291,7 +5005,6 @@ Leave a review here: https://www.avito.ru/user/review?fid=2_QfCjrUkjJLKf5AG92Si4
         }
     }
 
-    // --- ФУНКЦИИ КОПИРОВАНИЯ ---
     window.copyInstruction = function() {
         const text = window.currentLanguage === 'EN' ? instructionEN : instructionRU;
         navigator.clipboard.writeText(text).then(() => {
@@ -5367,8 +5080,6 @@ Leave a review here: https://www.avito.ru/user/review?fid=2_QfCjrUkjJLKf5AG92Si4
                 <button class="btn btn-primary btn-small" onclick="window.copyInstruction()" style="width: 100%;"><span style="margin-right: 8px;">📝</span> ${isEn ? 'Copy instructions' : 'Скопировать инструкцию'}</button>
             </div>
         `;
-
-        // Правила (только для Avito и Telegram)
         if (currentRules) {
             html += `
                 <div id="rulesSection" class="instruction-section" style="background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%); padding: 25px; border-radius: 15px; border: 1px solid #fde68a; margin-bottom: 25px;">
@@ -5379,7 +5090,6 @@ Leave a review here: https://www.avito.ru/user/review?fid=2_QfCjrUkjJLKf5AG92Si4
             `;
         }
 
-        // Отзыв (только для Telegram и Avito)
         if (currentReview && !isFunpay) {
             html += `
                 <div id="reviewSection" class="instruction-section" style="background: linear-gradient(135deg, #d1e7dd 0%, #b8dfd0 100%); padding: 25px; border-radius: 15px; border: 1px solid #20c997; margin-bottom: 25px;">
@@ -5390,7 +5100,6 @@ Leave a review here: https://www.avito.ru/user/review?fid=2_QfCjrUkjJLKf5AG92Si4
             `;
         }
 
-        // Оставшиеся коды
         if (psnCodesArray.length > 0) {
             html += `
                 <div class="remaining-codes" style="background: #f8fafc; padding: 20px; border-radius: 15px; border: 1px solid #e2e8f0; margin: 25px 0;">
@@ -5402,7 +5111,6 @@ Leave a review here: https://www.avito.ru/user/review?fid=2_QfCjrUkjJLKf5AG92Si4
             `;
         }
 
-        // Кнопка закрытия
         html += `
             <div class="order-buttons" style="display: flex; gap: 15px; justify-content: center; padding-top: 20px; border-top: 1px solid #e2e8f0;">
                 <button class="btn btn-primary" onclick="closeSaleModalAndRefresh()" style="padding: 12px 24px; flex: 1; background: #10b981; border-color: #10b981;" id="closeSaleBtn">
@@ -5429,7 +5137,6 @@ PSN Authentication Code: ${currentCode}`;
     renderModal();
     openModal('saleModal');
 
-    // Временно добавим диагностику в начало showAccountDataAfterSale
 const originalShow = showAccountDataAfterSale;
 window.showAccountDataAfterSale = function(accountId) {
     const lastSale = sales.filter(s => s.accountId === accountId).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
@@ -5444,7 +5151,6 @@ window.showAccountDataAfterSale = function(accountId) {
 console.log('✅ Диагностика добавлена. Теперь продай позицию и посмотри что вывелось после "ПОКАЗ ДАННЫХ"');
 }
 
-// Функция закрытия (оставляем)
 function closeSaleModalAndRefresh() {
     console.log('✅ Закрываю модальное окно продажи...');
     
@@ -5463,7 +5169,6 @@ function closeSaleModalAndRefresh() {
     showNotification('Продажа завершена! ✅', 'success', 2000);
 }
 
-// Функция для копирования инструкции
 function copyInstruction() {
     if (!window.currentInstruction) {
         showNotification('❌ Instructions not found', 'error');
@@ -5510,8 +5215,6 @@ function copyReview() {
         showNotification('Отзыв доступен только для Telegram', 'info');
     }
 }
-
-// Обновим функцию copyAccountData() чтобы она тоже была доступна
 function copyAccountData() {
     if (!window.currentOrderData) {
         showNotification('❌ Data not found', 'error');
@@ -5523,7 +5226,6 @@ function copyAccountData() {
     navigator.clipboard.writeText(window.currentOrderData).then(() => {
         showNotification(isEnglish ? '✅ Data copied to clipboard!' : '✅ Данные скопированы в буфер обмена!', 'success');
     }).catch(err => {
-        // Fallback для старых браузеров
         const textArea = document.createElement('textarea');
         textArea.value = window.currentOrderData;
         document.body.appendChild(textArea);
@@ -5554,51 +5256,35 @@ function switchLanguage(lang) {
     if (!window.currentOrderDataRU) return;
     
     window.currentLanguage = lang;
-    
-    // Обновляем кнопки языка
     document.querySelectorAll('.language-btn').forEach(btn => {
         const isActive = btn.textContent.includes(lang === 'RU' ? 'Русский' : 'English');
         btn.style.background = isActive ? '#4361ee' : 'white';
         btn.style.color = isActive ? 'white' : '#64748b';
         btn.style.borderColor = isActive ? '#4361ee' : '#e2e8f0';
     });
-    
-    // Перерендериваем модальное окно
     if (window.renderSaleModal) {
         window.renderSaleModal();
     }
 }
-
-// ИСПОЛЬЗУЙТЕ эту функцию:
 function closeSaleModalAndRefresh() {
     console.log('✅ Закрываю модальное окно продажи...');
-    
-    // 1. Закрываем модальное окно продажи
     const saleModal = document.getElementById('saleModal');
     if (saleModal) {
         saleModal.style.display = 'none';
         console.log('🎯 Модальное окно продажи закрыто');
     }
-    
-    // 2. Если открыто окно с данными для клиента - закрываем его тоже
     const psnCodeModal = document.getElementById('psnCodeModal');
     if (psnCodeModal) {
         psnCodeModal.style.display = 'none';
         psnCodeModal.remove();
         console.log('🗂️ Окно PSN кода закрыто');
     }
-    
-    // 3. Восстанавливаем скролл страницы
     document.body.style.overflow = 'auto';
     document.body.style.position = 'relative';
-    
-    // 4. Обновляем результаты поиска
     setTimeout(() => {
         refreshSearchResultsAfterSaleUpdate();
         console.log('🔄 Результаты поиска обновлены');
     }, 300);
-    
-    // 5. Показываем уведомление
     showNotification('Продажа завершена! ✅', 'success', 2000);
 }
 
@@ -5608,11 +5294,7 @@ function showSaleDetails(sale) {
     const currentUser = security.getCurrentUser();
     const canChangeManager = security.canChangeSaleManager();
     const isAdmin = currentUser && currentUser.role === 'admin';
-    
-    // Определяем, была ли уже пересадка
     const isTransplanted = sale.isTransplanted || false;
-    
-    // ==== ИСПРАВЛЕНИЕ: Преобразуем время продажи в московское для отображения ====
     let saleDate, saleTime;
     
     if (sale.datetime) {
@@ -5757,8 +5439,6 @@ function showSaleDetails(sale) {
             </button>
         </div>
     `;
-    
-    // Если продажа с Funpay - показываем оригинальную цену
     if (sale.marketplace === 'funpay' && sale.originalPrice) {
         document.getElementById('editCommissionAmount').textContent = 
             `-${sale.commission || 0} ₽`;
@@ -5766,17 +5446,13 @@ function showSaleDetails(sale) {
             `${sale.originalPrice} ₽`;
     }
     
-    // Добавляем обработчик изменения цены/площадки
     document.getElementById('editSalePrice').addEventListener('input', updateEditCommission);
     document.getElementById('editSaleMarketplace').addEventListener('change', updateEditCommission);
     
-    // Вызываем для начального расчета
     updateEditCommission();
     
     openModal('saleModal');
 }
-
-// Функция обновления комиссии при редактировании
 function updateEditCommission() {
     const priceInput = document.getElementById('editSalePrice');
     const marketplaceSelect = document.getElementById('editSaleMarketplace');
@@ -5786,21 +5462,13 @@ function updateEditCommission() {
     
     const price = parseFloat(priceInput.value) || 0;
     const marketplace = marketplaceSelect.value;
-    
-    // Показываем блок комиссии только для Funpay
     if (marketplace === 'funpay' && price > 0) {
         commissionInfo.style.display = 'block';
-        
-        // Рассчитываем комиссию
         const commissionData = calculateFPCommission(price);
-        
-        // Обновляем отображение
         document.getElementById('editCommissionAmount').textContent = 
             `-${commissionData.commission} ₽`;
         document.getElementById('editOriginalAmount').textContent = 
             `${commissionData.original} ₽`;
-        
-        // Подсвечиваем поле цены
         priceInput.style.borderColor = '#fbbf24';
         priceInput.style.boxShadow = '0 0 0 3px rgba(251, 191, 36, 0.1)';
     } else {
@@ -5809,19 +5477,14 @@ function updateEditCommission() {
         priceInput.style.boxShadow = '';
     }
 }
-
-// Функция для восстановления при конфликтах
 async function fixSalesConflict() {
     console.log('🔄 Восстановление при конфликте данных...');
     
-    // 1. Загружаем из Firebase
     if (window.dataSync && window.dataSync.loadData) {
         const firebaseSales = await window.dataSync.loadData('sales');
         
-        // 2. Сравниваем с локальными
         const localSales = JSON.parse(localStorage.getItem('sales')) || [];
         
-        // 3. Объединяем, устраняя дубликаты
         const mergedSales = [...firebaseSales];
         
         localSales.forEach(localSale => {
@@ -5831,11 +5494,9 @@ async function fixSalesConflict() {
             }
         });
         
-        // 4. Сохраняем обратно
         sales = mergedSales;
         localStorage.setItem('sales', JSON.stringify(sales));
         
-        // 5. Синхронизируем с Firebase
         if (window.dataSync && window.dataSync.saveData) {
             await window.dataSync.saveData('sales', sales);
         }
@@ -5843,25 +5504,21 @@ async function fixSalesConflict() {
         console.log(`✅ Конфликт устранен. Всего продаж: ${sales.length}`);
         showNotification(`Конфликт данных устранен. Продаж: ${sales.length}`, 'success');
         
-        // 6. Обновляем UI
         refreshSearchResultsAfterSaleUpdate();
     }
 }
 
-// Автоматически проверяем каждые 5 минут
 setInterval(() => {
     const localSales = JSON.parse(localStorage.getItem('sales')) || [];
     if (Math.abs(sales.length - localSales.length) > 0) {
         console.warn('⚠️ Обнаружено расхождение данных продаж');
         fixSalesConflict();
     }
-}, 5 * 60 * 1000); // 5 минут
+}, 5 * 60 * 1000);
 
 // ============================================
 // PSN AUTHENTICATOR (TOTP)
-// ============================================
-
-// Открытие модального окна с PSN кодом
+// =========================================
 function openPSNCodeModal(accountId) {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) {
@@ -5869,7 +5526,6 @@ function openPSNCodeModal(accountId) {
         return;
     }
     
-    // Получаем ключ аутентификатора
     const authenticatorKey = account.psnAuthenticator?.trim();
     
     if (!authenticatorKey) {
@@ -5877,13 +5533,11 @@ function openPSNCodeModal(accountId) {
         return;
     }
     
-    // Проверяем формат ключа
     if (!TOTP.isValidSecret(authenticatorKey)) {
         showNotification('Некорректный формат ключа аутентификатора', 'error');
         return;
     }
     
-    // Создаем модальное окно
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'psnCodeModal';
@@ -5972,13 +5626,10 @@ function openPSNCodeModal(accountId) {
     document.body.appendChild(modal);
     modal.style.display = 'block';
     
-    // Инициализируем генератор кодов
     initPSNCodeGenerator(accountId, authenticatorKey);
 }
 
-// Инициализация генератора кода
 function initPSNCodeGenerator(accountId, secretKey) {
-    // Создаем глобальные переменные для этого модального окна
     window.psnCodeData = {
         accountId: accountId,
         secretKey: secretKey,
@@ -5986,14 +5637,11 @@ function initPSNCodeGenerator(accountId, secretKey) {
         timer: null
     };
     
-    // Генерируем первый код
     updatePSNCode();
     
-    // Запускаем обновление каждую секунду
     window.psnCodeData.interval = setInterval(updatePSNCode, 1000);
 }
 
-// Обновление PSN кода
 // Обновление PSN кода
 async function updatePSNCode() {
     const { secretKey } = window.psnCodeData || {};
@@ -6004,17 +5652,14 @@ async function updatePSNCode() {
     }
     
     try {
-        // Генерируем текущий код
         const currentCode = await TOTP.generateTOTP(secretKey);
         const remainingSeconds = TOTP.getRemainingSeconds();
         
-        // Обновляем отображение
         const codeDisplay = document.getElementById('psnCodeDisplay');
         const timeDisplay = document.getElementById('timeRemaining');
         const progressBar = document.getElementById('progressBar');
         
         if (codeDisplay) {
-            // Если код изменился, добавляем анимацию
             if (codeDisplay.textContent !== currentCode && 
                 codeDisplay.textContent !== 'Загрузка...' &&
                 codeDisplay.textContent !== 'ОШИБКА') {
@@ -6029,8 +5674,6 @@ async function updatePSNCode() {
         
         if (timeDisplay) {
             timeDisplay.textContent = remainingSeconds;
-            
-            // Меняем цвет при приближении к смене кода
             if (remainingSeconds <= 5) {
                 timeDisplay.style.color = '#dc2626';
                 timeDisplay.style.animation = remainingSeconds <= 3 ? 'pulse 0.5s infinite' : 'none';
@@ -6045,8 +5688,6 @@ async function updatePSNCode() {
         if (progressBar) {
             const progressPercentage = (remainingSeconds / 30) * 100;
             progressBar.style.width = `${progressPercentage}%`;
-            
-            // Меняем цвет прогресс-бара
             if (remainingSeconds <= 5) {
                 progressBar.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
             } else if (remainingSeconds <= 10) {
@@ -6064,7 +5705,6 @@ async function updatePSNCode() {
             codeDisplay.style.color = '#dc2626';
         }
         
-        // Показываем сообщение об ошибке
         const timeDisplay = document.getElementById('timeRemaining');
         if (timeDisplay) {
             timeDisplay.textContent = 'ERR';
@@ -6072,8 +5712,6 @@ async function updatePSNCode() {
         }
     }
 }
-
-// Копирование PSN кода в буфер обмена
 function copyPSNCode() {
     const codeDisplay = document.getElementById('psnCodeDisplay');
     if (!codeDisplay) return;
@@ -6088,7 +5726,6 @@ function copyPSNCode() {
     navigator.clipboard.writeText(code).then(() => {
         showNotification('PSN код скопирован в буфер обмена! 📋', 'success');
     }).catch(err => {
-        // Fallback для старых браузеров
         const textArea = document.createElement('textarea');
         textArea.value = code;
         document.body.appendChild(textArea);
@@ -6099,11 +5736,9 @@ function copyPSNCode() {
     });
 }
 
-// Закрытие модального окна
 function closePSNCodeModal() {
     const modal = document.getElementById('psnCodeModal');
     if (modal) {
-        // Очищаем интервалы
         if (window.psnCodeData?.interval) {
             clearInterval(window.psnCodeData.interval);
         }
@@ -6111,15 +5746,11 @@ function closePSNCodeModal() {
             clearTimeout(window.psnCodeData.timer);
         }
         
-        // Удаляем модальное окно
         modal.remove();
         window.psnCodeData = null;
     }
 }
-
-// Обновляем форму редактирования аккаунта - добавляем кнопку PSN Код
 function updateEditFormWithPSNButton(accountId, currentKey) {
-    // Добавляем кнопку только если есть ключ
     if (currentKey && TOTP.isValidSecret(currentKey)) {
         return `
             <div style="grid-column: 1 / -1; margin-top: 10px;">
@@ -6140,8 +5771,6 @@ function updateEditFormWithPSNButton(accountId, currentKey) {
 function displayWorkersStats(periodSales) {
     const container = document.getElementById('workersStats');
     if (!container) return;
-    
-    // Собираем статистику по менеджерам
     const managersStats = {};
     
     periodSales.forEach(sale => {
@@ -6164,14 +5793,10 @@ function displayWorkersStats(periodSales) {
         managersStats[managerUsername].sales += 1;
         managersStats[managerUsername].profit += (sale.profit || 0);
     });
-    
-    // Рассчитываем средний чек
     Object.keys(managersStats).forEach(username => {
         const stats = managersStats[username];
         stats.avgCheck = stats.sales > 0 ? stats.revenue / stats.sales : 0;
     });
-    
-    // Сортируем по выручке
     const sortedManagers = Object.values(managersStats)
         .sort((a, b) => b.revenue - a.revenue);
     
@@ -6237,9 +5862,6 @@ async function updateSaleDetails(saleId) {
     }
     
     let finalPrice = parseFloat(salePrice);
-    
-    // ВАЖНО: ПРИ РЕДАКТИРОВАНИИ НЕ ПЕРЕСЧИТЫВАЕМ КОМИССИЮ!
-    // Только если админ меняет площадку
     let newMarketplace = originalMarketplace;
     let originalPrice = finalPrice;
     let commission = 0;
@@ -6247,19 +5869,13 @@ async function updateSaleDetails(saleId) {
     const currentUser = security.getCurrentUser();
     const isAdmin = currentUser && currentUser.role === 'admin';
     
-    // Если админ меняет площадку
     if (isAdmin && marketplaceSelect) {
         newMarketplace = marketplaceSelect.value;
-        
-        // Если меняем НА Funpay - рассчитываем комиссию
         if (newMarketplace === 'funpay' && originalMarketplace !== 'funpay') {
             const commissionData = calculateFPCommission(finalPrice);
             commission = commissionData.commission;
-            // Оставляем цену как есть (она уже введена как финальная)
         }
-        // Если меняем С Funpay на другую площадку - убираем комиссию
         else if (newMarketplace !== 'funpay' && originalMarketplace === 'funpay') {
-            // Находим оригинальную цену
             const saleIndex = sales.findIndex(s => s.id === saleId);
             if (saleIndex !== -1 && sales[saleIndex].originalPrice) {
                 originalPrice = sales[saleIndex].originalPrice;
@@ -6274,8 +5890,6 @@ async function updateSaleDetails(saleId) {
     if (saleIndex === -1) return;
     
     const originalSale = sales[saleIndex];
-    
-    // МЕНЕДЖЕРА МЕНЯЕМ ТОЛЬКО ЕСЛИ АДМИН
     let newManager = originalSale.soldBy;
     let newManagerName = originalSale.soldByName;
     let newManagerRole = originalSale.managerRole;
@@ -6300,7 +5914,6 @@ async function updateSaleDetails(saleId) {
         }
     }
     
-    // Обновляем продажу
     sales[saleIndex] = {
         ...originalSale,
         price: finalPrice,
@@ -6320,14 +5933,10 @@ async function updateSaleDetails(saleId) {
         lastModifiedByName: currentUser ? currentUser.name : 'Неизвестно',
         lastModifiedAt: new Date().toISOString()
     };
-    
-    // Сохраняем с синхронизацией
     try {
         await saveToStorage('sales', sales);
         
         closeSaleModal();
-        
-        // Обновляем отображение
         refreshSearchResultsAfterSaleUpdate();
         
         showNotification('Данные продажи обновлены! 💾', 'success');
@@ -6337,18 +5946,13 @@ async function updateSaleDetails(saleId) {
         showNotification('Данные сохранены локально', 'warning');
     }
 }
-
-// Функция расчета комиссии Funpay (только для новых продаж)
 function calculateFPCommission(price) {
     if (!price || price <= 0) return { original: 0, commission: 0, final: 0 };
     
-    // Вычисляем комиссию (3%)
     const commission = price * 0.03;
     
-    // Округляем по правилам:
     const fractionalPart = commission - Math.floor(commission);
     
-    // Если дробная часть >= 0.5, округляем вверх
     let roundedCommission;
     if (fractionalPart >= 0.5) {
         roundedCommission = Math.ceil(commission);
@@ -6356,7 +5960,6 @@ function calculateFPCommission(price) {
         roundedCommission = Math.floor(commission);
     }
     
-    // Финальная сумма (цена минус комиссия)
     const finalAmount = price - roundedCommission;
     
     return {
@@ -6368,7 +5971,6 @@ function calculateFPCommission(price) {
     };
 }
 
-// Функция обновления отображения комиссии (только для новых продаж)
 function updateCommission() {
     const priceInput = document.getElementById('salePrice');
     const marketplaceSelect = document.getElementById('saleMarketplace');
@@ -6379,20 +5981,16 @@ function updateCommission() {
     const price = parseFloat(priceInput.value) || 0;
     const marketplace = marketplaceSelect.value;
     
-    // Показываем блок комиссии только для Funpay
     if (marketplace === 'funpay' && price > 0) {
         commissionInfo.style.display = 'block';
         
-        // Рассчитываем комиссию
         const commissionData = calculateFPCommission(price);
         
-        // Обновляем отображение
         document.getElementById('commissionAmount').textContent = 
             `-${commissionData.commission} ₽`;
         document.getElementById('finalAmount').textContent = 
             `${commissionData.final} ₽`;
         
-        // Подсвечиваем поле цены
         priceInput.style.borderColor = '#fbbf24';
         priceInput.style.boxShadow = '0 0 0 3px rgba(251, 191, 36, 0.1)';
     } else {
@@ -6406,10 +6004,8 @@ function refreshSearchResultsAfterSaleUpdate() {
     const searchInput = document.getElementById('managerGameSearch');
     const loginInput = document.getElementById('managerLogin');
     
-    // Проверяем, на какой мы странице
     const currentPage = window.location.pathname.split('/').pop();
     
-    // Если на странице менеджера
     if (currentPage === 'manager.html') {
         if (searchInput && searchInput.value.trim()) {
             searchByGame();
@@ -6423,7 +6019,6 @@ function refreshSearchResultsAfterSaleUpdate() {
         }
     }
     
-    // Если на странице отчетов - обновляем отчет
     if (currentPage === 'reports.html') {
         setTimeout(() => {
             if (typeof generateReport === 'function') {
@@ -6432,7 +6027,6 @@ function refreshSearchResultsAfterSaleUpdate() {
         }, 300);
     }
     
-    // Если на странице аккаунтов - обновляем список
     if (currentPage === 'accounts.html') {
         setTimeout(() => {
             if (typeof displayAccounts === 'function') {
@@ -6442,25 +6036,19 @@ function refreshSearchResultsAfterSaleUpdate() {
     }
 }
 
-// Добавьте в script.js после функций для игр
-
-// Функция поиска в списке игр
 function searchGamesList() {
     const searchInput = document.getElementById('searchGamesInput');
     if (!searchInput) return;
     
     const searchTerm = searchInput.value.toLowerCase().trim();
     
-    // Вызываем displayGames() с учетом поиска
     displayGames();
     
-    // Показываем количество найденных игр
     if (searchTerm) {
         const foundCount = games.filter(game => 
             game.name.toLowerCase().includes(searchTerm)
         ).length;
         
-        // Обновляем заголовок
         const title = document.querySelector('#gamesList').previousElementSibling;
         if (title && title.tagName === 'H2') {
             title.innerHTML = `📚 Список игр <span style="font-size: 0.8em; color: #64748b;">(найдено: ${foundCount})</span>`;
@@ -6476,7 +6064,6 @@ function refreshAutocomplete() {
     }
 }
 
-// Функция для отображения отфильтрованных игр
 function displayFilteredGames(filteredGames) {
     const list = document.getElementById('gamesList');
     if (filteredGames.length === 0) {
@@ -6536,7 +6123,6 @@ function displayFilteredGames(filteredGames) {
     `).join('');
 }
 
-// ИСПОЛЬЗУЙТЕ ЭТУ ВЕРСИЮ:
 async function deleteSale(saleId) {
     console.log(`🗑️ Пытаюсь удалить продажу: ${saleId}`);
     
@@ -6562,16 +6148,13 @@ async function deleteSale(saleId) {
     try {
         console.log(`✅ Начинаю удаление продажи ${saleId}...`);
         
-        // 1. Удаляем из локального массива
         const originalCount = sales.length;
         sales = sales.filter(sale => sale.id !== saleId);
         console.log(`✅ Удалено из памяти. Было: ${originalCount}, стало: ${sales.length}`);
         
-        // 2. Сохраняем локально
         localStorage.setItem('sales', JSON.stringify(sales));
         console.log('✅ Сохранено в localStorage');
         
-        // 3. Удаляем из Firebase (если подключен)
         let firebaseDeleted = false;
         if (firebaseSync && firebaseSync.db) {
             try {
@@ -6580,24 +6163,16 @@ async function deleteSale(saleId) {
                 console.log(`✅ Продажа удалена из Firebase: ${saleId}`);
             } catch (firebaseError) {
                 console.error('❌ Ошибка удаления из Firebase:', firebaseError);
-                // Продолжаем работу, продажа уже удалена локально
             }
         }
         
-        // 4. Закрываем модальное окно
         closeSaleModal();
-        
-        // 5. Обновляем отображение
         refreshSearchResultsAfterSaleUpdate();
-        
-        // 6. Показываем уведомление
         if (firebaseDeleted) {
             showNotification(`Продажа "${sale.accountLogin}" удалена из облака! 🗑️`, 'success');
         } else {
             showNotification(`Продажа "${sale.accountLogin}" удалена локально 🗑️`, 'info');
         }
-        
-        // 7. Логируем удаление
         console.log(`🎉 Продажа успешно удалена: ${sale.accountLogin} за ${sale.price} ₽`);
         
     } catch (error) {
@@ -6611,48 +6186,33 @@ function sanitizeHTML(str) {
     temp.textContent = str;
     return temp.innerHTML;
 }
-
-// УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ЗАКРЫТИЯ ЛЮБОЙ МОДАЛКИ
 function closeAnyModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'none';
     }
-    
-    // ВОССТАНАВЛИВАЕМ СКРОЛЛ В ЛЮБОМ СЛУЧАЕ
     document.body.style.cssText = '';
     document.body.style.overflow = 'auto';
     document.body.style.position = 'relative';
     document.body.style.width = '100%';
-    
-    // На всякий случай - принудительный рефлоу
     setTimeout(() => {
         window.scrollTo(window.scrollX, window.scrollY);
     }, 10);
 }
-
-// ИСПОЛЬЗУЙТЕ:
 function closeSaleModal() {
     console.log('🔒 Закрытие модального окна продажи...');
     
-    // Закрываем основное модальное окно
     const saleModal = document.getElementById('saleModal');
     if (saleModal) {
         saleModal.style.display = 'none';
     }
-    
-    // Закрываем окно PSN кода если открыто
     const psnCodeModal = document.getElementById('psnCodeModal');
     if (psnCodeModal) {
         psnCodeModal.style.display = 'none';
         psnCodeModal.remove();
     }
-    
-    // Восстанавливаем скролл
     document.body.style.overflow = 'auto';
     document.body.style.position = 'relative';
-    
-    // Очищаем данные текущей продажи
     window.currentSaleAccount = null;
     window.currentSalePosition = null;
     window.currentSalePositionIndex = null;
@@ -6673,7 +6233,6 @@ function closeFreeModal() {
 // ============================================
 
 function generateReport() {
-    // Просто показываем полную статистику за всё время
     displayReportResults(sales, 'все время', 'все время');
     showNotification('Показана статистика за всё время 📊', 'info');
 }
@@ -6698,30 +6257,21 @@ function displayReportResults(salesData, startDate, endDate) {
         `;
         return;
     }
-    
-    // СУММА ЗАКУПА ВСЕХ АККАУНТОВ В СИСТЕМЕ
     let totalPurchaseAmount = 0;
     accounts.forEach(account => {
         totalPurchaseAmount += account.purchaseAmount || 0;
     });
-    
-    // ===== ДОБАВЛЯЕМ СУММУ ЗАКУПА ИЗ СВОБОДНЫХ ПРОДАЖ =====
     salesData.forEach(sale => {
         if (sale.isFreeSale && sale.purchaseAmount) {
             totalPurchaseAmount += sale.purchaseAmount;
         }
     });
-    // ===== КОНЕЦ ДОБАВЛЕНИЯ =====
-    
-    // Общая выручка из продаж
     const totalRevenue = salesData.reduce((sum, sale) => sum + sale.price, 0);
     const totalSales = salesData.length;
     const avgSale = totalSales > 0 ? totalRevenue / totalSales : 0;
     
-    // Чистая прибыль
     const netProfit = totalRevenue - totalPurchaseAmount;
     
-    // Статистика по играм
     const gamesStats = {};
     salesData.forEach(sale => {
         if (!gamesStats[sale.gameName]) {
@@ -6733,12 +6283,9 @@ function displayReportResults(salesData, startDate, endDate) {
         gamesStats[sale.gameName].sales += 1;
         gamesStats[sale.gameName].revenue += sale.price;
     });
-    
-    // Сортируем игры по выручке
     const sortedGames = Object.entries(gamesStats)
         .sort(([,a], [,b]) => b.revenue - a.revenue);
     
-    // НОВОЕ: Статистика по площадкам
     const marketplaceStats = {};
     salesData.forEach(sale => {
         const marketplace = sale.marketplace || 'unknown';
@@ -6752,11 +6299,9 @@ function displayReportResults(salesData, startDate, endDate) {
         marketplaceStats[marketplace].revenue += sale.price;
     });
     
-    // Сортируем площадки по выручке
     const sortedMarketplaces = Object.entries(marketplaceStats)
         .sort(([,a], [,b]) => b.revenue - a.revenue);
     
-    // Функция для названия площадки
     function getMarketplaceDisplayName(marketplace) {
         if (marketplace === 'funpay') return 'Funpay';
         if (marketplace === 'telegram') return 'Telegram';
@@ -6764,7 +6309,6 @@ function displayReportResults(salesData, startDate, endDate) {
         return marketplace;
     }
     
-    // Функция для цвета площадки
     function getMarketplaceColor(marketplace) {
         if (marketplace === 'funpay') return '#ff6b00';
         if (marketplace === 'telegram') return '#0088cc';
@@ -6909,16 +6453,12 @@ function formatNumber(num) {
 function generatePositionsHTML(account, positionType, positionName, positionLabel) {
     const positionCount = account.positions[positionType] || 0;
     
-    // Если позиций нет - возвращаем пустую строку
     if (positionCount === 0) return '';
-    
-    // Генерируем массив позиций
     const positionsHTML = Array(positionCount).fill().map((_, index) => {
         const positionNumber = index + 1;
         const saleInfo = getPositionSaleInfo(account.id, positionType, positionNumber);
         const isSold = !!saleInfo;
         
-        // Форматируем дату продажи
         let displayDate = '';
         if (saleInfo) {
             if (saleInfo.datetime) {
@@ -6931,7 +6471,6 @@ function generatePositionsHTML(account, positionType, positionName, positionLabe
             }
         }
         
-        // Информация о менеджере
         let managerHTML = '';
         if (saleInfo && saleInfo.soldByName) {
             const managerIcon = saleInfo.managerRole === 'admin' ? '👑' : '👷';
@@ -6942,7 +6481,6 @@ function generatePositionsHTML(account, positionType, positionName, positionLabe
             `;
         }
         
-        // Определяем дополнительные классы
         const soldClass = isSold ? 'sold' : '';
         const adminClass = (saleInfo && saleInfo.managerRole === 'admin') ? 'admin-sold' : '';
         
@@ -6961,7 +6499,6 @@ function generatePositionsHTML(account, positionType, positionName, positionLabe
         `;
     }).join('');
     
-    // Возвращаем полную структуру группы позиций
     return `
         <div class="position-group">
             <div class="position-label">${positionLabel}:</div>
@@ -6972,16 +6509,13 @@ function generatePositionsHTML(account, positionType, positionName, positionLabe
     `;
 }
 
-// Новая функция для отображения статистики по играм
 function getGamesStatsHTML(salesData, sortedGames) {
     if (sortedGames.length === 0) {
         return '<div class="empty">Нет данных по играм</div>';
     }
     
-    // Рассчитываем закуп по каждой игре (ВСЕХ аккаунтов этой игры)
     const gamePurchases = {};
     
-    // Считаем ВСЕ аккаунты каждой игры
     accounts.forEach(account => {
         if (account.gameName && account.gameName !== 'Свободный') {
             if (!gamePurchases[account.gameName]) {
@@ -6995,11 +6529,9 @@ function getGamesStatsHTML(salesData, sortedGames) {
         const gamePurchaseAmount = gamePurchases[gameName] || 0;
         const gameProfit = stats.revenue - gamePurchaseAmount;
         
-        // Найдем сколько всего аккаунтов у этой игры
         const gameAccounts = accounts.filter(acc => acc.gameName === gameName);
         const totalGameAccounts = gameAccounts.length;
         
-        // Сколько аккаунтов продано
         const soldAccounts = [...new Set(salesData
             .filter(sale => sale.gameName === gameName)
             .map(sale => sale.accountId)
@@ -7139,14 +6671,12 @@ function getGamesStatsHTML(salesData, sortedGames) {
     }).join('');
 }
 
-// Новая функция для отображения списка продаж
 function getSalesListHTML(salesData) {
     if (!salesData || salesData.length === 0) {
         return '<div class="empty" style="padding: 40px; text-align: center; color: #64748b;">Нет продаж</div>';
     }
     
     try {
-        // Сортируем по дате (новые сверху)
         const sortedSales = [...salesData].sort((a, b) => {
             try {
                 const dateA = new Date(a.datetime || a.timestamp || a.date || 0);
@@ -7157,7 +6687,6 @@ function getSalesListHTML(salesData) {
             }
         });
         
-        // Безопасное получение данных пользователя
         let currentUser = null;
         let isAdmin = false;
         try {
@@ -7169,7 +6698,6 @@ function getSalesListHTML(salesData) {
             console.warn('Не удалось получить данные пользователя:', e);
         }
         
-        // Безопасное получение accounts
         let accountsArray = [];
         try {
             if (typeof accounts !== 'undefined') {
@@ -7182,25 +6710,20 @@ function getSalesListHTML(salesData) {
             console.warn('Не удалось получить аккаунты:', e);
         }
         
-        // Рассчитываем статистику
         const totalRevenue = salesData.reduce((sum, sale) => sum + (sale.price || 0), 0);
         const totalCommission = salesData
             .filter(s => s.marketplace === 'funpay')
             .reduce((sum, sale) => sum + (sale.commission || 0), 0);
         
-        // Создаем HTML таблицы
         let tableRows = '';
         
         sortedSales.forEach(sale => {
             try {
-                // Безопасное получение данных аккаунта
                 const account = accountsArray.find(acc => acc && acc.id === sale.accountId);
                 const purchaseAmount = account ? (account.purchaseAmount || 0) : (sale.purchaseAmount || 0);
                 
-                // Проверяем права на удаление
                 const canDelete = isAdmin || (currentUser && sale.soldBy === currentUser.username);
                 
-                // Форматируем отображение цены с учетом комиссии
                 let priceDisplay = `${sale.price || 0} ₽`;
                 if (sale.marketplace === 'funpay' && sale.commission) {
                     priceDisplay = `
@@ -7210,8 +6733,6 @@ function getSalesListHTML(salesData) {
                         </div>
                     `;
                 }
-                
-                // Форматируем дату
                 let displayDate = '';
                 try {
                     if (sale.datetime) {
@@ -7228,13 +6749,11 @@ function getSalesListHTML(salesData) {
                     displayDate = 'Дата не указана';
                 }
                 
-                // Название площадки
                 const marketplaceName = sale.marketplace === 'funpay' ? 'Funpay' : 
                                        sale.marketplace === 'telegram' ? 'Telegram' : 
                                        sale.marketplace === 'avito' ? 'Avito' : 
                                        sale.marketplace || 'Не указано';
                 
-                // Цвет для площадки
                 let marketplaceStyle = '';
                 if (sale.marketplace === 'funpay') {
                     marketplaceStyle = 'background: #fef3c7; color: #92400e; border-color: #fbbf24;';
@@ -7246,7 +6765,6 @@ function getSalesListHTML(salesData) {
                     marketplaceStyle = 'background: #f1f5f9; color: #374151; border-color: #e2e8f0;';
                 }
                 
-                // ===== СТИЛЬ ДЛЯ СВОБОДНЫХ ПРОДАЖ =====
                 let rowStyle = '';
                 let typeBadge = '';
                 
@@ -7267,9 +6785,6 @@ function getSalesListHTML(salesData) {
                         </span>
                     `;
                 }
-                // ===== КОНЕЦ СТИЛЯ =====
-                
-                // ВАЖНО: добавляем data-sale-id к строке таблицы для анимации удаления
                 tableRows += `
                     <tr data-sale-id="${sale.id}" style="border-bottom: 1px solid #e2e8f0; transition: all 0.3s ease; ${rowStyle}">
                         <td style="padding: 12px 15px; color: #64748b; font-size: 0.9em;">
@@ -7331,7 +6846,6 @@ function getSalesListHTML(salesData) {
                 `;
             } catch (error) {
                 console.error('Ошибка при создании строки таблицы:', error);
-                // Пропускаем проблемную запись
             }
         });
         
@@ -7422,24 +6936,19 @@ function getSalesListHTML(salesData) {
         `;
     }
 }
-
-// ИСПОЛЬЗУЙТЕ ЭТУ ВЕРСИЮ:
 async function deleteSaleFromReports(saleId) {
     console.log(`📊 Удаление продажи из отчетов: ${saleId}`);
     
-    // Проверяем ID
     if (!saleId) {
         console.error('❌ ID продажи не указан');
         showNotification('Ошибка: ID продажи не указан', 'error');
         return;
     }
     
-    // Находим продажу
     const sale = sales.find(s => s.id === saleId);
     if (!sale) {
         console.error(`❌ Продажа ${saleId} не найдена в массиве sales`);
         
-        // Пробуем найти в localStorage
         const localSales = JSON.parse(localStorage.getItem('sales')) || [];
         const localSale = localSales.find(s => s.id === saleId);
         
@@ -7452,7 +6961,6 @@ async function deleteSaleFromReports(saleId) {
         sales = localSales;
     }
     
-    // Проверяем права пользователя
     const currentUser = security.getCurrentUser();
     if (!currentUser) {
         showNotification('❌ Пользователь не авторизован', 'error');
@@ -7461,7 +6969,6 @@ async function deleteSaleFromReports(saleId) {
 
     const canDelete = true;
     
-    // Подтверждение удаления
     if (!confirm(`Удалить продажу аккаунта "${sale.accountLogin}" за ${sale.price} ₽?\nДата: ${sale.date || 'не указана'}\nЭто действие нельзя отменить.`)) {
         return;
     }
@@ -7469,16 +6976,13 @@ async function deleteSaleFromReports(saleId) {
     try {
         console.log(`✅ Начинаю удаление продажи ${saleId}...`);
         
-        // 1. Удаляем из локального массива
         const originalCount = sales.length;
         sales = sales.filter(s => s.id !== saleId);
         console.log(`✅ Удалено из памяти. Было: ${originalCount}, стало: ${sales.length}`);
         
-        // 2. Сохраняем локально
         localStorage.setItem('sales', JSON.stringify(sales));
         console.log('✅ Сохранено в localStorage');
         
-        // 3. Удаляем из Firebase (если подключен)
         let firebaseDeleted = false;
         let firebaseError = null;
         
@@ -7491,10 +6995,8 @@ async function deleteSaleFromReports(saleId) {
             } catch (error) {
                 firebaseError = error;
                 console.error('❌ Ошибка удаления из Firebase:', error);
-                // Продолжаем работу, продажа уже удалена локально
             }
         } else if (window.dataSync && window.dataSync.saveData) {
-            // Используем dataSync для синхронизации
             try {
                 await window.dataSync.saveData('sales', sales);
                 firebaseDeleted = true;
@@ -7505,23 +7007,16 @@ async function deleteSaleFromReports(saleId) {
             }
         }
         
-        // 4. Плавное удаление из таблицы UI
         const row = document.querySelector(`[data-sale-id="${saleId}"]`);
         if (row) {
-            // Добавляем класс для анимации
             row.classList.add('sale-row-removing');
-            
-            // Удаляем после анимации
             setTimeout(() => {
                 row.remove();
                 console.log('✅ Строка удалена из UI с анимацией');
             }, 500);
         }
-        
-        // 5. Обновляем статистику
         updateReportStatsAfterDeletion(sale.price);
         
-        // 6. Показываем уведомление
         if (firebaseDeleted) {
             showNotification(`✅ Продажа "${sale.accountLogin}" удалена из системы!`, 'success');
         } else if (firebaseError) {
@@ -7530,7 +7025,6 @@ async function deleteSaleFromReports(saleId) {
             showNotification(`✅ Продажа "${sale.accountLogin}" удалена локально`, 'info');
         }
         
-        // 7. Если таблица пустая, обновляем всю страницу
         setTimeout(() => {
             const tbody = document.querySelector('.stats-table tbody');
             if (tbody && tbody.children.length === 0) {
@@ -7548,28 +7042,20 @@ async function deleteSaleFromReports(saleId) {
 }
 
 function updateReportStatsAfterDeletion(deletedPrice) {
-    // Обновляем общие цифры в отчете
     const totalSales = sales.length;
     const header = document.querySelector('.section h3');
     if (header && header.textContent.includes('Все продажи')) {
         header.textContent = `💰 Все продажи (${totalSales})`;
     }
-    
-    // Обновляем статистические карточки если они есть
     const statCards = document.querySelectorAll('.stat-card');
     if (statCards.length >= 3) {
-        // Карточка "Всего продаж"
         if (statCards[2].querySelector('.stat-value')) {
             statCards[2].querySelector('.stat-value').textContent = totalSales;
         }
-        
-        // Пересчитываем выручку
         const totalRevenue = sales.reduce((sum, sale) => sum + (sale.price || 0), 0);
         if (statCards[0].querySelector('.stat-value')) {
             statCards[0].querySelector('.stat-value').textContent = `${totalRevenue.toLocaleString('ru-RU')} ₽`;
         }
-        
-        // Пересчитываем средний чек
         const avgCheck = totalSales > 0 ? totalRevenue / totalSales : 0;
         if (statCards.length >= 5 && statCards[4].querySelector('.stat-value')) {
             statCards[4].querySelector('.stat-value').textContent = `${avgCheck.toLocaleString('ru-RU')} ₽`;
@@ -7578,16 +7064,12 @@ function updateReportStatsAfterDeletion(deletedPrice) {
     
     console.log('📊 Статистика обновлена после удаления');
 }
-
-// Добавьте функцию обновления статистики
 function updateReportStats() {
     const totalSales = sales.length;
     const header = document.querySelector('.section h3');
     if (header) {
         header.textContent = `💰 Все продажи (${totalSales})`;
     }
-    
-    // Обновляем общие цифры если они есть
     const totalRevenue = sales.reduce((sum, sale) => sum + (sale.price || 0), 0);
     const totalElements = document.querySelectorAll('.stat-value');
     if (totalElements.length >= 3) {
@@ -7603,34 +7085,23 @@ function updateReportStats() {
 function loadGamesForSelect() {
     const select = document.getElementById('accountGame');
     if (!select) return;
-    
-    // Всегда обновляем games из localStorage перед показом
     const freshGames = JSON.parse(localStorage.getItem('games')) || [];
     games = freshGames;
     
     console.log('🔄 Загружаем игры для селекта:', freshGames.length);
-    
-    // Сохраняем текущее значение
     const currentValue = select.value;
-    
-    // Очищаем и заполняем заново
     select.innerHTML = '<option value="">Выберите игру</option>';
     
-    // Добавляем все игры
     freshGames.forEach(game => {
         const option = document.createElement('option');
         option.value = game.id;
         option.textContent = game.name;
         select.appendChild(option);
     });
-    
-    // Добавляем опцию "Свободный"
     const freeOption = document.createElement('option');
     freeOption.value = 0;
     freeOption.textContent = 'Свободный';
     select.appendChild(freeOption);
-    
-    // Восстанавливаем выбранное значение если нужно
     if (currentValue) {
         select.value = currentValue;
     }
@@ -7645,8 +7116,6 @@ function loadGamesForFilter() {
             games.map(game => `<option value="${game.id}">${game.name}</option>`).join('');
     }
 }
-
-// Обработчики кликов вне модальных окон
 window.onclick = function(event) {
     const editModal = document.getElementById('editModal');
     const saleModal = document.getElementById('saleModal');
@@ -7657,24 +7126,18 @@ window.onclick = function(event) {
     if (event.target === editFreeModal) closeFreeModal();
 }
 
-// Горячие клавиши
 document.addEventListener('keydown', function(e) {
-    // ESC закрывает модальные окна
     if (e.key === 'Escape') {
         closeModal();
         closeSaleModal();
         closeFreeModal();
     }
-    
-    // Ctrl+S - сохранить
     if (e.ctrlKey && e.key === 's') {
         e.preventDefault();
         if (document.getElementById('editAccountId')) {
             saveAccountChanges();
         }
     }
-    
-    // F5 - синхронизировать
     if (e.key === 'F5') {
         e.preventDefault();
         const syncBtn = document.getElementById('syncButton');
@@ -7684,16 +7147,12 @@ document.addEventListener('keydown', function(e) {
 
 // ==================== ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ ====================
 
-// Автоматическое создание кнопки темы
 (function() {
-    // Проверяем сохраненную тему
     if (localStorage.getItem('theme') === 'dark') {
         document.body.classList.add('dark-theme');
     }
     
-    // Ждем полной загрузки страницы
     window.addEventListener('load', function() {
-        // Создаем кнопку если её нет
         if (!document.querySelector('.theme-toggle')) {
             const themeToggle = document.createElement('div');
             themeToggle.className = 'theme-toggle';
@@ -7705,8 +7164,6 @@ document.addEventListener('keydown', function(e) {
             document.body.appendChild(themeToggle);
         }
     });
-    
-    // Глобальная функция переключения темы
     window.toggleTheme = function() {
         const body = document.body;
         const themeIcon = document.getElementById('themeIcon');
@@ -7723,18 +7180,16 @@ document.addEventListener('keydown', function(e) {
     };
 })();
 
-// ============================================
-// СТАТИСТИКА ПО РАБОЧИМ (РАБОТНИКАМ)
-// ============================================
+// ======================
+// СТАТИСТИКА ПО РАБОЧИМ
+// ======================
 
 function generateWorkersStats() {
-    // Показываем статистику за всё время
     displayWorkersStatsPage(sales, 'все время', 'все время');
     showNotification('Показана статистика работников за всё время 📊', 'info');
 }
 
 function showAllTimeStats() {
-    // Та же функция что и generateWorkersStats
     displayWorkersStatsPage(sales, 'все время', 'все время');
 }
 
@@ -7750,11 +7205,7 @@ function displayWorkersStatsPage(periodSales, startDate, endDate) {
         `;
         return;
     }
-    
-    // Получаем список всех работников
     const workers = JSON.parse(localStorage.getItem('workers')) || [];
-    
-    // Добавляем администратора, если он делал продажи
     const currentUser = security.getCurrentUser();
     if (currentUser && currentUser.role === 'admin') {
         const adminExists = workers.find(w => w.username === currentUser.username);
@@ -7768,13 +7219,10 @@ function displayWorkersStatsPage(periodSales, startDate, endDate) {
         }
     }
     
-    // Рассчитываем статистику для каждого работника
     const workersStats = calculateWorkersStatistics(workers, periodSales);
     
-    // Сортируем по выручке (сначала лучшие)
     const sortedStats = workersStats.sort((a, b) => b.revenue - a.revenue);
     
-    // Рассчитываем общую статистику
     const totalStats = calculateTotalStatistics(sortedStats);
     
     container.innerHTML = `
@@ -7839,17 +7287,15 @@ function displayWorkersStatsPage(periodSales, startDate, endDate) {
 
 function calculateWorkersStatistics(workers, periodSales) {
     return workers.map(worker => {
-        // Находим все продажи этого работника
         const workerSales = periodSales.filter(sale => 
             sale.soldBy === worker.username || 
-            (worker.role === 'admin' && sale.soldBy === 'Ivan') // Для совместимости
+            (worker.role === 'admin' && sale.soldBy === 'Ivan') 
         );
         
         const revenue = workerSales.reduce((sum, sale) => sum + sale.price, 0);
         const salesCount = workerSales.length;
         const avgCheck = salesCount > 0 ? revenue / salesCount : 0;
         
-        // Рассчитываем прибыль для этих продаж
         let profit = 0;
         workerSales.forEach(sale => {
             const account = accounts.find(acc => acc.id === sale.accountId);
@@ -7863,7 +7309,7 @@ function calculateWorkersStatistics(workers, periodSales) {
         
         const profitMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
         
-        // Группируем продажи по играм
+
         const gamesStats = {};
         workerSales.forEach(sale => {
             if (!gamesStats[sale.gameName]) {
@@ -7876,7 +7322,6 @@ function calculateWorkersStatistics(workers, periodSales) {
             gamesStats[sale.gameName].revenue += sale.price;
         });
         
-        // Находим лучшую игру
         const bestGame = Object.entries(gamesStats).sort((a, b) => b[1].revenue - a[1].revenue)[0];
         
         return {
@@ -7904,7 +7349,6 @@ function calculateTotalStatistics(workersStats) {
     const totalSales = workersStats.reduce((sum, w) => sum + w.sales, 0);
     const avgCheck = totalSales > 0 ? totalRevenue / totalSales : 0;
     
-    // Находим лучшего работника
     const bestWorker = workersStats.length > 0 ? 
         workersStats.sort((a, b) => b.revenue - a.revenue)[0] : null;
     
@@ -7919,7 +7363,6 @@ function calculateTotalStatistics(workersStats) {
 }
 
 function generateWorkersRankingHTML(workersStats) {
-    // Фильтруем только тех, у кого есть продажи
     const workersWithSales = workersStats.filter(w => w.sales > 0);
     
     if (workersWithSales.length === 0) {
@@ -8138,10 +7581,6 @@ function generateWorkersDetailedStatsHTML(workersStats) {
 // ============================================
 // СИСТЕМА КОММЕНТАРИЕВ ДЛЯ АККАУНТОВ
 // ============================================
-
-
-// Функция для добавления комментария к аккаунту
-// Обновите функцию addCommentToAccount() для лучшей синхронизации:
 function addCommentToAccount(accountId, commentText) {
     const accountIndex = accounts.findIndex(acc => acc.id === accountId);
     if (accountIndex === -1) {
@@ -8165,16 +7604,10 @@ function addCommentToAccount(accountId, commentText) {
         date: new Date().toLocaleDateString('ru-RU'),
         time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
     };
-    
-    // Инициализируем массив комментариев если его нет
     if (!accounts[accountIndex].comments) {
         accounts[accountIndex].comments = [];
     }
-    
-    // Добавляем комментарий в начало массива
     accounts[accountIndex].comments.unshift(newComment);
-    
-    // Сохраняем изменения
     saveToStorage('accounts', accounts).then(result => {
         if (result.success) {
             showNotification('Комментарий сохранен', 'success');
@@ -8184,8 +7617,6 @@ function addCommentToAccount(accountId, commentText) {
     }).catch(error => {
         console.error('Ошибка сохранения комментария:', error);
     });
-    
-    // Обновляем отображение если мы на странице менеджера
     if (window.location.pathname.includes('manager.html')) {
         refreshAccountCommentsDisplay(accountId);
     }
@@ -8205,19 +7636,12 @@ function deleteComment(accountId, commentId) {
     const comment = accounts[accountIndex].comments[commentIndex];
     const currentUser = security.getCurrentUser();
     
-    // ===== УБИРАЕМ ПРОВЕРКУ ПРАВ =====
-    // Теперь любой может удалить любой комментарий
-    
     if (confirm('Удалить этот комментарий?')) {
         accounts[accountIndex].comments.splice(commentIndex, 1);
         saveToStorage('accounts', accounts);
-        
-        // Обновляем отображение
         if (window.location.pathname.includes('manager.html')) {
             refreshAccountCommentsDisplay(accountId);
         }
-        
-        // Если модальное окно открыто - обновляем его
         const commentsList = document.getElementById('commentsList');
         if (commentsList) {
             const account = accounts.find(acc => acc.id === accountId);
@@ -8292,12 +7716,9 @@ function submitComment(accountId) {
     
     if (addCommentToAccount(accountId, commentText)) {
         textarea.value = '';
-        
-        // Обновляем список комментариев
         const account = accounts.find(acc => acc.id === accountId);
         if (account) {
             document.getElementById('commentsList').innerHTML = renderCommentsList(account.comments || [], account.id);
-            // Прокручиваем вверх чтобы увидеть новый комментарий
             const commentsList = document.getElementById('commentsList');
             if (commentsList) {
                 commentsList.scrollTop = 0;
@@ -8373,27 +7794,20 @@ function renderCommentsList(comments, accountId) {
 
 function deleteCommentFromModal(commentId, accountId) {
     if (deleteComment(accountId, commentId)) {
-        // Обновляем отображение в модальном окне
         const account = accounts.find(acc => acc.id === accountId);
         if (account && document.getElementById('commentsList')) {
             document.getElementById('commentsList').innerHTML = renderCommentsList(account.comments || [], account.id);
         }
-        
-        // Также обновляем счетчик на карточке аккаунта
         refreshAccountCommentsDisplay(accountId);
     }
 }
 
-// Функция для обновления отображения комментариев на карточке аккаунта
 function refreshAccountCommentsDisplay(accountId) {
-    // Находим карточку аккаунта в результатах поиска
     const accountCard = document.querySelector(`[data-account-id="${accountId}"]`);
     if (!accountCard) return;
     
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return;
-    
-    // Обновляем кнопку комментариев
     const commentsBtn = accountCard.querySelector('.comments-btn');
     if (commentsBtn) {
         const commentsCount = account.comments ? account.comments.length : 0;
@@ -8416,10 +7830,7 @@ function refreshAccountCommentsDisplay(accountId) {
         `;
     }
 }
-
-// Обновите функцию showAllComments():
 function showAllComments() {
-    // Собираем все аккаунты с комментариями
     const accountsWithComments = accounts.filter(acc => 
         acc.comments && acc.comments.length > 0
     );
@@ -8428,8 +7839,6 @@ function showAllComments() {
         showNotification('Нет комментариев в системе', 'info');
         return;
     }
-    
-    // Создаем модальное окно со всеми комментариями
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'allCommentsModal';
@@ -8515,7 +7924,6 @@ function showAllComments() {
 }
 
 function generateWorkersDailyStatsHTML(periodSales) {
-    // Группируем продажи по дням и менеджерам
     const dailyStats = {};
     
     periodSales.forEach(sale => {
@@ -8536,15 +7944,11 @@ function generateWorkersDailyStatsHTML(periodSales) {
         dailyStats[date][manager].sales += 1;
         dailyStats[date][manager].revenue += sale.price;
     });
-    
-    // Сортируем даты
     const sortedDates = Object.keys(dailyStats).sort((a, b) => b.localeCompare(a));
     
     if (sortedDates.length === 0) {
         return '<div class="empty">Нет данных о продажах по дням</div>';
     }
-    
-    // Получаем список всех менеджеров за период
     const allManagers = new Set();
     Object.values(dailyStats).forEach(day => {
         Object.keys(day).forEach(manager => allManagers.add(manager));
@@ -8632,22 +8036,17 @@ function generateWorkersDailyStatsHTML(periodSales) {
 // ФУНКЦИИ ДЛЯ ДИАГНОСТИКИ ПРОБЛЕМЫ С ПРОДАЖАМИ
 // ============================================
 
-// Функция для поиска "призрачной" продажи
 function findGhostSale() {
     console.log('👻 Поиск проблемных продаж...');
     
-    // 1. Проверяем локальный массив
     console.log('📊 Локальный массив sales:', sales.length);
     
-    // 2. Проверяем localStorage
     const localSales = JSON.parse(localStorage.getItem('sales')) || [];
     console.log('💾 localStorage sales:', localSales.length);
     
-    // 3. Ищем расхождения
     if (sales.length !== localSales.length) {
         console.warn(`⚠️ Расхождение данных! Локально: ${sales.length}, localStorage: ${localSales.length}`);
         
-        // Находим ID, которые есть в localStorage, но нет в локальном массиве
         const localIds = localSales.map(s => s.id);
         const memIds = sales.map(s => s.id);
         
@@ -8659,7 +8058,6 @@ function findGhostSale() {
             const ghostSales = localSales.filter(s => missingInMemory.includes(s.id));
             console.log('👻 Призрачные продажи:', ghostSales);
             
-            // Показываем пользователю
             alert(`Найдено ${missingInMemory.length} призрачных продаж в localStorage! Проверьте консоль.`);
             return ghostSales;
         }
@@ -8672,24 +8070,17 @@ function findGhostSale() {
     console.log('✅ Проверка завершена');
     return [];
 }
-
-// Функция для принудительной синхронизации продаж
 async function forceSyncSales() {
     console.log('🔄 Принудительная синхронизация продаж...');
     
     try {
-        // 1. Загружаем из localStorage как основной источник
         const localSales = JSON.parse(localStorage.getItem('sales')) || [];
         
-        // 2. Обновляем локальный массив
         sales = localSales;
-        
-        // 3. Сохраняем в Firebase
         if (window.dataSync && window.dataSync.saveData) {
             await window.dataSync.saveData('sales', sales);
         }
         
-        // 4. Обновляем отображение
         refreshSearchResultsAfterSaleUpdate();
         
         console.log(`✅ Продажи синхронизированы: ${sales.length} записей`);
@@ -8704,12 +8095,10 @@ async function forceSyncSales() {
     }
 }
 
-// Функция для восстановления удалённой продажи
 async function recoverGhostSale(saleId) {
     console.log(`🔄 Восстановление продажи ${saleId}...`);
     
     try {
-        // 1. Ищем продажу в localStorage
         const localSales = JSON.parse(localStorage.getItem('sales')) || [];
         const ghostSale = localSales.find(s => s.id === saleId);
         
@@ -8719,18 +8108,12 @@ async function recoverGhostSale(saleId) {
         }
         
         console.log('👻 Найдена призрачная продажа:', ghostSale);
-        
-        // 2. Добавляем обратно в массив
         const exists = sales.find(s => s.id === saleId);
         if (!exists) {
             sales.push(ghostSale);
             console.log('✅ Продажа добавлена в массив');
         }
-        
-        // 3. Сохраняем
         await saveToStorage('sales', sales);
-        
-        // 4. Обновляем отображение
         refreshSearchResultsAfterSaleUpdate();
         
         showNotification(`Продажа ${saleId} восстановлена!`, 'success');
@@ -8742,8 +8125,6 @@ async function recoverGhostSale(saleId) {
         return false;
     }
 }
-
-// Функция для полной очистки "призрачных" продаж
 async function cleanGhostSales() {
     console.log('🧹 Очистка призрачных продаж...');
     
@@ -8752,17 +8133,11 @@ async function cleanGhostSales() {
     }
     
     try {
-        // 1. Берём localStorage как источник истины
         const localSales = JSON.parse(localStorage.getItem('sales')) || [];
         
-        // 2. Обновляем глобальный массив
         const originalCount = sales.length;
         sales = localSales;
-        
-        // 3. Сохраняем
         await saveToStorage('sales', sales);
-        
-        // 4. Обновляем отображение
         refreshSearchResultsAfterSaleUpdate();
         
         const diff = originalCount - sales.length;
@@ -8779,8 +8154,6 @@ async function cleanGhostSales() {
         showNotification('Ошибка очистки', 'error');
     }
 }
-
-// Добавьте кнопку диагностики в UI
 function addDiagnosticButton() {
     const nav = document.querySelector('.nav-buttons');
     if (!nav) return;
@@ -8794,7 +8167,6 @@ function addDiagnosticButton() {
             openDiagnosticModal();
         };
         
-        // Добавляем кнопку в навигацию
         const syncBtn = nav.querySelector('#syncButton');
         if (syncBtn) {
             nav.insertBefore(diagnosticBtn, syncBtn);
@@ -8803,8 +8175,6 @@ function addDiagnosticButton() {
         }
     }
 }
-
-// Модальное окно диагностики
 function openDiagnosticModal() {
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -8863,8 +8233,6 @@ function openDiagnosticModal() {
     
     document.body.appendChild(modal);
     modal.style.display = 'block';
-    
-    // Автоматически запускаем диагностику
     setTimeout(runSalesDiagnostic, 300);
 }
 
@@ -8873,21 +8241,16 @@ function openDiagnosticModal() {
 // ============================================
 async function pasteFromClipboard() {
     try {
-        // Пытаемся прочитать текст из буфера обмена
         const text = await navigator.clipboard.readText();
         if (!text) {
             showNotification('Буфер обмена пуст', 'warning');
             return;
         }
-
-        // Разбираем текст на поля
         const lines = text.split('\n');
         const data = {};
 
         lines.forEach(line => {
             line = line.trim();
-            
-            // Почта для входа Playstation: ...
             if (line.includes('Почта для входа Playstation:')) {
                 const match = line.match(/Почта для входа Playstation:\s*(.+)/);
                 if (match) {
@@ -8896,51 +8259,38 @@ async function pasteFromClipboard() {
                     document.getElementById('email').value = email;
                 }
             }
-            
-            // Пароль для входа Playstation: ...
             else if (line.includes('Пароль для входа Playstation:')) {
                 const match = line.match(/Пароль для входа Playstation:\s*(.+)/);
                 if (match) {
                     document.getElementById('psnPassword').value = match[1].trim();
                 }
             }
-            
-            // Почта пароль: ...
             else if (line.includes('Почта пароль:')) {
                 const match = line.match(/Почта пароль:\s*(.+)/);
                 if (match) {
                     document.getElementById('emailPassword').value = match[1].trim();
                 }
             }
-            
-            // Дата рождения: ...
             else if (line.includes('Дата рождения:')) {
                 const match = line.match(/Дата рождения:\s*(.+)/);
                 if (match) {
                     document.getElementById('birthDate').value = match[1].trim();
                 }
             }
-            
-            // 2ФА (Google): ...
             else if (line.includes('2ФА (Google):')) {
                 const match = line.match(/2ФА \(Google\):\s*(.+)/);
                 if (match) {
                     document.getElementById('psnAuthenticator').value = match[1].trim();
                 }
             }
-            
-            // 2ФА резервные коды: ...
             else if (line.includes('2ФА резервные коды:')) {
                 const match = line.match(/2ФА резервные коды:\s*(.+)/);
                 if (match) {
-                    // Убираем пробелы после запятых если есть
                     const codes = match[1].trim().replace(/,\s+/g, ',');
                     document.getElementById('psnCodes').value = codes;
                 }
             }
         });
-
-        // Ставим прочерк в резервную почту
         document.getElementById('backupEmail').value = '-';
         
         showNotification('✅ Аккаунт успешно заполнен из буфера!', 'success');
@@ -8951,31 +8301,20 @@ async function pasteFromClipboard() {
     }
 }
 
-// Запуск диагностики
 function runSalesDiagnostic() {
     const resultsDiv = document.getElementById('diagnosticResults');
     if (!resultsDiv) return;
     
     let log = '=== ДИАГНОСТИКА СИСТЕМЫ ПРОДАЖ ===\n\n';
-    
-    // 1. Основная информация
     log += `📊 Всего продаж в памяти: ${sales.length}\n`;
-    
-    // 2. localStorage
     const localSales = JSON.parse(localStorage.getItem('sales')) || [];
     log += `💾 Всего продаж в localStorage: ${localSales.length}\n`;
-    
-    // 3. Расхождения
     if (sales.length === localSales.length) {
         log += '✅ Данные синхронизированы\n';
     } else {
         log += `⚠️ РАСХОЖДЕНИЕ! Разница: ${Math.abs(sales.length - localSales.length)} записей\n`;
-        
-        // Находим ID
         const memIds = sales.map(s => s.id).sort();
         const localIds = localSales.map(s => s.id).sort();
-        
-        // Продажи в localStorage, но не в памяти
         const onlyInLocal = localIds.filter(id => !memIds.includes(id));
         if (onlyInLocal.length > 0) {
             log += `\n👻 Продажи только в localStorage (${onlyInLocal.length}):\n`;
@@ -8984,8 +8323,6 @@ function runSalesDiagnostic() {
                 log += `  • ${id} | ${sale?.accountLogin} | ${sale?.price} ₽ | ${sale?.date}\n`;
             });
         }
-        
-        // Продажи в памяти, но не в localStorage
         const onlyInMem = memIds.filter(id => !localIds.includes(id));
         if (onlyInMem.length > 0) {
             log += `\n📱 Продажи только в памяти (${onlyInMem.length}):\n`;
@@ -8995,8 +8332,6 @@ function runSalesDiagnostic() {
             });
         }
     }
-    
-    // 4. Проблемные записи
     log += '\n=== ПРОВЕРКА ЦЕЛОСТНОСТИ ===\n';
     
     let errorCount = 0;
@@ -9013,32 +8348,20 @@ function runSalesDiagnostic() {
     } else {
         log += `⚠️ Найдено проблемных записей: ${errorCount}\n`;
     }
-    
-    // 5. Выводим результат
     resultsDiv.textContent = log;
 }
 
 function updateToggleButtonUI() {
     const toggleBtn = document.getElementById('toggleSoldAccountsBtn');
     const toggleContainer = document.getElementById('toggleButtonContainer');
-    
-    // Если кнопки нет на странице - ничего не делаем
     if (!toggleBtn || !toggleContainer) return;
-    
-    // Получаем текущие результаты поиска
     const searchResults = document.getElementById('searchResults');
     const hasResults = searchResults && searchResults.children.length > 0;
-    
-    // Если нет результатов - сразу прячем кнопку
     if (!hasResults) {
         toggleContainer.style.display = 'none';
         return;
     }
-    
-    // Считаем количество скрытых аккаунтов
     let hiddenCount = 0;
-    
-    // Получаем текущий список аккаунтов из результатов поиска
     const searchInput = document.getElementById('managerGameSearch');
     const loginInput = document.getElementById('managerLogin');
     
@@ -9058,14 +8381,10 @@ function updateToggleButtonUI() {
             acc.psnLogin.toLowerCase().includes(loginSearch)
         );
     }
-    
-    // Если нет аккаунтов в текущем поиске - прячем кнопку
     if (currentAccountsList.length === 0) {
         toggleContainer.style.display = 'none';
         return;
     }
-    
-    // Считаем полностью проданные
     const fullySoldCount = currentAccountsList.filter(account => {
         let totalPositions = 0;
         let soldPositions = 0;
@@ -9086,27 +8405,22 @@ function updateToggleButtonUI() {
     
     hiddenCount = fullySoldCount;
     
-    // Показываем или скрываем контейнер в зависимости от наличия скрытых аккаунтов
     if (hiddenCount > 0) {
-        toggleContainer.style.display = 'flex'; // Показываем кнопку
+        toggleContainer.style.display = 'flex'; 
     } else {
-        toggleContainer.style.display = 'none'; // Прячем кнопку
+        toggleContainer.style.display = 'none'; 
         return;
     }
-    
-    // Обновляем текст и стиль кнопки
     const iconSpan = document.getElementById('toggleBtnIcon');
     const textSpan = document.getElementById('toggleBtnText');
 
     if (showAllAccounts) {
-        // Режим "Показать все"
         toggleBtn.classList.remove('btn-secondary');
         toggleBtn.classList.add('btn-primary');
         if (iconSpan) iconSpan.textContent = '👁️‍🗨️';
         if (textSpan) textSpan.textContent = `Скрыть проданные (${hiddenCount})`;
         toggleBtn.title = 'Нажмите, чтобы скрыть полностью проданные аккаунты';
     } else {
-        // Режим "Скрыть проданные"
         toggleBtn.classList.remove('btn-primary');
         toggleBtn.classList.add('btn-secondary');
         if (iconSpan) iconSpan.textContent = '👁️';
@@ -9121,22 +8435,15 @@ function hideToggleButton() {
         toggleContainer.style.display = 'none';
     }
 }
-
-// Функция для получения даты и времени в Московском часовом поясе (UTC+3)
 function getMoscowDateTime() {
     const now = new Date();
-    
-    // Получаем текущее время в UTC
     const utcYear = now.getUTCFullYear();
     const utcMonth = now.getUTCMonth();
     const utcDay = now.getUTCDate();
     const utcHours = now.getUTCHours();
     const utcMinutes = now.getUTCMinutes();
-    
-    // Создаем новую дату, добавляя 3 часа (Москва UTC+3)
     const moscowDate = new Date(Date.UTC(utcYear, utcMonth, utcDay, utcHours + 3, utcMinutes));
     
-    // Форматируем для отображения
     const year = moscowDate.getUTCFullYear();
     const month = String(moscowDate.getUTCMonth() + 1).padStart(2, '0');
     const day = String(moscowDate.getUTCDate()).padStart(2, '0');
@@ -9151,21 +8458,13 @@ function getMoscowDateTime() {
         isoString: moscowDate.toISOString()
     };
 }
-
-// Альтернативный простой способ через смещение
 function getSimpleMoscowDateTime() {
     const now = new Date();
     
     // Смещение для Москвы (UTC+3)
-    const moscowOffset = 3 * 60; // 3 часа в минутах
-    
-    // Текущее смещение браузера в минутах
+    const moscowOffset = 3 * 60; 
     const browserOffset = now.getTimezoneOffset();
-    
-    // Разница между московским и браузерным временем
     const diffMinutes = moscowOffset + browserOffset;
-    
-    // Применяем разницу
     const moscowTime = new Date(now.getTime() + diffMinutes * 60000);
     
     const year = moscowTime.getFullYear();
@@ -9181,8 +8480,6 @@ function getSimpleMoscowDateTime() {
         timestamp: moscowTime.getTime()
     };
 }
-
-// Новая функция для универсального поиска
 function performUnifiedSearch() {
     const searchInput = document.getElementById('managerGameSearch');
     const searchTerm = searchInput.value.trim();
@@ -9191,11 +8488,7 @@ function performUnifiedSearch() {
         showNotification('Введите название игры или логин для поиска', 'warning');
         return;
     }
-    
-    // Пытаемся определить, что ищем
-    // Если есть @ или специфичные символы - скорее всего логин
     if (searchTerm.includes('@') || searchTerm.includes('_') || searchTerm.includes('-')) {
-        // Поиск по логину
         const foundAccounts = accounts.filter(acc => 
             acc.psnLogin.toLowerCase().includes(searchTerm.toLowerCase())
         );
@@ -9208,11 +8501,9 @@ function performUnifiedSearch() {
             updateToggleButtonUI();
             displaySearchResults(foundAccounts, `по логину "${searchTerm}"`);
         } else {
-            // Если не нашли по логину, пробуем найти игру
-            searchByGame(true); // true означает, что не показывать ошибку сразу
+            searchByGame(true); 
         }
     } else {
-        // Поиск по игре
         searchByGame();
     }
 }
@@ -9221,18 +8512,13 @@ function performUnifiedSearch() {
 // БЫСТРЫЙ ПОИСК ПО ЛОГИНУ (ШАПКА)
 // ============================================
 
-// Добавляем поле быстрого поиска в шапку
 function addQuickSearchField() {
-    // Проверяем, не на странице ли входа
     if (window.location.pathname.includes('login.html') || 
         window.location.pathname.includes('index.html')) {
         return;
     }
-    
-    // Проверяем, есть ли уже такое поле
     if (document.getElementById('quickLoginSearch')) return;
     
-    // Создаем контейнер для поля
     const searchContainer = document.createElement('div');
     searchContainer.id = 'quickSearchContainer';
     searchContainer.style.cssText = `
@@ -9241,8 +8527,6 @@ function addQuickSearchField() {
         right: 100px;
         z-index: 9999;
     `;
-    
-    // Создаем поле ввода
     const input = document.createElement('input');
     input.type = 'text';
     input.id = 'quickLoginSearch';
@@ -9258,8 +8542,6 @@ function addQuickSearchField() {
         background: white;
         box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     `;
-    
-    // Добавляем обработчики
     input.addEventListener('focus', () => {
         input.style.borderColor = '#4361ee';
         input.style.boxShadow = '0 0 0 3px rgba(67, 97, 238, 0.1)';
@@ -9280,7 +8562,6 @@ function addQuickSearchField() {
     document.body.appendChild(searchContainer);
 }
 
-// Функция поиска по логину из шапки
 function quickSearchByLogin() {
     const input = document.getElementById('quickLoginSearch');
     if (!input) return;
@@ -9291,8 +8572,6 @@ function quickSearchByLogin() {
         showNotification('Введите логин PSN', 'warning');
         return;
     }
-    
-    // Ищем аккаунт по точному совпадению (логины уникальны)
     const account = accounts.find(acc => 
         acc.psnLogin.toLowerCase() === loginSearch.toLowerCase()
     );
@@ -9301,25 +8580,16 @@ function quickSearchByLogin() {
         showNotification(`Аккаунт "${loginSearch}" не найден`, 'error');
         return;
     }
-    
-    // Показываем модальное окно с продажами
     showAccountSalesModal(account);
 }
-
-// Функция для показа модального окна с продажами аккаунта
 function showAccountSalesModal(account) {
-    // Получаем все продажи этого аккаунта
     const accountSales = sales
         .filter(sale => sale.accountId === account.id)
         .sort((a, b) => new Date(b.datetime || b.timestamp) - new Date(a.datetime || a.timestamp));
-    
-    // Создаем модальное окно
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'accountSalesModal';
     modal.style.display = 'block';
-    
-    // Заголовок в зависимости от наличия продаж
     const title = accountSales.length > 0 
         ? `📊 Продажи аккаунта ${account.psnLogin} (${accountSales.length})`
         : `📊 Аккаунт ${account.psnLogin} - нет продаж`;
@@ -9451,12 +8721,8 @@ function showAccountSalesModal(account) {
     document.body.appendChild(modal);
 }
 
-// Вспомогательные функции для редактирования/удаления из модального окна
 function quickEditSale(saleId) {
-    // Закрываем текущее модальное окно
     document.getElementById('accountSalesModal').remove();
-    
-    // Находим продажу и открываем стандартное окно редактирования
     const sale = sales.find(s => s.id === saleId);
     if (sale) {
         showSaleDetails(sale);
@@ -9466,14 +8732,11 @@ function quickEditSale(saleId) {
 function quickDeleteSale(saleId) {
     if (confirm('Удалить эту продажу?')) {
         deleteSale(saleId);
-        // Закрываем модальное окно после удаления
         setTimeout(() => {
             document.getElementById('accountSalesModal')?.remove();
         }, 500);
     }
 }
-
-// Синхронизация названий игр в аккаунтах
 function syncGameNamesInAccounts() {
     let updated = false;
     
@@ -9490,8 +8753,6 @@ function syncGameNamesInAccounts() {
     if (updated) {
         saveToStorage('accounts', accounts);
         console.log('🔄 Названия игр в аккаунтах обновлены');
-        
-        // Обновляем отображение если на странице менеджера
         if (window.location.pathname.includes('manager.html')) {
             const searchInput = document.getElementById('managerGameSearch');
             if (searchInput && searchInput.value.trim()) {
@@ -9503,7 +8764,6 @@ function syncGameNamesInAccounts() {
 
 // ==================== СВОБОДНАЯ ПРОДАЖА ====================
 
-// Открыть модальное окно свободной продажи
 function openFreeSaleModal() {
     const moscowTime = getSimpleMoscowDateTime();
     document.getElementById('freeSaleDate').value = moscowTime.date;
@@ -9513,13 +8773,9 @@ function openFreeSaleModal() {
     document.getElementById('freeSaleNotes').value = '';
     document.getElementById('freeSaleModal').style.display = 'block';
 }
-
-// Закрыть модальное окно свободной продажи
 function closeFreeSaleModal() {
     document.getElementById('freeSaleModal').style.display = 'none';
 }
-
-// Подтвердить свободную продажу
 async function confirmFreeSale() {
     const saleType = document.getElementById('freeSaleType').value;
     const salePrice = parseFloat(document.getElementById('freeSalePrice').value);
@@ -9584,22 +8840,14 @@ async function confirmFreeSale() {
     };
     
     try {
-    // Сохраняем в localStorage
     sales.push(newSale);
     localStorage.setItem('sales', JSON.stringify(sales));
     
-    // Сохраняем в Firebase напрямую
     if (typeof firebase !== 'undefined' && firebase.database) {
         const db = firebase.database();
-        
-        // Получаем текущие продажи из Firebase
         const snapshot = await db.ref('sales').once('value');
         const currentSales = snapshot.val() || {};
-        
-        // Добавляем новую продажу
         currentSales[newSale.id] = newSale;
-        
-        // Сохраняем обратно
         await db.ref('sales').set(currentSales);
         
         console.log('✅ Свободная продажа сохранена в Firebase');
@@ -9630,8 +8878,6 @@ function initGameSearchForAddAccount() {
     if (!searchInput) return;
     
     console.log('🔧 Инициализация поиска игр для add-account');
-    
-    // Обработчик ввода текста
     searchInput.addEventListener('input', function() {
         const searchTerm = this.value.trim();
         
@@ -9640,8 +8886,6 @@ function initGameSearchForAddAccount() {
             gameIdInput.value = '';
             return;
         }
-        
-        // Ищем игры
         const filteredGames = games.filter(game => 
             game.name.toLowerCase().includes(searchTerm.toLowerCase())
         ).slice(0, 10);
@@ -9656,7 +8900,6 @@ function initGameSearchForAddAccount() {
             return;
         }
         
-        // Показываем результаты
         dropdown.innerHTML = filteredGames.map(game => `
             <div class="game-search-item" 
                  data-game-id="${game.id}"
@@ -9696,15 +8939,11 @@ function initGameSearchForAddAccount() {
         
         dropdown.style.display = 'block';
     });
-    
-    // Закрытие при клике вне
     document.addEventListener('click', function(e) {
         if (searchInput && dropdown && !searchInput.contains(e.target) && !dropdown.contains(e.target)) {
             dropdown.style.display = 'none';
         }
     });
-    
-    // Поиск при фокусе
     searchInput.addEventListener('focus', function() {
         if (this.value.trim() !== '') {
             dropdown.style.display = 'block';
@@ -9712,7 +8951,6 @@ function initGameSearchForAddAccount() {
     });
 }
 
-// Выбор игры
 function selectGameForAccount(gameId, gameName) {
     const searchInput = document.getElementById('accountGameSearch');
     const gameIdInput = document.getElementById('accountGameId');
