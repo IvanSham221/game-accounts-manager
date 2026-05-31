@@ -114,7 +114,6 @@
     </style>
 </head>
 <body>
-    <!-- Мобильное меню -->
     <div id="mobileMenu" class="mobile-menu">
         <div class="mobile-menu-header">
             <div class="user-info-mobile">
@@ -133,8 +132,6 @@
             </button>
         </div>
     </div>
-
-    <!-- Бургер-кнопка -->
     <div class="burger-container">
         <button class="burger-btn" onclick="toggleMobileMenu()">
             <div class="burger-icon">
@@ -146,13 +143,11 @@
         </button>
     </div>
 
-    <!-- Оверлей -->
     <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
 
     <div class="container">
         <h1><span>🎮</span><span>Акции PS Store</span></h1>
         
-        <!-- Панель управления -->
         <div class="section">
             <h2><i class="fas fa-fire"></i> Скидки на наши игры</h2>
             
@@ -184,16 +179,13 @@
                 </div>
             </div>
 
-            <!-- Прогресс проверки -->
             <div id="discountsProgress" style="display: none; background: #eff6ff; padding: 20px; border-radius: 10px; margin: 20px 0;"></div>
 
-            <!-- Загрузка -->
             <div id="discountsLoading" style="text-align: center; padding: 40px; display: none;">
                 <div class="loading" style="display: inline-block; width: 40px; height: 40px;"></div>
                 <p style="margin-top: 15px; color: #64748b;">Загружаю список игр...</p>
             </div>
 
-            <!-- Нет игр -->
             <div id="noGamesAlert" style="display: none; text-align: center; padding: 40px;">
                 <div style="font-size: 60px; color: #cbd5e1; margin-bottom: 20px;">🎮</div>
                 <h3>Нет игр для отслеживания</h3>
@@ -202,12 +194,9 @@
                 </button>
             </div>
 
-            <!-- Список скидок -->
             <div id="discountsList" class="discounts-grid"></div>
         </div>
     </div>
-
-    <!-- СКРИПТЫ -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="firebase.js"></script>
@@ -217,29 +206,18 @@
     <script src="discounts.js?v=20250115"></script>
 
     <script>
-        // Глобальные переменные
         let discountsManager = null;
         let currentDiscounts = [];
-
-        // Инициализация страницы
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 Страница скидок загружена');
-            
-            // Инициализируем менеджер
             discountsManager = new DiscountsManager();
-            
-            // Запускаем инициализацию
             initDiscountsPage();
         });
-
-        // Инициализация страницы скидок
         function initDiscountsPage() {
     console.log('🔍 Инициализируем страницу скидок...');
     
     const loadingEl = document.getElementById('discountsLoading');
     const noGamesAlert = document.getElementById('noGamesAlert');
-    
-    // Проверяем есть ли игры
     const myGames = JSON.parse(localStorage.getItem('games')) || [];
     console.log(`📂 Игр в базе: ${myGames.length}`);
     
@@ -248,12 +226,8 @@
         if (noGamesAlert) noGamesAlert.style.display = 'block';
         return;
     }
-    
-    // Загружаем кэшированные данные
     const cachedDiscounts = JSON.parse(localStorage.getItem('discountsResults')) || [];
     console.log(`📦 Всего кэшированных записей: ${cachedDiscounts.length}`);
-    
-    // ФИЛЬТРУЕМ ТОЛЬКО ИГРЫ СО СКИДКАМИ ДАЖЕ В КЭШЕ
     const filteredCachedDiscounts = cachedDiscounts.filter(item => {
         const discounts = item.discounts || {};
         return (discounts.TR && discounts.TR.discount > 0) || 
@@ -280,33 +254,24 @@
     }
 }
 
-        // Проверка скидок
         async function updateDiscounts(force = false) {
             console.log('🔄 Запуск проверки скидок');
             
             try {
-                // Показываем загрузку
                 document.getElementById('discountsLoading').style.display = 'block';
                 document.getElementById('discountsList').innerHTML = '';
-                
-                // Проверяем менеджер
                 if (!discountsManager) {
                     discountsManager = new DiscountsManager();
                 }
                 
-                // Запускаем проверку
                 const results = await discountsManager.checkDiscounts(force);
                 console.log(`📊 Получено результатов: ${results?.length || 0}`);
                 
-                // Обновляем интерфейс
                 document.getElementById('discountsLoading').style.display = 'none';
                 
                 if (results && results.length > 0) {
-                    // Сохраняем и показываем
                     localStorage.setItem('discountsResults', JSON.stringify(results));
                     displayDiscounts(results);
-                    
-                    // Уведомление
                     alert(`✅ Проверено ${results.length} игр`);
                 } else {
                     document.getElementById('discountsList').innerHTML = `
@@ -332,15 +297,11 @@
                 alert('❌ Ошибка: ' + error.message);
             }
         }
-
-        // Отображение скидок
         function displayDiscounts(discountsData) {
     console.log('🎨 Отображаем скидки:', discountsData?.length || 0);
     
     const container = document.getElementById('discountsList');
     if (!container) return;
-    
-    // ПРОВЕРЯЕМ ЕСТЬ ЛИ ДАННЫЕ СО СКИДКАМИ
     if (!discountsData || discountsData.length === 0) {
         container.innerHTML = `
             <div class="no-discounts">
@@ -354,27 +315,15 @@
         `;
         return;
     }
-    
-    // ФИЛЬТРУЕМ ТОЛЬКО ИГРЫ СО СКИДКАМИ (двойная проверка)
     const gamesWithRealDiscounts = discountsData.filter(item => {
         const discounts = item.discounts || {};
-        
-        // Игра проходит если:
-        // 1. Есть данные по Турции И скидка > 0
         if (discounts.TR && discounts.TR.discount > 0) return true;
-        
-        // 2. Есть данные по Украине И скидка > 0
         if (discounts.UA && discounts.UA.discount > 0) return true;
-        
-        // 3. Или игра помечена как распродажа
         if (discounts.TR?.isOnSale || discounts.UA?.isOnSale) return true;
-        
         return false;
     });
     
     console.log(`✅ Игр со скидками после фильтрации: ${gamesWithRealDiscounts.length}`);
-    
-    // ЕСЛИ ПОСЛЕ ФИЛЬТРАЦИИ НИЧЕГО НЕ ОСТАЛОСЬ
     if (gamesWithRealDiscounts.length === 0) {
         container.innerHTML = `
             <div class="no-discounts">
@@ -393,8 +342,6 @@
         `;
         return;
     }
-    
-    // СОРТИРУЕМ ПО РАЗМЕРУ СКИДКИ (самые большие скидки первыми)
     const sortedGames = gamesWithRealDiscounts.sort((a, b) => {
         const aDiscount = Math.max(
             a.discounts?.TR?.discount || 0,
@@ -404,10 +351,8 @@
             b.discounts?.TR?.discount || 0,
             b.discounts?.UA?.discount || 0
         );
-        return bDiscount - aDiscount; // По убыванию
+        return bDiscount - aDiscount; 
     });
-    
-    // СОЗДАЕМ HTML ТОЛЬКО ДЛЯ ИГР СО СКИДКАМИ
     const html = sortedGames.map(item => {
         const game = item.game || { name: 'Без названия' };
         const discounts = item.discounts || {};
@@ -417,11 +362,7 @@
         
         const hasTR = trData.price && trData.price.amount > 0 && trData.discount > 0;
         const hasUA = uaData.price && uaData.price.amount > 0 && uaData.discount > 0;
-        
-        // Если ни в одном регионе нет скидки - не показываем эту игру
         if (!hasTR && !hasUA) return '';
-        
-        // Определяем максимальную скидку для подсветки
         const maxDiscount = Math.max(
             trData.discount || 0,
             uaData.discount || 0
@@ -456,8 +397,6 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Скидки -->
                     <div style="display: flex; flex-direction: column; gap: 15px;">
                         ${hasTR ? `
                             <div style="background: #fff5f5; padding: 15px; border-radius: 8px; border-left: 4px solid #dc2626;">
@@ -502,7 +441,6 @@
                         ` : ''}
                     </div>
                     
-                    <!-- Кнопки -->
                     <div style="display: flex; gap: 10px; margin-top: 20px;">
                         ${game.storeLinks?.TR && hasTR ? `
                             <button onclick="window.open('${game.storeLinks.TR}', '_blank')" 
@@ -521,11 +459,9 @@
                 </div>
             </div>
         `;
-    }).filter(html => html !== '').join(''); // Удаляем пустые элементы
+    }).filter(html => html !== '').join(''); 
     
     container.innerHTML = html;
-    
-    // Если после фильтрации HTML пустой
     if (!html.trim()) {
         container.innerHTML = `
             <div class="no-discounts">
@@ -537,14 +473,11 @@
     }
 }
 
-        // Функция уведомления
         function showNotification(message, type = 'info') {
             alert(type === 'error' ? '❌ ' : '✅ ' + message);
         }
     </script>
-    <!-- Добавь перед закрывающим </body> -->
 <script>
-    // Проверка сервера при загрузке
     async function checkServerStatus() {
         try {
             const response = await fetch('https://ps-store-api.onrender.com/api/test', {
@@ -564,8 +497,6 @@
             return false;
         }
     }
-    
-    // При загрузке страницы проверяем сервер
     document.addEventListener('DOMContentLoaded', async function() {
         const isServerAvailable = await checkServerStatus();
         

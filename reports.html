@@ -18,38 +18,57 @@
             </div>
             <button class="close-menu" onclick="toggleMobileMenu()">×</button>
         </div>
-        
-        <div class="mobile-menu-nav">
-            <!-- Пункты меню будут добавляться скриптом -->
-        </div>
-        
+        <div class="mobile-menu-nav"></div>
         <div class="mobile-menu-footer">
-            <button onclick="logout()" class="btn btn-danger btn-block">
-                <span>🚪</span> Выйти
-            </button>
+            <button onclick="logout()" class="btn btn-danger btn-block">🚪 Выйти</button>
         </div>
     </div>
 
-    <!-- Бургер-кнопка -->
     <div class="burger-container">
-        <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
-            <div class="burger-icon">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-            <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
+        <button class="burger-btn" onclick="toggleMobileMenu()">
+            <div class="burger-icon"><span></span><span></span><span></span></div>
+            <div class="burger-badge" id="menuBadge" style="display: none;"></div>
             <div class="burger-label">Меню</div>
         </button>
     </div>
-
-    <!-- Оверлей для закрытия меню -->
     <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
 
     <div class="container">
         <h1><span>📊</span><span>Отчеты и статистика</span></h1>
         
-        <!-- Сразу показываем статистику -->
+        <!-- Селектор периода -->
+        <div class="section" style="margin-bottom: 20px;">
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">📅 Период:</label>
+                    <select id="reportPeriod" class="input" style="min-width: 150px;" onchange="changeReportPeriod()">
+                        <option value="today">Сегодня</option>
+                        <option value="yesterday">Вчера</option>
+                        <option value="week">Текущая неделя</option>
+                        <option value="month" selected>Текущий месяц</option>
+                        <option value="custom">Своя дата</option>
+                    </select>
+                </div>
+                <div id="customDateRange" style="display: none; display: flex; gap: 15px; align-items: flex-end;">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">С:</label>
+                        <input type="date" id="startDate" class="input">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">По:</label>
+                        <input type="date" id="endDate" class="input">
+                    </div>
+                    <button onclick="applyCustomDate()" class="btn btn-primary">Применить</button>
+                </div>
+                <button onclick="refreshReport()" class="btn btn-secondary" style="background: #4361ee;">
+                    🔄 Обновить отчет
+                </button>
+                <button onclick="exportReportToCSV()" class="btn btn-success" style="background: #10b981;">
+                    📁 Экспорт CSV
+                </button>
+            </div>
+        </div>
+        
         <div id="reportResults">
             <div style="text-align: center; padding: 40px; color: #64748b;">
                 <div style="font-size: 3em; margin-bottom: 15px;">📊</div>
@@ -72,13 +91,162 @@
     <script src="script.js?v=20250115"></script>
     
     <script>
+    // Функции для отчетов
+    let currentReportSales = [];
+    let currentPeriod = 'month';
+    
+    function getDateRange(period) {
+        const now = new Date();
+        const start = new Date();
+        const end = new Date();
+        
+        switch(period) {
+            case 'today':
+                start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
+                break;
+            case 'yesterday':
+                start.setDate(start.getDate() - 1);
+                start.setHours(0, 0, 0, 0);
+                end.setDate(end.getDate() - 1);
+                end.setHours(23, 59, 59, 999);
+                break;
+            case 'week':
+                const day = now.getDay();
+                const diff = day === 0 ? 6 : day - 1;
+                start.setDate(now.getDate() - diff);
+                start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
+                break;
+            case 'month':
+                start.setDate(1);
+                start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
+                break;
+            default:
+                return null;
+        }
+        
+        return { start, end };
+    }
+    
+    function filterSalesByDate(salesData, startDate, endDate) {
+        return salesData.filter(sale => {
+            const saleDate = new Date(sale.datetime || sale.timestamp || sale.date);
+            return saleDate >= startDate && saleDate <= endDate;
+        });
+    }
+    
+    function changeReportPeriod() {
+        const period = document.getElementById('reportPeriod').value;
+        currentPeriod = period;
+        
+        const customRange = document.getElementById('customDateRange');
+        if (period === 'custom') {
+            customRange.style.display = 'flex';
+            const today = new Date();
+            const monthAgo = new Date();
+            monthAgo.setDate(monthAgo.getDate() - 30);
+            document.getElementById('startDate').value = monthAgo.toISOString().split('T')[0];
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            applyCustomDate();
+        } else {
+            customRange.style.display = 'none';
+            const range = getDateRange(period);
+            if (range) {
+                loadReportData(range.start, range.end);
+            }
+        }
+    }
+    
+    function applyCustomDate() {
+        const startDate = new Date(document.getElementById('startDate').value);
+        const endDate = new Date(document.getElementById('endDate').value);
+        endDate.setHours(23, 59, 59, 999);
+        loadReportData(startDate, endDate);
+    }
+    
+    function refreshReport() {
+        if (currentPeriod === 'custom') {
+            applyCustomDate();
+        } else {
+            const range = getDateRange(currentPeriod);
+            if (range) {
+                loadReportData(range.start, range.end);
+            }
+        }
+    }
+    
+    async function loadReportData(startDate, endDate) {
+        console.log(`📊 Загружаем отчет за период: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`);
+        
+        document.getElementById('reportResults').innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #64748b;">
+                <div class="loading" style="width: 40px; height: 40px; margin: 0 auto 15px;"></div>
+                <h3>Загружаем данные за период...</h3>
+            </div>
+        `;
+        
+        if (window.dataSync && window.dataSync.loadData) {
+            const allSales = await window.dataSync.loadData('sales');
+            const filteredSales = filterSalesByDate(allSales, startDate, endDate);
+            currentReportSales = filteredSales;
+            
+            if (typeof displayReportResults === 'function') {
+                displayReportResults(filteredSales, startDate.toLocaleDateString(), endDate.toLocaleDateString());
+            }
+        } else {
+            const allSales = JSON.parse(localStorage.getItem('sales') || '[]');
+            const filteredSales = filterSalesByDate(allSales, startDate, endDate);
+            currentReportSales = filteredSales;
+            
+            if (typeof displayReportResults === 'function') {
+                displayReportResults(filteredSales, startDate.toLocaleDateString(), endDate.toLocaleDateString());
+            }
+        }
+    }
+    
+    function exportReportToCSV() {
+        if (!currentReportSales || currentReportSales.length === 0) {
+            showNotification('Нет данных для экспорта', 'warning');
+            return;
+        }
+        
+        const headers = ['Дата', 'Игра', 'Аккаунт', 'Позиция', 'Цена', 'Площадка', 'Менеджер', 'Примечания'];
+        const rows = currentReportSales.map(sale => [
+            sale.datetime || sale.date || '',
+            sale.gameName || '',
+            sale.accountLogin || '',
+            sale.positionName || '',
+            sale.price || 0,
+            sale.marketplace || '',
+            sale.soldByName || '',
+            sale.notes || ''
+        ]);
+        
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+        
+        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        link.setAttribute('download', `report_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showNotification('Отчет экспортирован! 📁', 'success');
+    }
+    
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(function() {
-            if (typeof generateReport === 'function') {
-                console.log('📊 Автоматически загружаем статистику...');
-                generateReport();
-            } else {
-                console.error('❌ Функция generateReport не найдена!');
+            const range = getDateRange('month');
+            if (range) {
+                loadReportData(range.start, range.end);
             }
         }, 800);
     });

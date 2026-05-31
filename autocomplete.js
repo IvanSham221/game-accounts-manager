@@ -1,4 +1,4 @@
-// autocomplete.js - УНИВЕРСАЛЬНЫЙ ПОИСК (только игры в предложениях)
+
 class AutoComplete {
     constructor() {
         this.games = [];
@@ -47,8 +47,6 @@ class AutoComplete {
         }
         
         console.log('🔧 Настройка универсального поиска для:', searchInput);
-        
-        // Создаем dropdown
         const dropdown = document.createElement('div');
         dropdown.id = 'unifiedSearchDropdown';
         dropdown.style.cssText = `
@@ -73,9 +71,9 @@ class AutoComplete {
             const value = searchInput.value.trim();
             
             if (value === '') {
-                this.showRecentGames(dropdown); // Только игры
+                this.showRecentGames(dropdown); 
             } else {
-                this.searchGames(value, dropdown); // Только игры
+                this.searchGames(value, dropdown);
             }
             
             this.positionDropdown(searchInput, dropdown);
@@ -87,9 +85,9 @@ class AutoComplete {
             const value = searchInput.value.trim();
             
             if (value === '') {
-                this.showRecentGames(dropdown); // Только игры
+                this.showRecentGames(dropdown);
             } else {
-                this.searchGames(value, dropdown); // Только игры
+                this.searchGames(value, dropdown);
             }
             
             this.positionDropdown(searchInput, dropdown);
@@ -109,8 +107,6 @@ class AutoComplete {
         dropdown.addEventListener('mouseleave', () => {
             dropdown.style.display = 'none';
         });
-        
-        // Обработка клика по игре
         dropdown.addEventListener('click', (e) => {
             const item = e.target.closest('[data-game-id]');
             if (!item) return;
@@ -118,8 +114,6 @@ class AutoComplete {
             const gameName = item.dataset.gameName;
             searchInput.value = gameName;
             dropdown.style.display = 'none';
-            
-            // Запускаем поиск по игре
             setTimeout(() => searchByGame(), 100);
         });
         
@@ -127,7 +121,6 @@ class AutoComplete {
             if (e.key === 'Escape') {
                 dropdown.style.display = 'none';
             } else if (e.key === 'Enter') {
-                // Если нажали Enter, запускаем универсальный поиск
                 dropdown.style.display = 'none';
                 performUnifiedSearch();
             }
@@ -144,8 +137,6 @@ class AutoComplete {
                 this.positionDropdown(searchInput, dropdown);
             }
         });
-        
-        // Скрываем старое поле для логина
         const loginSearch = document.getElementById('managerLogin');
         if (loginSearch) {
             const loginGroup = loginSearch.closest('.search-group');
@@ -162,7 +153,6 @@ class AutoComplete {
         dropdown.style.width = rect.width + 'px';
     }
 
-    // ПОИСК ТОЛЬКО ИГР
     searchGames(searchTerm, dropdown) {
         const term = searchTerm.toLowerCase().trim();
         
@@ -185,10 +175,7 @@ class AutoComplete {
             this.renderGames(gameResults, dropdown);
         }
     }
-
-    // ПОКАЗ ПОПУЛЯРНЫХ ИГР (только игры)
     showRecentGames(dropdown) {
-        // Игры, у которых есть аккаунты
         const gamesWithAccounts = this.games
             .filter(game => this.accounts.some(acc => acc.gameId === game.id))
             .slice(0, 8)
@@ -197,8 +184,6 @@ class AutoComplete {
                 name: game.name,
                 accountsCount: this.accounts.filter(acc => acc.gameId === game.id).length
             }));
-        
-        // Добавляем немного игр без аккаунтов (для разнообразия)
         const gamesWithoutAccounts = this.games
             .filter(game => !this.accounts.some(acc => acc.gameId === game.id))
             .slice(0, 3)
@@ -220,12 +205,10 @@ class AutoComplete {
             this.renderGames(recentGames, dropdown);
         }
     }
-
-    // ОТОБРАЖЕНИЕ ИГР С КАРТИНКАМИ
 renderGames(games, dropdown) {
     dropdown.innerHTML = games.map(game => {
         const hasAccounts = game.accountsCount > 0;
-        const gameData = this.games.find(g => g.id === game.id); // находим полные данные игры
+        const gameData = this.games.find(g => g.id === game.id); 
         
         return `
             <div data-game-id="${game.id}"
@@ -304,7 +287,6 @@ renderGames(games, dropdown) {
 }
 }
 
-// Инициализируем
 if (!window.autoComplete) {
     window.autoComplete = new AutoComplete();
 }

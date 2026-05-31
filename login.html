@@ -56,8 +56,6 @@
             
             btn.disabled = true;
             btn.textContent = 'Синхронизация...';
-            
-            // Сначала синхронизируем работников (если есть)
             try {
                 if (window.dataSync && window.dataSync.forceSyncWorkers) {
                     await window.dataSync.forceSyncWorkers();
@@ -67,14 +65,10 @@
             }
             
             btn.textContent = 'Вход...';
-            
-            // Теперь проверяем логин
             const result = security.validateLogin(username, password);
             
             if (result.success) {
                 security.startSession(result.user);
-                
-                // Полная синхронизация всех данных после входа
                 try {
                     if (window.dataSync && window.dataSync.forceFullSync) {
                         await window.dataSync.forceFullSync();

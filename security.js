@@ -1,33 +1,19 @@
-// security.js - УЛУЧШЕННАЯ ВЕРСИЯ С БЕЗОПАСНОСТЬЮ
-
 const SecurityManager = {
-    // Простое хеширование паролей (в продакшене используйте bcrypt или аналоги)
     hashPassword: function(password) {
         if (!password || typeof password !== 'string') {
         return '';
     }
-    
-    // ПРОСТОЙ И СТАБИЛЬНЫЙ алгоритм
-    // 1. Используем фиксированную соль
     const salt = '@PSHub_Fixed_Salt_2025';
-    
-    // 2. Создаем простой хеш (один и тот же для одинаковых паролей)
     let hash = 0;
-    
-    // Добавляем соль в начало пароля
     const saltedPassword = salt + password;
     
     for (let i = 0; i < saltedPassword.length; i++) {
         const char = saltedPassword.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
-        hash = Math.abs(hash & hash); // Всегда положительный
+        hash = Math.abs(hash & hash);
     }
-    
-    // 3. Консистентное форматирование
     return 'pshub_' + hash.toString(36) + '_' + password.length;
     },
-
-    // Создание хеша для нового пользователя
     createUserHash: function(username, password) {
         const combined = username + ':' + password + ':PSHub_Secure';
         let hash = 0;
@@ -41,11 +27,8 @@ const SecurityManager = {
         return 'pshub_' + Math.abs(hash).toString(36);
     },
 
-    // Валидация логина
     validateLogin: function(username, password) {
         console.log(`🔐 Попытка входа: ${username}`);
-        
-        // Триммируем входные данные
         username = (username || '').toString().trim();
         password = (password || '').toString();
         
@@ -56,10 +39,7 @@ const SecurityManager = {
                 error: 'Заполните все поля'
             };
         }
-
-        // 1. Проверка администратора (жестко закодирован)
         if (username === 'Ivan') {
-            // Для администратора используем прямое сравнение (без хеширования в демо)
             if (password === '@Az27831501112') {
                 console.log('✅ Администратор Ivan вошел');
                 return {
@@ -82,7 +62,6 @@ const SecurityManager = {
         }
 
         try {
-            // 2. Проверка работников из хранилища
             const workersStr = localStorage.getItem('workers');
             if (!workersStr) {
                 console.warn('❌ Нет данных о работниках');
@@ -94,16 +73,14 @@ const SecurityManager = {
 
             const workers = JSON.parse(workersStr);
             console.log(`👥 Проверка среди ${workers.length} работников`);
-
-            // Хешируем введенный пароль для сравнения
             const hashedInputPassword = this.hashPassword(password);
             
             const worker = workers.find(w => {
                 if (!w || !w.username) return false;
                 
                 const usernameMatch = w.username.toString().trim().toLowerCase() === username.toLowerCase();
-                const passwordMatch = w.password === hashedInputPassword || w.password === password; // Поддержка старых паролей
-                const isActive = w.active !== false; // По умолчанию true
+                const passwordMatch = w.password === hashedInputPassword || w.password === password; 
+                const isActive = w.active !== false; 
                 
                 return usernameMatch && passwordMatch && isActive;
             });
@@ -183,8 +160,6 @@ const SecurityManager = {
             }
 
             const user = JSON.parse(userStr);
-            
-            // Проверка времени жизни сессии (8 часов)
             const sessionAge = Date.now() - parseInt(sessionStart);
             const eightHours = 8 * 60 * 60 * 1000;
             
@@ -193,8 +168,6 @@ const SecurityManager = {
                 this.logout();
                 return false;
             }
-
-            // Проверка бездействия (30 минут)
             const inactivityTime = Date.now() - parseInt(lastActivity || sessionStart);
             const thirtyMinutes = 30 * 60 * 1000;
             
@@ -203,8 +176,6 @@ const SecurityManager = {
                 this.logout();
                 return false;
             }
-
-            // Для работников проверяем активность в списке работников
             if (user.role === 'worker') {
                 try {
                     const workers = JSON.parse(localStorage.getItem('workers') || '[]');
@@ -229,15 +200,12 @@ const SecurityManager = {
         }
     },
 
-    // Получение текущего пользователя
     getCurrentUser: function() {
         try {
             const userStr = localStorage.getItem('currentUser');
             if (!userStr) return null;
             
             const user = JSON.parse(userStr);
-            
-            // Обновляем время активности
             this.updateSession();
             
             return user;
@@ -247,7 +215,6 @@ const SecurityManager = {
         }
     },
 
-    // Проверка прав администратора
     isAdmin: function() {
         const user = this.getCurrentUser();
         return user && (user.role === 'admin' || user.isAdmin === true);
@@ -257,13 +224,9 @@ const SecurityManager = {
     logout: function() {
         const user = this.getCurrentUser();
         console.log(`👋 Выход пользователя: ${user ? user.name : 'unknown'}`);
-        
-        // Очищаем только сессионные данные
         localStorage.removeItem('currentUser');
         localStorage.removeItem('session_start');
         localStorage.removeItem('last_activity');
-        
-        // Перенаправляем на страницу входа
         setTimeout(() => {
             if (!window.location.pathname.includes('login.html')) {
                 window.location.href = 'login.html';
@@ -271,7 +234,6 @@ const SecurityManager = {
         }, 100);
     },
 
-    // Обновление времени активности
     updateSession: function() {
         try {
             localStorage.setItem('last_activity', Date.now().toString());
@@ -293,15 +255,12 @@ const SecurityManager = {
         }
     },
 
-    // Защита от XSS - очистка ввода
     sanitizeInput: function(input) {
         if (input === null || input === undefined) return '';
         
         if (typeof input !== 'string') {
             input = String(input);
         }
-        
-        // Удаляем опасные символы
         return input.replace(/[<>&'"`]/g, function(match) {
             const entities = {
                 '<': '&lt;',
@@ -315,14 +274,12 @@ const SecurityManager = {
         }).trim();
     },
 
-    // Проверка email
     isValidEmail: function(email) {
         if (!email) return false;
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
     },
 
-    // Проверка сложности пароля
     isStrongPassword: function(password) {
         if (!password) return false;
         
@@ -339,7 +296,6 @@ const SecurityManager = {
 
     canChangeSaleManager: function() {
     const user = this.getCurrentUser();
-    // Только админ может менять менеджера
     return user && user.role === 'admin';
 },
 
@@ -355,19 +311,13 @@ const SecurityManager = {
         
         return password;
     },
-
-    // Инициализация
     init: function() {
         console.log('✅ SecurityManager инициализирован');
-        
-        // Автоматическая проверка сессии каждую минуту
         setInterval(() => {
             if (this.isSessionValid()) {
                 this.updateSession();
             }
         }, 60000);
-        
-        // Обработчик активности пользователя
         document.addEventListener('click', () => this.updateSession());
         document.addEventListener('keypress', () => this.updateSession());
         document.addEventListener('scroll', () => this.updateSession());
@@ -375,11 +325,8 @@ const SecurityManager = {
         return true;
     }
 };
-
-// Экспорт
 window.security = SecurityManager;
 
-// Автоматическая инициализация при загрузке
 if (typeof window !== 'undefined') {
     setTimeout(() => {
         SecurityManager.init();

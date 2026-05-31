@@ -77,7 +77,6 @@
     <script src="totp.js"></script>
     
     <script>
-        // ==================== ПОИСК ИГР КАК В ПАНЕЛИ МЕНЕДЖЕРА ====================
         (function() {
             let accountsGameDropdown = null;
             let accountsGameHideTimeout = null;
@@ -87,7 +86,6 @@
                 if (!searchInput) return;
                 if (accountsGameDropdown) return;
                 
-                // Создаем dropdown в body
                 accountsGameDropdown = document.createElement('div');
                 accountsGameDropdown.id = 'accountsGameDropdown';
                 accountsGameDropdown.style.cssText = `
@@ -141,7 +139,6 @@
                         </div>
                     `).join('');
                     
-                    // Добавляем обработчики кликов
                     document.querySelectorAll('.accounts-game-item').forEach(el => {
                         el.onclick = function() {
                             const gameId = this.dataset.gameId;
@@ -189,17 +186,12 @@
                 });
             }
             
-            // Запускаем
             setTimeout(initAccountsGameSearch, 500);
         })();
-        
-        // ==================== ФУНКЦИИ ФИЛЬТРАЦИИ ====================
         
         window.filterAccounts = function() {
     const gameId = document.getElementById('filterGameId').value;
     const searchText = document.getElementById('searchAccount').value.toLowerCase();
-    
-    // Убеждаемся что accounts есть
     let accountsData = window.accounts || JSON.parse(localStorage.getItem('accounts') || '[]');
     
     let filteredAccounts = accountsData;
@@ -265,12 +257,9 @@
         });
     </script>
     <script>
-    // Добавь это после остальных скриптов
     setTimeout(function() {
         console.log('accounts.length:', window.accounts ? window.accounts.length : 'нет accounts');
         console.log('games.length:', window.games ? window.games.length : 'нет games');
-        
-        // Проверяем что данные загружены
         if (!window.accounts || window.accounts.length === 0) {
             console.log('Загружаю accounts из localStorage');
             window.accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
@@ -279,8 +268,6 @@
             console.log('Загружаю games из localStorage');
             window.games = JSON.parse(localStorage.getItem('games') || '[]');
         }
-        
-        // Принудительно показываем все аккаунты
         if (typeof displayAccounts === 'function') {
             displayAccounts();
         }
