@@ -27,94 +27,111 @@ const SecurityManager = {
         return 'pshub_' + Math.abs(hash).toString(36);
     },
 
-    validateLogin: function(username, password) {
-        console.log(`🔐 Попытка входа: ${username}`);
-        username = (username || '').toString().trim();
-        password = (password || '').toString();
+    validateLogin: async function(username, password) {
+    console.log(`🔐 Попытка входа: ${username}`);
+    
+    username = (username || '').toString().trim();
+    password = (password || '').toString();
+    
+    if (!username || !password) {
+        console.warn('❌ Пустые логин или пароль');
+        return {
+            success: false,
+            error: 'Заполните все поля'
+        };
+    }
+    
+    // ===== НОВАЯ ЧАСТЬ: проверка через сервер =====
+    const serverUrl = 'http://localhost:3001';
+    
+    try {
+        // Отправляем запрос на сервер
+        const response = await fetch(`${serverUrl}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
         
-        if (!username || !password) {
-            console.warn('❌ Пустые логин или пароль');
+        const data = await response.json();
+        
+        // Если сервер подтвердил вход (администратор)
+        if (data.success && data.user) {
+            console.log(`✅ ${data.user.name} вошел через сервер`);
+            return { success: true, user: data.user };
+        }
+        
+        // Если сервер сказал "проверь локально" — значит, это работник
+        if (data.requireLocalCheck) {
+            console.log(`👷 Проверяем работника ${username} локально...`);
+            return this.validateLocalWorker(username, password);
+        }
+        
+        return { success: false, error: data.error || 'Ошибка входа' };
+        
+    } catch (error) {
+        // Если сервер не запущен — проверяем локально
+        console.warn('⚠️ Сервер недоступен, проверяем локально:', error.message);
+        return this.validateLocalWorker(username, password);
+    }
+    // ===== КОНЕЦ НОВОЙ ЧАСТИ =====
+},
+
+// ===== НОВАЯ ФУНКЦИЯ: локальная проверка работников =====
+validateLocalWorker: function(username, password) {
+    try {
+        const workersStr = localStorage.getItem('workers');
+        if (!workersStr) {
+            console.warn('❌ Нет данных о работниках');
             return {
                 success: false,
-                error: 'Заполните все поля'
+                error: 'Нет данных о пользователях'
             };
         }
-        if (username === 'Ivan') {
-            if (password === '@Az27831501112') {
-                console.log('✅ Администратор Ivan вошел');
-                return {
-                    success: true,
-                    user: {
-                        username: 'Ivan',
-                        name: 'Иван',
-                        role: 'admin',
-                        id: 'admin_1',
-                        isAdmin: true
-                    }
-                };
-            } else {
-                console.warn('❌ Неверный пароль администратора');
-                return {
-                    success: false,
-                    error: 'Неверный пароль'
-                };
-            }
-        }
 
-        try {
-            const workersStr = localStorage.getItem('workers');
-            if (!workersStr) {
-                console.warn('❌ Нет данных о работниках');
-                return {
-                    success: false,
-                    error: 'Нет данных о пользователях'
-                };
-            }
-
-            const workers = JSON.parse(workersStr);
-            console.log(`👥 Проверка среди ${workers.length} работников`);
-            const hashedInputPassword = this.hashPassword(password);
+        const workers = JSON.parse(workersStr);
+        console.log(`👥 Проверка среди ${workers.length} работников`);
+        const hashedInputPassword = this.hashPassword(password);
+        
+        const worker = workers.find(w => {
+            if (!w || !w.username) return false;
             
-            const worker = workers.find(w => {
-                if (!w || !w.username) return false;
-                
-                const usernameMatch = w.username.toString().trim().toLowerCase() === username.toLowerCase();
-                const passwordMatch = w.password === hashedInputPassword || w.password === password; 
-                const isActive = w.active !== false; 
-                
-                return usernameMatch && passwordMatch && isActive;
-            });
-
-            if (worker) {
-                console.log(`✅ Работник ${worker.name} вошел (${worker.role || 'worker'})`);
-                
-                return {
-                    success: true,
-                    user: {
-                        username: worker.username,
-                        name: worker.name || worker.username,
-                        role: worker.role || 'worker',
-                        id: 'worker_' + (worker.id || worker.username),
-                        isAdmin: worker.role === 'admin',
-                        created: worker.created
-                    }
-                };
-            }
+            const usernameMatch = w.username.toString().trim().toLowerCase() === username.toLowerCase();
+            const passwordMatch = w.password === hashedInputPassword || w.password === password;
+            const isActive = w.active !== false;
             
-            console.warn('❌ Работник не найден или не активен');
+            return usernameMatch && passwordMatch && isActive;
+        });
+
+        if (worker) {
+            console.log(`✅ Работник ${worker.name} вошел (${worker.role || 'worker'})`);
+            
             return {
-                success: false,
-                error: 'Неверный логин, пароль или учетная запись неактивна'
-            };
-            
-        } catch (e) {
-            console.error('❌ Ошибка при проверке работников:', e);
-            return {
-                success: false,
-                error: 'Ошибка системы аутентификации'
+                success: true,
+                user: {
+                    username: worker.username,
+                    name: worker.name || worker.username,
+                    role: worker.role || 'worker',
+                    id: 'worker_' + (worker.id || worker.username),
+                    isAdmin: worker.role === 'admin',
+                    created: worker.created
+                }
             };
         }
-    },
+        
+        console.warn('❌ Работник не найден или не активен');
+        return {
+            success: false,
+            error: 'Неверный логин, пароль или учетная запись неактивна'
+        };
+        
+    } catch (e) {
+        console.error('❌ Ошибка при проверке работников:', e);
+        return {
+            success: false,
+            error: 'Ошибка системы аутентификации'
+        };
+    }
+},
 
     // Начало сессии
     startSession: function(user) {
