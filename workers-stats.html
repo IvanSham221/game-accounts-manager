@@ -18,61 +18,43 @@
             </div>
             <button class="close-menu" onclick="toggleMobileMenu()">×</button>
         </div>
-        <div class="mobile-menu-nav"></div>
+        
+        <div class="mobile-menu-nav">
+            <!-- Пункты меню будут добавляться скриптом -->
+        </div>
+        
         <div class="mobile-menu-footer">
-            <button onclick="logout()" class="btn btn-danger btn-block">🚪 Выйти</button>
+            <button onclick="logout()" class="btn btn-danger btn-block">
+                <span>🚪</span> Выйти
+            </button>
         </div>
     </div>
 
+    <!-- Бургер-кнопка -->
     <div class="burger-container">
-        <button class="burger-btn" onclick="toggleMobileMenu()">
-            <div class="burger-icon"><span></span><span></span><span></span></div>
-            <div class="burger-badge" id="menuBadge" style="display: none;"></div>
+        <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
+            <div class="burger-icon">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <!-- Опционально: бейдж с уведомлениями -->
+            <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
+            <!-- Текст при наведении (только на ПК) -->
             <div class="burger-label">Меню</div>
         </button>
     </div>
+
+    <!-- Оверлей для закрытия меню -->
     <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
 
     <div class="container">
         <h1><span>📈</span><span>Статистика работников</span></h1>
         
-        <!-- Селектор периода -->
-        <div class="section" style="margin-bottom: 20px;">
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
-                <div>
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">📅 Период:</label>
-                    <select id="statsPeriod" class="input" style="min-width: 150px;" onchange="changeStatsPeriod()">
-                        <option value="today">Сегодня</option>
-                        <option value="yesterday">Вчера</option>
-                        <option value="week">Текущая неделя</option>
-                        <option value="month" selected>Текущий месяц</option>
-                        <option value="all">Всё время</option>
-                        <option value="custom">Своя дата</option>
-                    </select>
-                </div>
-                <div id="statsCustomDateRange" style="display: none; display: flex; gap: 15px; align-items: flex-end;">
-                    <div>
-                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">С:</label>
-                        <input type="date" id="statsStartDate" class="input">
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">По:</label>
-                        <input type="date" id="statsEndDate" class="input">
-                    </div>
-                    <button onclick="applyStatsCustomDate()" class="btn btn-primary">Применить</button>
-                </div>
-                <button onclick="refreshStats()" class="btn btn-secondary" style="background: #4361ee;">
-                    🔄 Обновить
-                </button>
-                <button onclick="exportStatsToCSV()" class="btn btn-success" style="background: #10b981;">
-                    📁 Экспорт CSV
-                </button>
-            </div>
-        </div>
-        
+        <!-- Сразу показываем статистику работников -->
         <div id="workersStatsContainer">
             <div style="text-align: center; padding: 40px; color: #64748b;">
-                <div class="loading" style="width: 40px; height: 40px; margin: 0 auto 15px;"></div>
+                <div style="font-size: 3em; margin-bottom: 15px;">👷</div>
                 <h3>Загружаем статистику работников...</h3>
             </div>
         </div>
@@ -83,188 +65,20 @@
     <script src="firebase.js"></script>
     <script src="security.js"></script>
     <script src="script.js?v=20250115"></script>
-    
     <script>
-    let currentStatsSales = [];
-    let currentStatsPeriod = 'month';
-    
-    function getStatsDateRange(period) {
-        const now = new Date();
-        const start = new Date();
-        const end = new Date();
-        
-        switch(period) {
-            case 'today':
-                start.setHours(0, 0, 0, 0);
-                end.setHours(23, 59, 59, 999);
-                break;
-            case 'yesterday':
-                start.setDate(start.getDate() - 1);
-                start.setHours(0, 0, 0, 0);
-                end.setDate(end.getDate() - 1);
-                end.setHours(23, 59, 59, 999);
-                break;
-            case 'week':
-                const day = now.getDay();
-                const diff = day === 0 ? 6 : day - 1;
-                start.setDate(now.getDate() - diff);
-                start.setHours(0, 0, 0, 0);
-                end.setHours(23, 59, 59, 999);
-                break;
-            case 'month':
-                start.setDate(1);
-                start.setHours(0, 0, 0, 0);
-                end.setHours(23, 59, 59, 999);
-                break;
-            case 'all':
-                return null;
-            default:
-                return null;
-        }
-        
-        return { start, end };
-    }
-    
-    function filterStatsSalesByDate(salesData, startDate, endDate) {
-        if (!startDate || !endDate) return salesData;
-        return salesData.filter(sale => {
-            const saleDate = new Date(sale.datetime || sale.timestamp || sale.date);
-            return saleDate >= startDate && saleDate <= endDate;
-        });
-    }
-    
-    function changeStatsPeriod() {
-        const period = document.getElementById('statsPeriod').value;
-        currentStatsPeriod = period;
-        
-        const customRange = document.getElementById('statsCustomDateRange');
-        if (period === 'custom') {
-            customRange.style.display = 'flex';
-            const today = new Date();
-            const monthAgo = new Date();
-            monthAgo.setDate(monthAgo.getDate() - 30);
-            document.getElementById('statsStartDate').value = monthAgo.toISOString().split('T')[0];
-            document.getElementById('statsEndDate').value = today.toISOString().split('T')[0];
-            applyStatsCustomDate();
-        } else {
-            customRange.style.display = 'none';
-            if (period === 'all') {
-                loadStatsData(null, null);
-            } else {
-                const range = getStatsDateRange(period);
-                if (range) {
-                    loadStatsData(range.start, range.end);
-                }
-            }
-        }
-    }
-    
-    function applyStatsCustomDate() {
-        const startDate = new Date(document.getElementById('statsStartDate').value);
-        const endDate = new Date(document.getElementById('statsEndDate').value);
-        endDate.setHours(23, 59, 59, 999);
-        loadStatsData(startDate, endDate);
-    }
-    
-    function refreshStats() {
-        if (currentStatsPeriod === 'custom') {
-            applyStatsCustomDate();
-        } else if (currentStatsPeriod === 'all') {
-            loadStatsData(null, null);
-        } else {
-            const range = getStatsDateRange(currentStatsPeriod);
-            if (range) {
-                loadStatsData(range.start, range.end);
-            }
-        }
-    }
-    
-    async function loadStatsData(startDate, endDate) {
-        console.log(`📈 Загружаем статистику работников за период: ${startDate ? startDate.toLocaleDateString() : 'всё время'} - ${endDate ? endDate.toLocaleDateString() : 'всё время'}`);
-        
-        document.getElementById('workersStatsContainer').innerHTML = `
-            <div style="text-align: center; padding: 40px; color: #64748b;">
-                <div class="loading" style="width: 40px; height: 40px; margin: 0 auto 15px;"></div>
-                <h3>Загружаем данные...</h3>
-            </div>
-        `;
-        
-        if (window.dataSync && window.dataSync.loadData) {
-            const allSales = await window.dataSync.loadData('sales');
-            const filteredSales = filterStatsSalesByDate(allSales, startDate, endDate);
-            currentStatsSales = filteredSales;
-            
-            if (typeof displayWorkersStatsPage === 'function') {
-                displayWorkersStatsPage(filteredSales, 
-                    startDate ? startDate.toLocaleDateString() : 'всё время', 
-                    endDate ? endDate.toLocaleDateString() : 'всё время');
-            } else if (typeof generateWorkersStats === 'function') {
-                generateWorkersStats();
-            }
-        } else {
-            const allSales = JSON.parse(localStorage.getItem('sales') || '[]');
-            const filteredSales = filterStatsSalesByDate(allSales, startDate, endDate);
-            currentStatsSales = filteredSales;
-            
-            if (typeof displayWorkersStatsPage === 'function') {
-                displayWorkersStatsPage(filteredSales,
-                    startDate ? startDate.toLocaleDateString() : 'всё время',
-                    endDate ? endDate.toLocaleDateString() : 'всё время');
-            } else if (typeof generateWorkersStats === 'function') {
-                generateWorkersStats();
-            }
-        }
-    }
-    
-    function exportStatsToCSV() {
-        if (!currentStatsSales || currentStatsSales.length === 0) {
-            showNotification('Нет данных для экспорта', 'warning');
-            return;
-        }
-        
-        const workers = JSON.parse(localStorage.getItem('workers') || '[]');
-        const stats = {};
-        
-        currentStatsSales.forEach(sale => {
-            const manager = sale.soldByName || 'Неизвестно';
-            if (!stats[manager]) {
-                stats[manager] = { sales: 0, revenue: 0 };
-            }
-            stats[manager].sales++;
-            stats[manager].revenue += sale.price;
-        });
-        
-        const headers = ['Менеджер', 'Количество продаж', 'Выручка'];
-        const rows = Object.entries(stats).map(([name, data]) => [name, data.sales, data.revenue]);
-        
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-        ].join('\n');
-        
-        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.href = url;
-        link.setAttribute('download', `workers_stats_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        showNotification('Статистика экспортирована! 📁', 'success');
-    }
-    
     document.addEventListener('DOMContentLoaded', function() {
+        // Ждем немного чтобы все загрузилось
         setTimeout(function() {
-            const range = getStatsDateRange('month');
-            if (range) {
-                loadStatsData(range.start, range.end);
+            if (typeof generateWorkersStats === 'function') {
+                console.log('📈 Автоматически загружаем статистику работников...');
+                generateWorkersStats();
             } else {
-                loadStatsData(null, null);
+                console.error('❌ Функция generateWorkersStats не найдена!');
             }
         }, 800);
     });
-    </script>
+</script>
+</body>
+</html>
 </body>
 </html>

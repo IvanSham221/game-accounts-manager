@@ -1,10 +1,12 @@
-
+// discounts.js - исправленный менеджер скидок для работы с Render
 class DiscountsManager {
     constructor() {
         console.log('🆕 Создаем DiscountsManager');
-        this.api = new PSStoreAPI('https://ps-store-api.onrender.com'); 
-        this.cacheDuration = 30 * 60 * 1000;
+        this.api = new PSStoreAPI('https://ps-store-api.onrender.com'); // Используем Render сервер
+        this.cacheDuration = 30 * 60 * 1000; // 30 минут кэш
     }
+
+    // Основная функция проверки
     async checkDiscounts(forceRefresh = false) {
         console.log('🔍 Начинаем проверку скидок');
         
@@ -15,6 +17,8 @@ class DiscountsManager {
             if (myGames.length === 0) {
                 throw new Error('Нет игр для проверки');
             }
+
+            // Подготавливаем список игр для массовой проверки
             const gamesToCheck = [];
             
             myGames.forEach(game => {
@@ -34,10 +38,14 @@ class DiscountsManager {
             });
 
             console.log(`🔄 Проверяем ${gamesToCheck.length} товаров...`);
+
+            // Показываем прогресс
             this.showProgress(0, gamesToCheck.length);
 
             const results = [];
             let gamesWithDiscounts = 0;
+
+            // Используем массовую проверку если API поддерживает
             if (this.api.getBatchGamesInfo) {
                 console.log('🚀 Использую массовую проверку');
                 
@@ -46,6 +54,7 @@ class DiscountsManager {
                 batchResults.forEach((result, index) => {
                     this.showProgress(index + 1, gamesToCheck.length);
                     
+                    // Находим игру по productId
                     const game = myGames.find(g => 
                         g.productIds?.TR === result.productId || 
                         g.productIds?.UA === result.productId
@@ -54,8 +63,11 @@ class DiscountsManager {
                     if (game && result.data) {
                         const discountData = result.data;
                         
+                        // Добавляем в результаты только если есть скидка
                         if (discountData.discount > 0 || discountData.isOnSale) {
                             const formattedData = this.formatDiscountData(discountData, result.region, game);
+                            
+                            // Находим существующий результат для этой игры или создаем новый
                             let gameResult = results.find(r => r.game.id === game.id);
                             if (!gameResult) {
                                 gameResult = {
@@ -77,8 +89,11 @@ class DiscountsManager {
                 });
                 
             } else {
+                // Старый способ - последовательная проверка
                 for (let i = 0; i < gamesToCheck.length; i++) {
                     const item = gamesToCheck[i];
+                    
+                    // Находим игру
                     const game = myGames.find(g => 
                         g.productIds?.TR === item.productId || 
                         g.productIds?.UA === item.productId
@@ -89,8 +104,12 @@ class DiscountsManager {
                         
                         try {
                             const discountData = await this.api.getGameInfo(item.productId, item.region);
+                            
+                            // Добавляем только если есть скидка
                             if (discountData && discountData.discount > 0) {
                                 const formattedData = this.formatDiscountData(discountData, item.region, game);
+                                
+                                // Находим существующий результат или создаем новый
                                 let gameResult = results.find(r => r.game.id === game.id);
                                 if (!gameResult) {
                                     gameResult = {
@@ -110,15 +129,21 @@ class DiscountsManager {
                             console.error(`Ошибка ${game.name} (${item.region}):`, error);
                         }
                         
+                        // Задержка
                         await this.sleep(500);
                     }
                 }
             }
+
+            // Сохраняем результаты
             this.saveResults(results);
+            
+            // Скрываем прогресс
             this.hideProgress();
             
             console.log(`📊 Итог: ${gamesWithDiscounts} игр со скидками`);
             
+            // Отображаем скидки
             this.displayDiscounts(results);
             
             return results;
@@ -126,6 +151,8 @@ class DiscountsManager {
         } catch (error) {
             console.error('❌ Ошибка проверки скидок:', error);
             this.hideProgress();
+            
+            // Показываем сообщение об ошибке
             const container = document.getElementById('discountsList');
             if (container) {
                 container.innerHTML = `
@@ -144,9 +171,11 @@ class DiscountsManager {
         }
     }
 
+    // Проверка скидок для одной игры
     async checkGameDiscounts(game, forceRefresh = false) {
         const result = { TR: null, UA: null };
-
+        
+        // Проверяем Турцию
         if (game.productIds?.TR) {
             try {
                 console.log(`🇹🇷 Проверяем Турцию для ${game.name}`);
@@ -162,6 +191,7 @@ class DiscountsManager {
             }
         }
 
+        // Проверяем Украину
         if (game.productIds?.UA) {
             try {
                 console.log(`🇺🇦 Проверяем Украину для ${game.name}`);
@@ -180,6 +210,7 @@ class DiscountsManager {
         return result;
     }
 
+    // Форматирование данных
     formatDiscountData(apiData, region, game) {
         return {
             name: apiData.name || game.name,
@@ -195,6 +226,7 @@ class DiscountsManager {
         };
     }
 
+    // Функции прогресса
     showProgress(current, total, currentGame = '') {
         const progressEl = document.getElementById('discountsProgress');
         if (!progressEl) return;
@@ -217,15 +249,18 @@ class DiscountsManager {
         if (progressEl) progressEl.style.display = 'none';
     }
 
+    // Сохранение результатов
     saveResults(results) {
         localStorage.setItem('discountsResults', JSON.stringify(results));
         localStorage.setItem('lastDiscountCheck', new Date().toISOString());
     }
 
+    // Отображение скидок
     displayDiscounts(results) {
         const container = document.getElementById('discountsList');
         if (!container) return;
 
+        // Фильтруем только игры со скидками
         const gamesWithDiscounts = results.filter(item => {
             const discounts = item.discounts || {};
             return (discounts.TR && discounts.TR.discount > 0) || 
@@ -245,6 +280,8 @@ class DiscountsManager {
             `;
             return;
         }
+
+        // Сортируем по размеру скидки
         const sortedGames = gamesWithDiscounts.sort((a, b) => {
             const aDiscount = Math.max(
                 a.discounts?.TR?.discount || 0,
@@ -256,6 +293,8 @@ class DiscountsManager {
             );
             return bDiscount - aDiscount;
         });
+
+        // Генерируем HTML
         container.innerHTML = sortedGames.map(item => {
             const game = item.game || {};
             const discounts = item.discounts || {};
@@ -271,6 +310,7 @@ class DiscountsManager {
             return `
                 <div class="discount-card ${maxDiscount >= 70 ? 'high-discount' : ''}">
                     <div style="padding: 20px;">
+                        <!-- Заголовок -->
                         <div style="display: flex; align-items: center; margin-bottom: 20px;">
                             ${game.imageUrl ? `
                                 <img src="${game.imageUrl}" class="game-image" 
@@ -297,7 +337,8 @@ class DiscountsManager {
                                 </div>
                             </div>
                         </div>
-
+                        
+                        <!-- Скидки -->
                         <div style="display: flex; flex-direction: column; gap: 15px;">
                             ${hasTR ? `
                                 <div style="background: #fff5f5; padding: 15px; border-radius: 8px; border-left: 4px solid #dc2626;">
@@ -354,6 +395,7 @@ class DiscountsManager {
                             ` : ''}
                         </div>
                         
+                        <!-- Кнопки -->
                         <div style="display: flex; gap: 10px; margin-top: 20px;">
                             ${trData.url && hasTR ? `
                                 <a href="${trData.url}" target="_blank" style="flex: 1; text-decoration: none;">
@@ -382,6 +424,7 @@ class DiscountsManager {
     }
 }
 
+// Глобальные функции для HTML
 async function updateDiscounts(force = false) {
     try {
         console.log('🔄 Запуск проверки скидок');
@@ -428,13 +471,16 @@ async function updateDiscounts(force = false) {
     }
 }
 
+// Функция уведомления
 function showNotification(message, type = 'info') {
     alert(type === 'error' ? '❌ ' + message : '✅ ' + message);
 }
 
+// Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Страница скидок загружена');
-
+    
+    // Проверяем есть ли игры
     const myGames = JSON.parse(localStorage.getItem('games')) || [];
     console.log(`📂 Игр в базе: ${myGames.length}`);
     
@@ -446,11 +492,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (noGamesAlert) noGamesAlert.style.display = 'block';
         return;
     }
-
+    
+    // Скрываем загрузку если есть
     if (loadingEl) loadingEl.style.display = 'none';
     
+    // Инициализируем менеджер
     window.discountsManager = new DiscountsManager();
     
+    // Загружаем кэшированные данные
     const cachedDiscounts = JSON.parse(localStorage.getItem('discountsResults')) || [];
     const lastCheck = localStorage.getItem('lastDiscountCheck');
     
@@ -458,12 +507,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const lastCheckDate = new Date(lastCheck);
         const now = new Date();
         const diffHours = (now - lastCheckDate) / (1000 * 60 * 60);
+        
+        // Если кэш свежий (< 1 час), показываем его
         if (diffHours < 1) {
             console.log('📦 Использую кэшированные данные');
             window.discountsManager.displayDiscounts(cachedDiscounts);
             return;
         }
     }
+    
+    // Если кэша нет или он устарел, проверяем скидки
     console.log('🔄 Кэш устарел или отсутствует, проверяем скидки...');
     updateDiscounts();
 });

@@ -125,6 +125,7 @@
     </style>
 </head>
 <body>
+    <!-- Мобильное меню -->
     <div id="mobileMenu" class="mobile-menu">
         <div class="mobile-menu-header">
             <div class="user-info-mobile">
@@ -138,6 +139,7 @@
         </div>
         
         <div class="mobile-menu-nav">
+            <!-- Пункты меню будут добавляться скриптом -->
         </div>
         
         <div class="mobile-menu-footer">
@@ -146,6 +148,8 @@
             </button>
         </div>
     </div>
+  
+    <!-- Бургер-кнопка -->
     <div class="burger-container">
         <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
             <div class="burger-icon">
@@ -153,14 +157,20 @@
                 <span></span>
                 <span></span>
             </div>
+            <!-- Бейдж с уведомлениями -->
             <div class="burger-badge" id="menuBadge" style="display: none;">0</div>
+            <!-- Текст при наведении -->
             <div class="burger-label">Меню</div>
         </button>
     </div>
+
+    <!-- Оверлей для закрытия меню -->
     <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
     
     <div class="container">
         <h1><span>👑</span><span>Управление работниками</span></h1>
+        
+        <!-- Форма добавления работника -->
         <div class="section">
             <h2>➕ Добавить работника</h2>
             <div class="form-grid">
@@ -208,6 +218,8 @@
                 </button>
             </div>
         </div>
+
+        <!-- Список работников -->
         <div class="section">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="margin: 0;">📋 Список работников</h2>
@@ -221,6 +233,8 @@
                 <div class="empty">Загрузка работников...</div>
             </div>
         </div>
+        
+        <!-- Инструменты отладки -->
         <div class="section" style="background: #f8f9fa; border: 1px solid #dee2e6;">
             <h3>🛠️ Инструменты отладки</h3>
             
@@ -245,6 +259,8 @@
             </div>
         </div>
     </div>
+    
+    <!-- Кнопка дебага -->
     <div class="debug-panel">
         <button onclick="showDebugInfo()" class="debug-btn">🐛 Дебаг</button>
     </div>
@@ -296,6 +312,8 @@
             </div>
         </div>
     </div>
+
+    <!-- Подключение скриптов -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="firebase.js"></script>
@@ -313,6 +331,8 @@
                 window.location.href = 'login.html';
                 return;
             }
+            
+            // Только администратор может видеть эту страницу
             if (user.role !== 'admin') {
                 document.body.innerHTML = `
                     <div class="container">
@@ -327,20 +347,29 @@
                 `;
                 return;
             }
+            
+            // Инициализация
             initMobileMenu();
             loadWorkers();
             setupWorkersListener();
+            
+            // Начинаем мониторинг
             startWorkersMonitoring();
         });
         
         // ==================== РАБОТНИКИ ====================
         let workers = [];
         let workersListener = null;
+        
+        // Загрузить работников
         function loadWorkers() {
             console.log('🔄 Загружаю работников...');
             
             try {
+                // 1. Пробуем из localStorage
                 const localWorkers = JSON.parse(localStorage.getItem('workers') || '[]');
+                
+                // 2. Если пусто, пробуем загрузить из Firebase
                 if (localWorkers.length === 0 && window.dataSync && window.dataSync.loadData) {
                     console.log('📂 Нет локальных данных, загружаю из Firebase...');
                     window.dataSync.loadData('workers').then(firebaseWorkers => {
@@ -374,6 +403,8 @@
                 `;
             }
         }
+        
+        // Отобразить работников
         function displayWorkers() {
             const workersList = document.getElementById('workersList');
             
@@ -387,6 +418,8 @@
                 `;
                 return;
             }
+            
+            // Получаем статистику продаж для каждого работника
             const sales = JSON.parse(localStorage.getItem('sales') || '[]');
             const workerStats = {};
             
@@ -494,6 +527,8 @@
 
         function fixHashPassword(password) {
     if (!password) return '';
+    
+    // ПРОСТОЙ И СТАБИЛЬНЫЙ хеш
     const salt = '@PSHub_Fixed';
     let hash = 0;
     
@@ -501,15 +536,23 @@
     for (let i = 0; i < salted.length; i++) {
         hash = ((hash << 5) - hash) + salted.charCodeAt(i);
     }
+    
+    // Всегда возвращаем одинаковый результат
     return 'fix_' + Math.abs(hash).toString(36);
 }
+        
+        // Добавить работника
         async function addWorker() {
     console.log('=== НАЧАЛО ДОБАВЛЕНИЯ РАБОТНИКА ===');
+    
+    // Получаем данные из формы
     const name = document.getElementById('workerName').value.trim();
     const username = document.getElementById('workerLogin').value.trim().toLowerCase();
     const password = document.getElementById('workerPassword').value;
     const confirmPassword = document.getElementById('workerConfirmPassword').value;
     const active = document.getElementById('workerActive').checked;
+    
+    // 1. Валидация полей
     if (!name || !username || !password) {
         showDebugInfo('❌ Заполните все поля!', 'error');
         return;
@@ -524,30 +567,44 @@
         showDebugInfo('❌ Пароль должен быть минимум 4 символа!', 'error');
         return;
     }
+    
+    // Проверяем уникальность логина
     if (workers.find(w => w.username === username)) {
         showDebugInfo('❌ Работник с таким логином уже существует!', 'error');
         return;
     }
+    
+    // Проверяем системные логины
     if (username === 'admin' || username === 'ivan' || username === 'administrator') {
         showDebugInfo('❌ Этот логин зарезервирован!', 'error');
         return;
     }
+    
+    // Проверяем права
     const currentUser = security.getCurrentUser();
     if (!currentUser || currentUser.role !== 'admin') {
         showDebugInfo('❌ Только администратор может добавлять работников!', 'error');
         return;
     }
+    
+    // ФИКСИРОВАННАЯ функция хеширования - ВСЕГДА одинаковый результат
     function fixedHashPassword(password) {
         if (!password) return '';
+        
+        // Простой и стабильный алгоритм
         const salt = '@PSHub_Fixed_Salt_2025';
         let hash = 0;
+        
+        // Добавляем соль ДО пароля (это важно!)
         const saltedPassword = salt + password;
         
         for (let i = 0; i < saltedPassword.length; i++) {
             const charCode = saltedPassword.charCodeAt(i);
             hash = ((hash << 5) - hash) + charCode;
-            hash = Math.abs(hash & hash); 
+            hash = Math.abs(hash & hash); // Делаем положительным
         }
+        
+        // Всегда одинаковый формат
         return 'pshub_' + hash.toString(36) + '_' + password.length;
     }
     
@@ -555,17 +612,21 @@
     console.log('Оригинальный пароль:', password);
     const passwordHash = fixedHashPassword(password);
     console.log('Хеш пароля:', passwordHash);
+    
+    // Проверяем что хеш стабильный
     const testHash = fixedHashPassword(password);
     if (passwordHash !== testHash) {
         console.error('❌ ОШИБКА: Хеш нестабильный!');
         showDebugInfo('❌ Ошибка системы безопасности!', 'error');
         return;
     }
+    
+    // Создаем работника с ВСЕМИ необходимыми полями
     const newWorker = {
         id: Date.now(),
         name: name,
         username: username,
-        password: passwordHash, 
+        password: passwordHash, // ← ИСПРАВЛЕННЫЙ хеш!
         role: 'worker',
         active: active,
         created: new Date().toLocaleDateString('ru-RU'),
@@ -573,12 +634,16 @@
         timestamp: new Date().toISOString(),
         lastUpdated: new Date().toISOString(),
         lastLogin: null,
+        
+        // Дополнительные поля для совместимости
         permissions: {
             canSell: true,
             canViewAccounts: true,
             canAddComments: true,
             canViewReports: true
         },
+        
+        // Информация для отладки
         passwordSet: true,
         hashMethod: 'fixed_v1',
         originalPasswordLength: password.length
@@ -590,17 +655,28 @@
         passwordLength: password.length,
         hash: passwordHash.substring(0, 20) + '...'
     });
+    
+    // 2. Проверяем что пароль можно проверить
     console.log('🧪 Тестирую проверку пароля...');
     const testLogin = security.validateLogin(username, password);
     console.log('Результат теста входа:', testLogin);
+    
+    // 3. Добавляем в массив
     workers.push(newWorker);
+    
+    // 4. Сохраняем в localStorage
     localStorage.setItem('workers', JSON.stringify(workers));
     console.log('✅ Сохранено в localStorage, теперь работников:', workers.length);
+    
+    // 5. Сохраняем в Firebase
     try {
         const db = firebase.database();
+        
+        // Сохраняем отдельного работника
         await db.ref('workers/' + username).set(newWorker);
         console.log('✅ Работник сохранен в Firebase под ключом:', username);
         
+        // Также сохраняем весь массив для надежности
         const workersObj = {};
         workers.forEach(w => {
             workersObj[w.username] = w;
@@ -611,6 +687,8 @@
         
         showDebugInfo(`✅ Работник "${name}" успешно добавлен! 👷`, 'success');
         showDebugInfo(`Логин: <strong>${username}</strong> | Пароль: <strong>${password}</strong>`, 'info');
+        
+        // Тест входа через 2 секунды
         setTimeout(() => {
             console.log('🧪 Авто-тест входа...');
             const autoTest = security.validateLogin(username, password);
@@ -629,21 +707,28 @@
         showDebugInfo(`Логин: ${username} | Пароль: ${password}`, 'info');
     }
     
+    // 6. Очищаем форму
     document.getElementById('workerName').value = '';
     document.getElementById('workerLogin').value = '';
     document.getElementById('workerPassword').value = '';
     document.getElementById('workerConfirmPassword').value = '';
     
+    // 7. Обновляем список
     displayWorkers();
+    
+    // 8. Мониторинг сохранности
     monitorWorkerPresence(username, name, password);
     
+    // 9. Создаем кнопку быстрого теста
     createTestButton(username, password);
 }
 
 function createTestButton(username, password) {
+    // Удаляем старую кнопку если есть
     const oldButton = document.getElementById('testLoginButton');
     if (oldButton) oldButton.remove();
     
+    // Создаем новую кнопку
     const testButton = document.createElement('button');
     testButton.id = 'testLoginButton';
     testButton.className = 'btn btn-success';
@@ -661,12 +746,14 @@ function createTestButton(username, password) {
     testButton.onclick = function() {
         console.log('🧪 Ручной тест входа...');
         
+        // Пробуем войти
         const result = security.validateLogin(username, password);
         console.log('Результат:', result);
         
         if (result.success) {
             showDebugInfo('✅ ВХОД УСПЕШЕН! Работник может войти в систему.', 'success');
             
+            // Предлагаем сразу войти
             if (confirm(`Успешный тест!\n\nХотите войти как "${result.user.name}"?`)) {
                 security.startSession(result.user);
                 window.location.href = 'manager.html';
@@ -674,6 +761,7 @@ function createTestButton(username, password) {
         } else {
             showDebugInfo(`❌ ОШИБКА ВХОДА: ${result.error || 'Неизвестная ошибка'}`, 'error');
             
+            // Показываем детали для отладки
             const workers = JSON.parse(localStorage.getItem('workers') || '[]');
             const worker = workers.find(w => w.username === username);
             
@@ -687,6 +775,7 @@ function createTestButton(username, password) {
     
     document.body.appendChild(testButton);
     
+    // Автоудаление через 2 минуты
     setTimeout(() => {
         if (testButton.parentNode) {
             testButton.remove();
@@ -703,8 +792,10 @@ function fixAllWorkersPasswords() {
     let fixedCount = 0;
     
     workers.forEach(worker => {
+        // Пропускаем администраторов
         if (worker.role === 'admin') return;
         
+        // Исправляем пароль
         worker.password = fixedHashPassword('1234');
         worker.passwordFixed = true;
         worker.fixedAt = new Date().toISOString();
@@ -714,16 +805,20 @@ function fixAllWorkersPasswords() {
     
     localStorage.setItem('workers', JSON.stringify(workers));
     
+    // Синхронизируем с Firebase
     if (firebase) {
         const workersObj = {};
         workers.forEach(w => workersObj[w.username] = w);
         firebase.database().ref('workers').set(workersObj);
     }
+    
+    // Обновляем список
     workers = workers;
     displayWorkers();
     
     showDebugInfo(`✅ Исправлено ${fixedCount} работников!\nТеперь все могут войти с паролем: 1234`, 'success');
     
+    // Создаем список для вывода
     let workerList = '';
     workers.forEach(w => {
         if (w.passwordFixed) {
@@ -733,6 +828,8 @@ function fixAllWorkersPasswords() {
     
     alert(`Пароли исправлены!\n\n${workerList}\nТеперь работники могут войти в систему.`);
 }
+        
+        // Изменить статус работника
         async function toggleWorker(username, active) {
             if (!confirm(`${active ? 'Активировать' : 'Деактивировать'} работника?`)) {
                 return;
@@ -747,7 +844,11 @@ function fixAllWorkersPasswords() {
             
             workers[workerIndex].active = active;
             workers[workerIndex].lastUpdated = new Date().toISOString();
+            
+            // Сохраняем локально
             localStorage.setItem('workers', JSON.stringify(workers));
+            
+            // Сохраняем в Firebase
             try {
                 await firebase.database().ref('workers/' + username).update({
                     active: active,
@@ -763,6 +864,8 @@ function fixAllWorkersPasswords() {
                 displayWorkers();
             }
         }
+        
+        // Сбросить пароль работника
         function resetWorkerPassword(username) {
             const worker = workers.find(w => w.username === username);
             if (!worker) return;
@@ -779,7 +882,11 @@ function fixAllWorkersPasswords() {
                 
                 workers[workerIndex].password = security.hashPassword(newPassword);
                 workers[workerIndex].lastUpdated = new Date().toISOString();
+                
+                // Сохраняем локально
                 localStorage.setItem('workers', JSON.stringify(workers));
+                
+                // Сохраняем в Firebase
                 firebase.database().ref('workers/' + username).update({
                     password: security.hashPassword(newPassword),
                     lastUpdated: new Date().toISOString()
@@ -793,6 +900,8 @@ function fixAllWorkersPasswords() {
                 });
             }
         }
+        
+        // Удалить работника
         async function deleteWorker(username) {
             const worker = workers.find(w => w.username === username);
             if (!worker) return;
@@ -805,8 +914,14 @@ function fixAllWorkersPasswords() {
             if (!confirm(`Удалить работника "${worker.name}"?\nЭто действие нельзя отменить.`)) {
                 return;
             }
+            
+            // Удаляем из массива
             workers = workers.filter(w => w.username !== username);
+            
+            // Сохраняем локально
             localStorage.setItem('workers', JSON.stringify(workers));
+            
+            // Удаляем из Firebase
             try {
                 await firebase.database().ref('workers/' + username).remove();
                 showDebugInfo(`✅ Работник "${worker.name}" удален!`, 'success');
@@ -818,6 +933,8 @@ function fixAllWorkersPasswords() {
                 displayWorkers();
             }
         }
+        
+        // Обновить список работников
         function refreshWorkers() {
             console.log('🔄 Принудительное обновление работников...');
             
@@ -841,7 +958,7 @@ function fixAllWorkersPasswords() {
             }
         }
         
-        // ==================== ОБНОВИТЬ ИМЯ В ПРОДАЖАХ ====================
+        // ==================== НОВАЯ ФУНКЦИЯ: ОБНОВИТЬ ИМЯ В ПРОДАЖАХ ====================
         function refreshManagerNameInSales(username, newName) {
             if (!confirm(`Обновить имя "${newName}" во всех продажах этого работника?\n\nЭто затронет все продажи, где указан этот работник.`)) {
                 return;
@@ -849,8 +966,11 @@ function fixAllWorkersPasswords() {
             
             showDebugInfo(`🔄 Начинаю обновление имени "${newName}" для всех продаж...`, 'info');
             
+            // Получаем продажи
             let sales = JSON.parse(localStorage.getItem('sales') || '[]');
             let updated = 0;
+            
+            // Обновляем имя во всех продажах этого работника
             sales.forEach(sale => {
                 if (sale.soldBy === username) {
                     if (sale.soldByName !== newName) {
@@ -864,11 +984,16 @@ function fixAllWorkersPasswords() {
                 showDebugInfo(`ℹ️ Нет продаж для обновления (имя уже ${newName} или нет продаж)`, 'info');
                 return;
             }
+            
+            // Сохраняем локально
             localStorage.setItem('sales', JSON.stringify(sales));
             
+            // Обновляем глобальную переменную
             if (typeof window.sales !== 'undefined') {
                 window.sales = sales;
             }
+            
+            // Синхронизируем с Firebase
             if (typeof firebase !== 'undefined' && firebase.database) {
                 const db = firebase.database();
                 const salesObj = {};
@@ -877,6 +1002,7 @@ function fixAllWorkersPasswords() {
                 db.ref('sales').set(salesObj).then(() => {
                     showDebugInfo(`✅ Обновлено ${updated} продаж! Данные синхронизированы с Firebase.`, 'success');
                     
+                    // Предлагаем перезагрузить страницу менеджера
                     if (confirm(`Обновлено ${updated} продаж!\n\nПерезагрузить страницу менеджера, чтобы увидеть изменения?`)) {
                         window.location.href = 'manager.html';
                     }
@@ -898,6 +1024,8 @@ function fixAllWorkersPasswords() {
         }
         
         // ==================== ИНСТРУМЕНТЫ ОТЛАДКИ ====================
+        
+        // Принудительная синхронизация
         async function forceSyncWorkers() {
             showDebugInfo('🔄 Начинаю принудительную синхронизацию...', 'info');
             
@@ -916,6 +1044,8 @@ function fixAllWorkersPasswords() {
                 showDebugInfo(`❌ Ошибка: ${error.message}`, 'error');
             }
         }
+        
+        // Проверить статус
         function checkWorkersStatus() {
             const localCount = workers.length;
             
@@ -938,6 +1068,8 @@ function fixAllWorkersPasswords() {
                 showDebugInfo(`❌ Ошибка проверки Firebase: ${error.message}`, 'error');
             });
         }
+        
+        // Создать бэкап
         function backupWorkers() {
             const backup = {
                 date: new Date().toISOString(),
@@ -954,6 +1086,8 @@ function fixAllWorkersPasswords() {
             
             showDebugInfo(`✅ Бэкап создан (${workers.length} работников)`, 'success');
         }
+        
+        // Показать информацию отладки
         function showDebugInfo(message, type = 'info') {
             const debugInfo = document.getElementById('debugInfo');
             const time = new Date().toLocaleTimeString();
@@ -970,6 +1104,8 @@ function fixAllWorkersPasswords() {
                 </div>
                 ${debugInfo.innerHTML}
             `;
+            
+            // Автоочистка через 30 секунд
             setTimeout(() => {
                 const divs = debugInfo.querySelectorAll('div');
                 if (divs.length > 10) {
@@ -977,17 +1113,23 @@ function fixAllWorkersPasswords() {
                 }
             }, 30000);
         }
+        
+        // Мониторинг сохранности работника
         function monitorWorkerPresence(username, name, password) {
     console.log(`👁️ Начинаю мониторинг работника ${username}...`);
     
     let checks = 0;
-    const maxChecks = 15; 
+    const maxChecks = 15; // 30 секунд (15 * 2 секунды)
     const testPassword = password;
     
     const interval = setInterval(() => {
         checks++;
+        
+        // Проверяем наличие в localStorage
         const currentWorkers = JSON.parse(localStorage.getItem('workers') || '[]');
         const existsLocally = currentWorkers.find(w => w.username === username);
+        
+        // Проверяем возможность входа
         const canLogin = security.validateLogin(username, testPassword).success;
         
         console.log(`[${checks}] ${username}:`);
@@ -997,6 +1139,8 @@ function fixAllWorkersPasswords() {
         if (!existsLocally) {
             console.error(`🚨 РАБОТНИК ${username} ПРОПАЛ ИЗ LOCALSTORAGE!`);
             showDebugInfo(`🚨 "${name}" пропал из localStorage!`, 'error');
+            
+            // Пытаемся восстановить
             if (workers.find(w => w.username === username)) {
                 localStorage.setItem('workers', JSON.stringify(workers));
                 console.log('🔄 Работник восстановлен из памяти');
@@ -1005,6 +1149,8 @@ function fixAllWorkersPasswords() {
         
         if (!canLogin) {
             console.warn(`⚠️ Невозможно войти под ${username}`);
+            
+            // Проверяем хеш
             const worker = currentWorkers.find(w => w.username === username);
             if (worker) {
                 console.log('  Хеш в базе:', worker.password);
@@ -1015,6 +1161,8 @@ function fixAllWorkersPasswords() {
         if (checks >= maxChecks) {
             clearInterval(interval);
             console.log('👁️ Мониторинг завершен');
+            
+            // Финальный тест
             const finalTest = security.validateLogin(username, testPassword);
             if (finalTest.success) {
                 showDebugInfo(`🎉 Работник "${name}" полностью готов к использованию!`, 'success');
@@ -1024,7 +1172,10 @@ function fixAllWorkersPasswords() {
         }
     }, 2000);
 }
+        
+        // Начать мониторинг работников
         function startWorkersMonitoring() {
+            // Мониторим изменения каждые 5 секунд
             setInterval(() => {
                 const currentWorkers = JSON.parse(localStorage.getItem('workers') || '[]');
                 const currentCount = currentWorkers.length;
@@ -1033,6 +1184,7 @@ function fixAllWorkersPasswords() {
                     console.log(`📈 Изменение количества работников: было ${workers.length}, стало ${currentCount}`);
                     
                     if (currentCount < workers.length) {
+                        // Кто-то пропал
                         const lostWorkers = workers.filter(w => 
                             !currentWorkers.find(cw => cw.username === w.username)
                         );
@@ -1042,33 +1194,47 @@ function fixAllWorkersPasswords() {
                             showDebugInfo(`🚨 Потеряно ${lostWorkers.length} работников!`, 'error');
                         }
                     }
+                    
+                    // Обновляем наш массив
                     workers = currentWorkers;
                 }
             }, 5000);
         }
+        
+        // Настроить слушатель работников
         function setupWorkersListener() {
             try {
+                // Отключаем старый слушатель если есть
                 if (workersListener) {
                     firebase.database().ref('workers').off('value', workersListener);
                 }
+                
+                // Включаем новый слушатель с задержкой
                 workersListener = firebase.database().ref('workers').on('value', (snapshot) => {
                     console.log('👂 Firebase слушатель сработал');
+                    
+                    // Добавляем задержку 5 секунд
                     setTimeout(() => {
                         if (snapshot.exists()) {
                             const workersObj = snapshot.val();
                             const firebaseWorkers = Object.values(workersObj || {});
                             
                             console.log(`🔄 Получено ${firebaseWorkers.length} работников из Firebase`);
+                            
+                            // Объединяем данные вместо замены
                             const localWorkers = JSON.parse(localStorage.getItem('workers') || '[]');
                             const mergedWorkers = mergeWorkers(localWorkers, firebaseWorkers);
-
+                            
+                            // Сохраняем объединенный список
                             localStorage.setItem('workers', JSON.stringify(mergedWorkers));
                             workers = mergedWorkers;
+                            
+                            // Обновляем UI
                             displayWorkers();
                             
                             showDebugInfo(`🔄 Синхронизировано ${mergedWorkers.length} работников`, 'info');
                         }
-                    }, 5000); 
+                    }, 5000); // Задержка 5 секунд
                 });
                 
                 console.log('✅ Слушатель работников настроен (с задержкой)');
@@ -1077,18 +1243,25 @@ function fixAllWorkersPasswords() {
                 console.error('❌ Ошибка настройки слушателя:', error);
             }
         }
+        
+        // Объединить работников
         function mergeWorkers(localWorkers, firebaseWorkers) {
             const workerMap = new Map();
+            
+            // Добавляем локальных работников
             localWorkers.forEach(worker => {
                 if (worker.username) {
                     workerMap.set(worker.username, worker);
                 }
             });
+            
+            // Добавляем/обновляем из Firebase
             firebaseWorkers.forEach(fbWorker => {
                 if (fbWorker.username) {
                     const existingWorker = workerMap.get(fbWorker.username);
                     
                     if (existingWorker) {
+                        // Объединяем, сохраняя локальные пароли
                         workerMap.set(fbWorker.username, {
                             ...fbWorker,
                             password: existingWorker.password || fbWorker.password,
@@ -1096,6 +1269,7 @@ function fixAllWorkersPasswords() {
                             lastSynced: new Date().toISOString()
                         });
                     } else {
+                        // Добавляем нового
                         workerMap.set(fbWorker.username, {
                             ...fbWorker,
                             lastSynced: new Date().toISOString()
@@ -1106,6 +1280,8 @@ function fixAllWorkersPasswords() {
             
             return Array.from(workerMap.values());
         }
+        
+        // Показать детальную информацию отладки
         function showDebugInfo() {
             console.log('=== DEBUG ИНФОРМАЦИЯ ===');
             console.log('Количество работников:', workers.length);
@@ -1193,7 +1369,10 @@ function fixAllWorkersPasswords() {
         
         // ==================== РЕДАКТИРОВАНИЕ РАБОТНИКА ====================
 
+        // Переменная для хранения текущего редактируемого работника
         let currentEditingWorker = null;
+
+        // Открыть модальное окно редактирования
         function editWorker(username) {
             const worker = workers.find(w => w.username === username);
             
@@ -1203,13 +1382,19 @@ function fixAllWorkersPasswords() {
             }
             
             currentEditingWorker = username;
+            
+            // Заполняем форму
             document.getElementById('editWorkerName').value = worker.name || '';
             document.getElementById('editWorkerUsername').value = worker.username;
             document.getElementById('editWorkerPassword').value = '';
             document.getElementById('editWorkerRole').value = worker.role || 'worker';
             document.getElementById('editWorkerActive').checked = worker.active !== false;
+            
+            // Открываем модальное окно
             document.getElementById('editWorkerModal').style.display = 'block';
         }
+
+        // Закрыть модальное окно
         function closeEditWorkerModal() {
             document.getElementById('editWorkerModal').style.display = 'none';
             currentEditingWorker = null;
@@ -1236,8 +1421,12 @@ function fixAllWorkersPasswords() {
                 showDebugInfo('❌ Введите имя работника', 'warning');
                 return;
             }
+            
+            // Запоминаем старое имя
             const oldName = workers[workerIndex].name;
             const username = workers[workerIndex].username;
+            
+            // Обновляем данные работника
             const updatedWorker = {
                 ...workers[workerIndex],
                 name: newName,
@@ -1258,6 +1447,8 @@ function fixAllWorkersPasswords() {
             
             workers[workerIndex] = updatedWorker;
             localStorage.setItem('workers', JSON.stringify(workers));
+            
+            // ===== МАССОВОЕ ОБНОВЛЕНИЕ ПРОДАЖ =====
             showDebugInfo(`🔄 Обновляю имя в продажах для ${username}...`, 'info');
             
             const sales = JSON.parse(localStorage.getItem('sales') || '[]');
@@ -1277,19 +1468,29 @@ function fixAllWorkersPasswords() {
             } else {
                 showDebugInfo(`ℹ️ Нет продаж для обновления`, 'info');
             }
+            
+            // Синхронизация с Firebase
             try {
                 const db = firebase.database();
+                
+                // Обновляем работника
                 await db.ref('workers/' + username).set(updatedWorker);
+                
+                // Обновляем все продажи
                 if (updatedCount > 0) {
                     const salesObj = {};
                     sales.forEach(s => { salesObj[s.id] = s; });
                     await db.ref('sales').set(salesObj);
                 }
+                
+                // Обновляем весь объект работников
                 const workersObj = {};
                 workers.forEach(w => workersObj[w.username] = w);
                 await db.ref('workers').set(workersObj);
                 
                 showDebugInfo(`✅ Данные синхронизированы с Firebase`, 'success');
+                
+                // Обновляем текущего пользователя если редактируем себя
                 const currentUser = security.getCurrentUser();
                 if (currentUser && currentUser.username === username) {
                     const updatedUser = { ...currentUser, name: newName, role: newRole };
@@ -1303,6 +1504,8 @@ function fixAllWorkersPasswords() {
                 displayWorkers();
                 
                 showDebugInfo(`🎉 Работник "${newName}" успешно обновлен! Обновлено ${updatedCount} продаж.`, 'success');
+                
+                // Перезагружаем страницу менеджера если она открыта
                 setTimeout(() => {
                     if (window.location.pathname.includes('manager.html')) {
                         location.reload();
@@ -1316,10 +1519,16 @@ function fixAllWorkersPasswords() {
                 displayWorkers();
             }
         }
+        
+        // Обновить имя менеджера во всех продажах
         async function updateManagerNameInSales(username, oldName, newName) {
             console.log(`🔄 Обновляю имя менеджера "${oldName}" -> "${newName}" для всех продаж...`);
+            
+            // Загружаем продажи
             const sales = JSON.parse(localStorage.getItem('sales') || '[]');
             let updated = 0;
+            
+            // Обновляем имя во всех продажах этого менеджера
             sales.forEach(sale => {
                 if (sale.soldBy === username && sale.soldByName === oldName) {
                     sale.soldByName = newName;
@@ -1330,9 +1539,13 @@ function fixAllWorkersPasswords() {
             if (updated > 0) {
                 console.log(`✅ Обновлено ${updated} продаж`);
                 localStorage.setItem('sales', JSON.stringify(sales));
+                
+                // Обновляем глобальную переменную если она есть
                 if (typeof window.sales !== 'undefined') {
                     window.sales = sales;
                 }
+                
+                // Синхронизируем с Firebase
                 try {
                     const db = firebase.database();
                     const salesObj = {};
@@ -1346,12 +1559,16 @@ function fixAllWorkersPasswords() {
             
             return updated;
         }
+        
+        // Принудительно обновить имя менеджера во всех продажах
         function forceUpdateManagerNameInAllSales(username, newName) {
             console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ИМЕНИ');
             
             // Получаем продажи
             let sales = JSON.parse(localStorage.getItem('sales') || '[]');
             let changed = 0;
+            
+            // Проходим по всем продажам
             for (let i = 0; i < sales.length; i++) {
                 if (sales[i].soldBy === username) {
                     console.log(`Меняю: ${sales[i].soldByName} -> ${newName}`);
@@ -1361,10 +1578,15 @@ function fixAllWorkersPasswords() {
             }
             
             if (changed > 0) {
+                // Сохраняем
                 localStorage.setItem('sales', JSON.stringify(sales));
+                
+                // Обновляем глобальную переменную
                 if (typeof window.sales !== 'undefined') {
                     window.sales = sales;
                 }
+                
+                // Синхронизируем с Firebase
                 if (typeof firebase !== 'undefined' && firebase.database) {
                     const db = firebase.database();
                     const salesObj = {};

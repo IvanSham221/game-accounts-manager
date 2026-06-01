@@ -20,6 +20,7 @@
     </div>
     
     <div class="mobile-menu-nav">
+        <!-- Пункты меню будут добавляться скриптом -->
     </div>
     
     <div class="mobile-menu-footer">
@@ -28,6 +29,8 @@
         </button>
     </div>
 </div>
+
+<!-- Бургер-кнопка -->
 <div class="burger-container">
     <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
         <div class="burger-icon">
@@ -35,18 +38,25 @@
             <span></span>
             <span></span>
         </div>
+        <!-- Опционально: бейдж с уведомлениями -->
         <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
+        <!-- Текст при наведении (только на ПК) -->
         <div class="burger-label">Меню</div>
     </button>
 </div>
+
+<!-- Оверлей для закрытия меню -->
 <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
     <div class="container">
-        <h1><span>👨‍💼</span><span>Александр Владимирович - лучший</span></h1>
+        <h1><span>👨‍💼</span><span>Месси позор общества</span></h1>
+        
+        <!-- ========== КНОПКА СВОБОДНОЙ ПРОДАЖИ ========== -->
         <div style="margin-bottom: 20px; text-align: right;">
             <button onclick="openFreeSaleModal()" class="btn" style="background: #f97316; color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer;">
                 🆓 Свободная продажа
             </button>
         </div>
+        <!-- ========== КОНЕЦ КНОПКИ ========== -->
         
         <div class="section">
     <h2>🎯 Поиск аккаунтов</h2>
@@ -66,6 +76,8 @@
                 </button>
             </div>
         </div>
+        
+        <!-- Старое поле для поиска по логину скрываем -->
         <div class="search-group" style="display: none;">
             <label>Поиск по логину:</label>
             <input type="text" id="managerLogin" placeholder="Введите логин PSN..." class="input">
@@ -104,6 +116,8 @@
         <div id="editForm" class="form-grid"></div>
     </div>
 </div>
+
+<!-- ========== МОДАЛЬНОЕ ОКНО СВОБОДНОЙ ПРОДАЖИ ========== -->
 <div id="freeSaleModal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
         <span class="close" onclick="closeFreeSaleModal()">&times;</span>
@@ -160,6 +174,7 @@
         </div>
     </div>
 </div>
+<!-- ========== КОНЕЦ МОДАЛЬНОГО ОКНА ========== -->
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>

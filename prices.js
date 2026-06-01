@@ -1,3 +1,4 @@
+// prices.js - РАБОЧАЯ ВЕРСИЯ БЕЗ ПИЗДЕЦА
 class PricesManager {
     constructor() {
         this.gamePrices = [];
@@ -100,6 +101,8 @@ class PricesManager {
         const hasPS4 = (price.prices.p2_ps4 || 0) > 0 || (price.prices.p3_ps4 || 0) > 0;
         const hasPS5 = (price.prices.p2_ps5 || 0) > 0 || (price.prices.p3_ps5 || 0) > 0;
         const languageDisplay = this.languageNames[price.language] || 'Не указан';
+        
+        // ВАЖНО: Используем price.id для всех кнопок
         const priceId = price.id.toString();
         
         return `
@@ -333,20 +336,27 @@ class PricesManager {
         
         container.innerHTML = html;
     }
+
+    // ДОБАВЬТЕ ЭТОТ МЕТОД В КЛАСС PricesManager
 async refreshFromFirebase() {
     console.log('💰 Обновление ценников из Firebase...');
     
     try {
+        // Загружаем актуальные данные из localStorage (они уже синхронизированы firebase.js)
         const savedPrices = localStorage.getItem('gamePrices');
         
         if (savedPrices) {
             this.gamePrices = JSON.parse(savedPrices);
             console.log(`💰 Загружено ${this.gamePrices.length} ценников из синхронизации`);
+            
+            // Обновляем отображение
             this.displayPrices();
             this.updateStats();
             
             showNotification('Ценники синхронизированы! ✅', 'success');
         }
+        
+        // Обновляем селект игр (на случай, если добавили новую игру)
         this.loadGameSelect();
         
     } catch (error) {
@@ -371,6 +381,8 @@ async refreshFromFirebase() {
             showNotification('Игра не найдена', 'error');
             return;
         }
+        
+        // Проверяем дубликаты
         const existing = this.gamePrices.find(p => 
             p.gameId === gameId && p.language === gameLanguage.value
         );
@@ -378,6 +390,8 @@ async refreshFromFirebase() {
             showNotification('Эта игра с таким языком уже есть', 'error');
             return;
         }
+        
+        // Собираем цены
         const prices = { p2_ps4: 0, p3_ps4: 0, p2_ps5: 0, p3_ps5: 0 };
         
         if (positionCount === '4') {
@@ -392,12 +406,16 @@ async refreshFromFirebase() {
             prices.p2_ps5 = parseInt(document.getElementById('priceP2PS5').value) || 0;
             prices.p3_ps5 = parseInt(document.getElementById('priceP3PS5').value) || 0;
         }
+        
+        // Проверяем что есть хотя бы одна цена
         if (!prices.p2_ps4 && !prices.p3_ps4 && !prices.p2_ps5 && !prices.p3_ps5) {
             showNotification('Укажите хотя бы одну цену', 'warning');
             return;
         }
+        
+        // СОЗДАЕМ ЦЕННИК С ПРАВИЛЬНЫМ ID
         const newPrice = {
-            id: Date.now().toString(), 
+            id: Date.now().toString(), // ВАЖНО: строка, не число!
             gameId: gameId,
             name: game.name,
             language: gameLanguage.value,
@@ -410,6 +428,8 @@ async refreshFromFirebase() {
         
         this.gamePrices.push(newPrice);
         await this.saveData();
+        
+        // Очищаем форму
         gameSelect.value = '';
         this.loadGameSelect();
         this.displayPrices();
@@ -422,6 +442,8 @@ async refreshFromFirebase() {
     editPrice(priceId) {
         console.log('EDIT ID:', priceId, 'Type:', typeof priceId);
         console.log('All prices:', this.gamePrices);
+        
+        // Ищем по строке, потому что все ID хранятся как строки
         const price = this.gamePrices.find(p => p.id.toString() === priceId.toString());
         
         if (!price) {
@@ -640,6 +662,8 @@ async refreshFromFirebase() {
         }
     }
 }
+
+// Глобальные функции
 function toggleAddGameForm() {
     const formSection = document.getElementById('addGameFormSection');
     formSection.style.display = formSection.style.display === 'none' ? 'block' : 'none';
@@ -692,11 +716,15 @@ function showAllPrices() {
         if (allBtn) allBtn.classList.add('active');
     }
 }
+
+// ГЛОБАЛЬНАЯ ФУНКЦИЯ ДЛЯ ВЫЗОВА ИЗ FIREBASE.JS
 window.refreshPricesFromFirebase = function() {
     if (window.pricesManager) {
         window.pricesManager.refreshFromFirebase();
     }
 };
+
+// Инициализация
 document.addEventListener('DOMContentLoaded', function() {
     if (!window.pricesManager) {
         window.pricesManager = new PricesManager();

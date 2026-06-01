@@ -1,24 +1,38 @@
+// procurement.js - логика для страницы закупа
+
 let gamesStats = [];
-let criticalThreshold = 2; 
+let criticalThreshold = 2; // Порог критичности (меньше этого числа - критично)
+
+// Инициализация страницы
 document.addEventListener('DOMContentLoaded', function() {
     if (!security || !security.isSessionValid()) {
         window.location.href = 'login.html';
         return;
     }
+    
+    // Обновляем навигацию
     updateNavigation();
+    
+    // Инициализируем мобильное меню
     initMobileMenu();
+    
+    // Загружаем данные и обновляем статистику
     loadAllDataWithSync().then(() => {
         calculateProcurementStats();
         displayCriticalPositions();
     });
 });
+
+// Новая функция для анализа тренда продаж
 function analyzeSalesTrend(gameId, positionType) {
     const gameSales = sales.filter(sale => {
         const account = accounts.find(acc => acc.id === sale.accountId);
         return account && account.gameId === gameId && sale.positionType === positionType;
     });
     
-    if (gameSales.length < 5) return null;
+    if (gameSales.length < 5) return null; // Мало данных для анализа
+    
+    // Группируем продажи по неделям
     const weeklySales = {};
     gameSales.forEach(sale => {
         const date = new Date(sale.datetime || sale.timestamp);
@@ -32,9 +46,13 @@ function analyzeSalesTrend(gameId, positionType) {
         weeklySales[key].revenue += sale.price;
         weeklySales[key].dates.push(date);
     });
+    
+    // Сортируем недели
     const sortedWeeks = Object.keys(weeklySales).sort();
     
-    if (sortedWeeks.length < 3) return null;
+    if (sortedWeeks.length < 3) return null; // Нужно минимум 3 недели для тренда
+    
+    // Рассчитываем тренд (простой линейный)
     const salesByWeek = sortedWeeks.map(week => weeklySales[week].count);
     const trend = calculateLinearTrend(salesByWeek);
     
@@ -44,11 +62,13 @@ function analyzeSalesTrend(gameId, positionType) {
             sales: weeklySales[week].count,
             revenue: weeklySales[week].revenue
         })),
-        trend: trend, 
-        confidence: Math.min(100, sortedWeeks.length * 20), 
+        trend: trend, // в процентах роста/падения в неделю
+        confidence: Math.min(100, sortedWeeks.length * 20), // уровень уверенности
         totalWeeks: sortedWeeks.length
     };
 }
+
+// Вспомогательная функция для расчета линейного тренда
 function calculateLinearTrend(data) {
     if (data.length < 2) return 0;
     
@@ -64,8 +84,12 @@ function calculateLinearTrend(data) {
     
     const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
     const avgY = sumY / n;
+    
+    // Процент изменения за период
     return avgY !== 0 ? (slope * (n - 1) / avgY) * 100 : 0;
 }
+
+// Функция для получения номера недели
 function getWeekNumber(date) {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
     const dayNum = d.getUTCDay() || 7;
@@ -73,8 +97,12 @@ function getWeekNumber(date) {
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
     return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
+
+// В функции calculateProcurementStats() обновим расчет скорости продаж:
 function calculateProcurementStats() {
     gamesStats = [];
+    
+    // Для каждой игры считаем статистику
     games.forEach(game => {
         const gameAccounts = accounts.filter(acc => acc.gameId === game.id);
         
@@ -96,15 +124,18 @@ function calculateProcurementStats() {
             },
             purchaseAmount: 0,
             revenue: 0,
+            // Новые метрики с улучшенным расчетом
             salesLast30Days: 0,
             salesLast14Days: 0,
             salesLast7Days: 0,
-            salesVelocity: 0, 
-            velocityTrend: 0,  
-            turnoverRate: 0, 
-            riskScore: 0,    
-            priority: 'low'   
+            salesVelocity: 0, // Улучшенная скорость продаж
+            velocityTrend: 0,  // Тренд скорости (% изменение в неделю)
+            turnoverRate: 0,   // Оборачиваемость
+            riskScore: 0,      // Общий риск
+            priority: 'low'    // Приоритет закупа
         };
+        
+        // Получаем продажи за разные периоды
         const now = new Date();
         const thirtyDaysAgo = new Date(now);
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -114,6 +145,8 @@ function calculateProcurementStats() {
         
         const sevenDaysAgo = new Date(now);
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        // Считаем позиции и продажи
         gameAccounts.forEach(account => {
             stats.purchaseAmount += account.purchaseAmount || 0;
             
@@ -128,6 +161,8 @@ function calculateProcurementStats() {
                         stats.positionsByType[posType].sold++;
                         stats.soldPositions++;
                         stats.revenue += saleInfo.price || 0;
+                        
+                        // Считаем продажи за разные периоды
                         const saleDate = new Date(saleInfo.timestamp || saleInfo.datetime);
                         if (saleDate >= thirtyDaysAgo) {
                             stats.salesLast30Days++;
@@ -145,38 +180,60 @@ function calculateProcurementStats() {
                 }
             });
         });
+        
+        // УЛУЧШЕННЫЙ РАСЧЕТ СКОРОСТИ ПРОДАЖ
+        // Используем взвешенное среднее разных периодов
         const velocity30Days = stats.salesLast30Days / 30;
         const velocity14Days = stats.salesLast14Days / 14;
         const velocity7Days = stats.salesLast7Days / 7;
+        
+        // Весовые коэффициенты: последняя неделя важнее
         const weights = { last7: 0.5, last14: 0.3, last30: 0.2 };
         stats.salesVelocity = 
             (velocity7Days * weights.last7) + 
             (velocity14Days * weights.last14) + 
             (velocity30Days * weights.last30);
+        
+        // Рассчитываем тренд скорости (рост/падение)
         if (velocity14Days > 0 && velocity7Days > 0) {
             stats.velocityTrend = ((velocity7Days - velocity14Days) / velocity14Days) * 100;
         }
+        
+        // Анализируем тренд для каждой позиции
         ['p2_ps4', 'p3_ps4', 'p2_ps5', 'p3_ps5'].forEach(posType => {
             if (stats.positionsByType[posType].total > 0) {
                 const position = stats.positionsByType[posType];
+                
+                // Анализ тренда продаж для этой позиции
                 position.trend = analyzeSalesTrend(game.id, posType);
+                
+                // УЛУЧШЕННЫЙ РАСЧЕТ СПРОСА
                 let demandScore = 0;
+                
+                // 1. Фактор оборачиваемости (40%)
                 const turnover = (position.sold / position.total) * 100;
                 demandScore += Math.min(40, turnover * 0.4);
+                
+                // 2. Фактор доступности (30%)
                 const availability = (position.free / position.total) * 100;
                 demandScore += Math.min(30, (100 - availability) * 0.3);
+                
+                // 3. Фактор тренда продаж (30%)
                 if (position.trend && position.trend.trend > 10) {
-                    demandScore += 30; 
+                    demandScore += 30; // Быстрый рост продаж
                 } else if (position.trend && position.trend.trend > 5) {
-                    demandScore += 20;
+                    demandScore += 20; // Умеренный рост
                 } else if (position.trend && position.trend.trend > 0) {
-                    demandScore += 10; 
+                    demandScore += 10; // Небольшой рост
                 } else if (position.trend && position.trend.trend < -10) {
-                    demandScore -= 10; 
+                    demandScore -= 10; // Быстрое падение
                 }
                 
                 position.demandScore = Math.min(100, Math.max(0, demandScore));
+                
+                // Определяем критические позиции с улучшенной логикой
                 if (position.free <= criticalThreshold && position.total > 0) {
+                    // Учитываем не только спрос, но и тренд
                     const isHighDemand = position.demandScore > 50;
                     const isGrowing = position.trend && position.trend.trend > 5;
                     
@@ -186,10 +243,15 @@ function calculateProcurementStats() {
                 }
             }
         });
+        
+        // Рассчитываем оборачиваемость запасов
         stats.turnoverRate = stats.totalPositions > 0 ? 
             (stats.soldPositions / stats.totalPositions) * 100 : 0;
+        
+        // УЛУЧШЕННЫЙ РАСЧЕТ РИСКА
         stats.riskScore = calculateEnhancedRiskScore(stats);
         
+        // Определяем приоритет закупа
         stats.priority = determineEnhancedProcurementPriority(stats);
         
         gamesStats.push(stats);
@@ -198,19 +260,25 @@ function calculateProcurementStats() {
     console.log('📊 Улучшенная статистика рассчитана для', gamesStats.length, 'игр');
 }
 
+// Новая функция для улучшенного расчета риска
 function calculateEnhancedRiskScore(stats) {
     let riskScore = 0;
+    
+    // 1. Риск из-за критических позиций с учетом тренда (макс 40)
     let weightedCritical = 0;
     ['p2_ps4', 'p3_ps4', 'p2_ps5', 'p3_ps5'].forEach(posType => {
         const pos = stats.positionsByType[posType];
         if (pos.total > 0 && pos.free <= criticalThreshold) {
-            let positionRisk = 10;
+            let positionRisk = 10; // Базовый риск
             
+            // Увеличиваем риск если позиция популярная
             if (pos.demandScore > 50) positionRisk += 5;
             
+            // Увеличиваем риск если продажи растут
             if (pos.trend && pos.trend.trend > 10) positionRisk += 10;
             else if (pos.trend && pos.trend.trend > 5) positionRisk += 5;
             
+            // Увеличиваем риск если позиция закончилась
             if (pos.free === 0) positionRisk += 5;
             
             weightedCritical += positionRisk;
@@ -218,23 +286,28 @@ function calculateEnhancedRiskScore(stats) {
     });
     
     riskScore += Math.min(40, weightedCritical);
+    
+    // 2. Риск из-за скорости продаж и малых остатков (макс 30)
     if (stats.salesVelocity > 0) {
         const daysOfCoverage = stats.freePositions / stats.salesVelocity;
         
         if (daysOfCoverage < 7) {
-            riskScore += 30; 
+            riskScore += 30; // Меньше недели запаса
         } else if (daysOfCoverage < 14) {
-            riskScore += 20;
+            riskScore += 20; // 1-2 недели запаса
         } else if (daysOfCoverage < 30) {
-            riskScore += 10; 
+            riskScore += 10; // 2-4 недели запаса
         }
     }
     
+    // 3. Риск из-за роста продаж при малых запасах (макс 20)
     if (stats.velocityTrend > 20 && stats.freePositions < stats.totalPositions * 0.3) {
-        riskScore += 20; 
+        riskScore += 20; // Быстрый рост при малых запасах
     } else if (stats.velocityTrend > 10 && stats.freePositions < stats.totalPositions * 0.5) {
-        riskScore += 10; 
+        riskScore += 10; // Умеренный рост при средних запасах
     }
+    
+    // 4. Риск из-за полного истощения популярных позиций (макс 10)
     const exhaustedPopular = ['p2_ps4', 'p3_ps4', 'p2_ps5', 'p3_ps5'].filter(posType => {
         const pos = stats.positionsByType[posType];
         return pos.free === 0 && pos.demandScore > 60;
@@ -244,38 +317,57 @@ function calculateEnhancedRiskScore(stats) {
     
     return Math.min(100, Math.round(riskScore));
 }
+
+// Улучшенная функция определения приоритета
 function determineEnhancedProcurementPriority(stats) {
+    // Используем улучшенный риск и дополнительные факторы
+    
+    // Рассчитываем дни до истощения для самой критичной позиции
     let minDaysToExhaustion = Infinity;
     ['p2_ps4', 'p3_ps4', 'p2_ps5', 'p3_ps5'].forEach(posType => {
         const pos = stats.positionsByType[posType];
         if (pos.total > 0 && pos.free > 0 && stats.salesVelocity > 0) {
+            // Учитываем тренд при прогнозе
             const trendFactor = pos.trend && pos.trend.trend > 0 ? 1.2 : 1.0;
             const daysToExhaustion = pos.free / (stats.salesVelocity * trendFactor);
             minDaysToExhaustion = Math.min(minDaysToExhaustion, daysToExhaustion);
         }
     });
+    
+    // Определяем приоритет на основе комбинации факторов
     if (stats.riskScore >= 80 || minDaysToExhaustion < 3) {
-        return 'critical'; 
+        return 'critical'; // Чрезвычайно высокий риск или <3 дней запаса
     } else if (stats.riskScore >= 60 || minDaysToExhaustion < 7) {
-        return 'high';     
+        return 'high';     // Высокий риск или <7 дней запаса
     } else if (stats.riskScore >= 40 || minDaysToExhaustion < 14) {
-        return 'medium';  
+        return 'medium';   // Средний риск или <14 дней запаса
     } else {
-        return 'low';  
+        return 'low';      // Низкий риск
     }
 }
+
+// Расчет риска для игры
 function calculateGameRiskScore(stats) {
     let riskScore = 0;
+    
+    // 1. Риск из-за критических позиций (макс 40 баллов)
     const criticalPercentage = stats.criticalPositions / Object.keys(stats.positionsByType).length * 100;
     riskScore += Math.min(40, criticalPercentage * 0.4);
-    if (stats.salesVelocity > 0.1) {
+    
+    // 2. Риск из-за скорости продаж (макс 30 баллов)
+    // Если скорость продаж высокая, но запасов мало - высокий риск
+    if (stats.salesVelocity > 0.1) { // > 0.1 продаж в день
         const freePercentage = stats.freePositions / stats.totalPositions * 100;
         riskScore += Math.min(30, (100 - freePercentage) * stats.salesVelocity * 3);
     }
+    
+    // 3. Риск из-за популярности позиций (макс 20 баллов)
     const totalDemand = Object.values(stats.positionsByType)
         .reduce((sum, pos) => sum + pos.demandScore, 0);
     const avgDemand = totalDemand / Object.keys(stats.positionsByType).length;
     riskScore += Math.min(20, avgDemand * 0.2);
+    
+    // 4. Риск из-за полного истощения (макс 10 баллов)
     const exhaustedPositions = Object.values(stats.positionsByType)
         .filter(pos => pos.free === 0 && pos.total > 0).length;
     riskScore += Math.min(10, exhaustedPositions * 5);
@@ -289,20 +381,30 @@ function determineProcurementPriority(stats) {
     if (stats.riskScore >= 40) return 'medium';
     return 'low';
 }
+
+// Отображение критических позиций (упрощенная версия)
+// Упрощенная версия - только список критических позиций без статистики
 function displayCriticalPositions() {
     const criticalContainer = document.getElementById('criticalPositions');
     const criticalList = document.getElementById('criticalList');
     
     if (!criticalContainer || !criticalList) return;
+    
+    // Находим все критические позиции
     let criticalGames = [];
     
     gamesStats.forEach(stats => {
+        // Считаем только критические позиции
         let gameCriticalPositions = 0;
         const criticalPositionsList = [];
         
         ['p2_ps4', 'p3_ps4', 'p2_ps5', 'p3_ps5'].forEach(posType => {
             const position = stats.positionsByType[posType];
+            
+            // Если позиций нет или они не в дефиците - пропускаем
             if (position.total === 0) return;
+            
+            // Критичная позиция = мало осталось И высокий спрос
             if (position.free <= criticalThreshold && position.demandScore > 40) {
                 gameCriticalPositions++;
                 criticalPositionsList.push({
@@ -312,14 +414,17 @@ function displayCriticalPositions() {
                     sold: position.sold,
                     demandScore: position.demandScore,
                     isExhausted: position.free === 0,
-                    trend: position.trend
+                    trend: position.trend // Добавляем тренд
                 });
             }
         });
         
         if (gameCriticalPositions > 0) {
+            // Находим самую критичную позицию
             const mostCriticalPosition = [...criticalPositionsList]
                 .sort((a, b) => a.free - b.free)[0];
+
+            // Рассчитываем дни до истощения
             let daysToExhaustion = '—';
             if (mostCriticalPosition && stats.salesVelocity > 0) {
                 const trendFactor = mostCriticalPosition.trend?.trend > 0 ? 1.3 : 1.0;
@@ -336,10 +441,14 @@ function displayCriticalPositions() {
             });
         }
     });
+    
+    // Сортируем игры по приоритету
     criticalGames.sort((a, b) => {
         const priorityOrder = { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 };
         return priorityOrder[b.priority] - priorityOrder[a.priority];
     });
+    
+    // ПРОСТО ЗАГОЛОВОК С КОЛИЧЕСТВОМ КРИТИЧЕСКИХ ИГР
     criticalContainer.innerHTML = `
         <div style="text-align: center; padding: 15px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
             <div style="font-size: 2.5em; font-weight: 700; color: ${criticalGames.length > 0 ? '#dc2626' : '#10b981'};">
@@ -350,6 +459,8 @@ function displayCriticalPositions() {
             </div>
         </div>
     `;
+    
+    // Если нет критических позиций
     if (criticalGames.length === 0) {
         criticalList.innerHTML = `
             <div class="empty">
@@ -360,17 +471,24 @@ function displayCriticalPositions() {
         `;
         return;
     }
+    
+    // Список критических позиций
     criticalList.innerHTML = `
         <div class="critical-games-list">
             ${criticalGames.map(game => {
+                // Группируем позиции
                 const ps4Positions = game.criticalPositionsList.filter(p => p.type.includes('ps4'));
                 const ps5Positions = game.criticalPositionsList.filter(p => p.type.includes('ps5'));
+                
+                // Цвет приоритета
                 const priorityColors = {
                     'critical': '#dc2626',
                     'high': '#ea580c',
                     'medium': '#d97706',
                     'low': '#65a30d'
                 };
+                
+                // Простой текст приоритета
                 const priorityTexts = {
                     'critical': '🔥 СРОЧНО',
                     'high': '⚠️ СКОРО', 
@@ -452,6 +570,8 @@ function displayCriticalPositions() {
         </div>
     `;
 }
+
+// Показать детали по игре
 function showGameProcurementDetails(gameId) {
     const game = games.find(g => g.id === gameId);
     const stats = gamesStats.find(s => s.gameId === gameId);
@@ -459,6 +579,8 @@ function showGameProcurementDetails(gameId) {
     if (!game || !stats) return;
     
     const modalContent = document.getElementById('gameDetailsContent');
+    
+    // Проверяем, есть ли вообще PS4 позиции
     const hasPS4Positions = stats.positionsByType.p2_ps4.total > 0 || stats.positionsByType.p3_ps4.total > 0;
     const hasPS5Positions = stats.positionsByType.p2_ps5.total > 0 || stats.positionsByType.p3_ps5.total > 0;
     
@@ -641,21 +763,30 @@ function showGameProcurementDetails(gameId) {
     
     openModal('gameDetailsModal');
 }
+
+// УЛУЧШЕННЫЕ РЕКОМЕНДАЦИИ ПО ЗАКУПУ
 function getEnhancedProcurementRecommendation(posType, position, salesVelocity) {
     if (position.total === 0) return null;
+    
+    // Рассчитываем дни до истощения
     let daysToExhaustion = null;
     if (position.free > 0 && salesVelocity > 0) {
         const trendFactor = position.trend?.trend > 0 ? 1.3 : 1.0;
         daysToExhaustion = Math.round(position.free / (salesVelocity * trendFactor));
     }
+    
+    // Определяем приоритет
     let priority = 'low';
     let text = '';
     let quantity = 0;
+    
+    // 1. КРИТИЧЕСКИЙ СЛУЧАЙ - уже закончилось
     if (position.free === 0) {
         priority = 'critical';
         text = '🛑 Закончились! Срочно докупить';
         quantity = Math.max(3, Math.ceil(position.total * 0.5));
     }
+    // 2. ВЫСОКИЙ ПРИОРИТЕТ - скоро закончится
     else if (position.free <= 2) {
         priority = 'critical';
         text = `⚠️ Осталось мало (${position.free} из ${position.total})`;
@@ -664,6 +795,7 @@ function getEnhancedProcurementRecommendation(posType, position, salesVelocity) 
         }
         quantity = Math.max(3, Math.ceil(position.total * 0.5));
     }
+    // 3. СРЕДНИЙ ПРИОРИТЕТ - нужно пополнить
     else if (position.free <= 5 || (position.sold / position.total) > 0.7) {
         priority = 'high';
         text = `📊 Нужно пополнить (${position.free} свободно)`;
@@ -672,6 +804,7 @@ function getEnhancedProcurementRecommendation(posType, position, salesVelocity) 
         }
         quantity = Math.max(2, Math.ceil(position.total * 0.3));
     }
+    // 4. НИЗКИЙ ПРИОРИТЕТ - для поддержания запаса
     else if (position.free <= 10) {
         priority = 'medium';
         text = `📋 Можно докупить для поддержания запаса`;
@@ -680,11 +813,14 @@ function getEnhancedProcurementRecommendation(posType, position, salesVelocity) 
         }
         quantity = Math.max(2, Math.ceil(position.total * 0.2));
     }
+    // 5. Все ок - рекомендаций нет
     else {
         return null;
     }
+    
+    // Учитываем скорость продаж для расчета количества
     if (salesVelocity > 0 && daysToExhaustion && daysToExhaustion < 30) {
-        const weeksToCover = 4; 
+        const weeksToCover = 4; // Хотим покрыть 4 недели продаж
         const idealQuantity = Math.ceil(salesVelocity * 7 * weeksToCover * 0.5);
         if (idealQuantity > quantity) {
             quantity = idealQuantity;
@@ -699,9 +835,12 @@ function getEnhancedProcurementRecommendation(posType, position, salesVelocity) 
         daysToExhaustion
     };
 }
+
+// Получить рекомендацию по закупу
 function getProcurementRecommendation(posType, position) {
+    // Если позиций вообще нет в игре (и они не нужны)
     if (position.total === 0) {
-        return ""; 
+        return ""; // Пустая строка - не показываем рекомендацию
     }
     
     if (position.free === 0) {
@@ -719,14 +858,20 @@ function getProcurementRecommendation(posType, position) {
     
     return `✅ Норма (${position.free} свободно из ${position.total})`;
 }
+
+// Добавить аккаунты для игры
 function addAccountsForGame(gameId) {
     window.location.href = `add-account.html?game=${gameId}`;
 }
+
+// Добавить рекомендованные позиции
 function addRecommendedPositions(gameId) {
     if (confirm('Перейти к добавлению аккаунтов для этой игры?')) {
         addAccountsForGame(gameId);
     }
 }
+
+// Создать план закупа
 function generateProcurementPlan(gameId) {
     const game = games.find(g => g.id === gameId);
     const stats = gamesStats.find(s => s.gameId === gameId);
@@ -746,9 +891,12 @@ function generateProcurementPlan(gameId) {
         plan += `  Рекомендация: ${rec}\n`;
         plan += `  Статус: ${pos.free <= criticalThreshold ? 'Требуется закуп' : 'Запас достаточный'}\n\n`;
     });
+    
+    // Копируем в буфер обмена
     navigator.clipboard.writeText(plan).then(() => {
         showNotification('План закупа скопирован в буфер обмена 📋', 'success');
     }).catch(() => {
+        // Fallback для старых браузеров
         const textarea = document.createElement('textarea');
         textarea.value = plan;
         document.body.appendChild(textarea);
@@ -758,6 +906,8 @@ function generateProcurementPlan(gameId) {
         showNotification('План закупа скопирован в буфер обмена 📋', 'success');
     });
 }
+
+// Вспомогательные функции
 function getPositionName(posType) {
     const names = {
         'p2_ps4': 'П2 PS4',
@@ -776,13 +926,17 @@ function getRecommendationIcon(action) {
     };
     return icons[action] || 'info-circle';
 }
+
+// Обновление данных
 function refreshProcurementData() {
     calculateProcurementStats();
     displayCriticalPositions();
     showNotification('Данные по закупу обновлены 🔄', 'info');
 }
+
+// Обновление при изменении данных в реальном времени
 setInterval(() => {
     if (window.location.pathname.includes('procurement.html')) {
         refreshProcurementData();
     }
-}, 30000); 
+}, 30000); // Обновлять каждые 30 секунд

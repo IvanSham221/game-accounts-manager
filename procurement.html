@@ -17,6 +17,8 @@
             </div>
         </button>
     </div>
+
+    <!-- Мобильное меню -->
     <div class="mobile-menu" id="mobileMenu">
         <div class="mobile-menu-header">
             <div class="user-info-mobile">
@@ -30,6 +32,7 @@
         </div>
         
         <nav class="mobile-menu-nav">
+            <!-- Навигация заполнится через JS -->
         </nav>
         
         <div class="mobile-menu-footer">
@@ -43,22 +46,31 @@
 
     <div class="container">
         <h1><span>📦</span> Управление <span>закупом</span></h1>
+
+        <!-- Критические позиции -->
         <div class="section">
             <h2><i class="fas fa-exclamation-triangle"></i> Критические позиции</h2>
             <div class="stats-cards" id="criticalPositions">
+                <!-- Заполнится через JS -->
             </div>
             
             <div id="criticalList" class="critical-list">
+                <!-- Список критических позиций -->
             </div>
         </div>
     </div>
+
+    <!-- Модальное окно для деталей игры -->
     <div id="gameDetailsModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('gameDetailsModal')">&times;</span>
             <div id="gameDetailsContent">
+                <!-- Контент будет заполнен через JS -->
             </div>
         </div>
     </div>
+
+    <!-- Подключаем скрипты -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="firebase.js"></script>

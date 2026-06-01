@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Графики и аналитика - Менеджер аккаунтов</title>
+    <link rel="stylesheet" href="style.css?v=20250115">
+    <!-- Подключаем Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="mobileMenu" class="mobile-menu">
+    <div class="mobile-menu-header">
+        <div class="user-info-mobile">
+            <div class="user-avatar">👤</div>
+            <div>
+                <div class="user-name" id="mobileUserName"></div>
+                <div class="user-role" id="mobileUserRole"></div>
+            </div>
+        </div>
+        <button class="close-menu" onclick="toggleMobileMenu()">×</button>
+    </div>
+    
+    <div class="mobile-menu-nav">
+        <!-- Пункты меню будут добавляться скриптом -->
+    </div>
+    
+    <div class="mobile-menu-footer">
+        <button onclick="logout()" class="btn btn-danger btn-block">
+            <span>🚪</span> Выйти
+        </button>
+    </div>
+</div>
+
+<!-- Бургер-кнопка -->
+<div class="burger-container">
+    <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
+        <div class="burger-icon">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <!-- Опционально: бейдж с уведомлениями -->
+        <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
+        <!-- Текст при наведении (только на ПК) -->
+        <div class="burger-label">Меню</div>
+    </button>
+</div>
+
+<!-- Оверлей для закрытия меню -->
+<div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
+    <div class="container">
+        <h1><span>📊</span><span>Графики и аналитика</span></h1>
+
+        <div class="section">
+            <h2>📅 Период анализа</h2>
+            <div class="period-selector">
+                <div class="period-group">
+                    <label for="chartsStartDate">С:</label>
+                    <input type="date" id="chartsStartDate" class="input">
+                </div>
+                <div class="period-group">
+                    <label for="chartsEndDate">По:</label>
+                    <input type="date" id="chartsEndDate" class="input">
+                </div>
+                <button onclick="loadCharts()" class="btn btn-primary">Обновить графики</button>
+                <button onclick="loadLast30Days()" class="btn btn-secondary">Последние 30 дней</button>
+            </div>
+        </div>
+
+        <!-- Графики будут здесь -->
+        <div id="chartsContainer"></div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="firebase.js"></script>
+    <script src="security.js"></script>
+    <script src="script.js?v=20250115"></script>
+    
+    <script>
+        // charts.js - функции для работы с графиками
+        document.addEventListener('DOMContentLoaded', function() {
+            // Устанавливаем даты по умолчанию (последние 30 дней)
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+            
+            document.getElementById('chartsStartDate').value = startDate.toISOString().split('T')[0];
+            document.getElementById('chartsEndDate').value = endDate.toISOString().split('T')[0];
+            
+            // Загружаем графики
+            setTimeout(() => {
+                loadCharts();
+            }, 1000);
+        });
+        
+        function loadLast30Days() {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+            
+            document.getElementById('chartsStartDate').value = startDate.toISOString().split('T')[0];
+            document.getElementById('chartsEndDate').value = endDate.toISOString().split('T')[0];
+            
+            loadCharts();
+        }
+        
+        function loadCharts() {
+            const startDate = document.getElementById('chartsStartDate').value;
+            const endDate = document.getElementById('chartsEndDate').value;
+            
+            if (!startDate || !endDate) {
+                alert('Выберите период');
+                return;
+            }
+            
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            
+            if (start > end) {
+                alert('Начальная дата не может быть больше конечной');
+                return;
+            }
+            
+            // Фильтруем продажи по периоду
+            const periodSales = window.sales.filter(sale => {
+                const saleDate = new Date(sale.timestamp);
+                return saleDate >= start && saleDate <= end;
+            });
+            
+            // Отображаем графики
+            renderAllCharts(periodSales, startDate, endDate);
+        }
+    </script>
+</body>
+</html>

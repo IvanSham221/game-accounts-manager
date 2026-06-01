@@ -20,6 +20,7 @@
     </div>
     
     <div class="mobile-menu-nav">
+        <!-- Пункты меню будут добавляться скриптом -->
     </div>
     
     <div class="mobile-menu-footer">
@@ -28,6 +29,8 @@
         </button>
     </div>
 </div>
+
+<!-- Бургер-кнопка -->
 <div class="burger-container">
     <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
         <div class="burger-icon">
@@ -35,10 +38,14 @@
             <span></span>
             <span></span>
         </div>
+        <!-- Опционально: бейдж с уведомлениями -->
         <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
+        <!-- Текст при наведении (только на ПК) -->
         <div class="burger-label">Меню</div>
     </button>
 </div>
+
+<!-- Оверлей для закрытия меню -->
 <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
     <div class="container">
         <h1><span>🆓</span><span>Свободные аккаунты</span></h1>

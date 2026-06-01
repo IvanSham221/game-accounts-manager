@@ -20,6 +20,7 @@
     </div>
     
     <div class="mobile-menu-nav">
+        <!-- Пункты меню будут добавляться скриптом -->
     </div>
     
     <div class="mobile-menu-footer">
@@ -29,6 +30,7 @@
     </div>
 </div>
 
+<!-- Бургер-кнопка -->
 <div class="burger-container">
     <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
         <div class="burger-icon">
@@ -36,13 +38,18 @@
             <span></span>
             <span></span>
         </div>
+        <!-- Опционально: бейдж с уведомлениями -->
         <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
+        <!-- Текст при наведении (только на ПК) -->
         <div class="burger-label">Меню</div>
     </button>
 </div>
+
+<!-- Оверлей для закрытия меню -->
 <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
     <div class="container">
         <h1><span>🎯</span><span>Управление играми</span></h1>
+        <!-- ОБНОВЛЕННАЯ СЕКЦИЯ -->
         <div class="section">
             <h2>➕ Добавить игру</h2>
             <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
@@ -97,6 +104,7 @@
 
         <div class="section">
             <h2>📚 Список игр</h2>
+            <!-- Поле поиска -->
     <div style="margin-bottom: 20px;">
         <input type="text" id="searchGamesInput" 
                placeholder="🔍 Поиск по названию игры..." 
@@ -110,6 +118,8 @@
             <div id="gamesList" class="list"></div>
         </div>
     </div>
+    
+    <!-- Индикатор синхронизации -->
     <div id="syncIndicator" style="position: fixed; bottom: 20px; right: 20px; background: #4361ee; color: white; padding: 10px 15px; border-radius: 20px; font-size: 12px; display: none; z-index: 9999;">
         🔄 Синхронизация...
     </div>
@@ -120,6 +130,8 @@
     <script src="security.js"></script>
     <script src="script.js?v=20250115"></script>
     <script src="autocomplete.js"></script>
+
+    <!-- Модальное окно редактирования игры -->
 <div id="editGameModal" class="modal">
     <div class="modal-content" style="max-width: 600px;">
         <span class="close" onclick="closeGameModal()">&times;</span>
@@ -129,11 +141,15 @@
 </div>
     
     <script>
+
+        // Функции для модального окна
 function closeGameModal() {
     document.getElementById('editGameModal').style.display = 'none';
 }
 
+// Закрытие по клику вне окна
 window.addEventListener('click', function(event) {
+    // Закрытие модальных окон при клике вне контента
     const modals = ['editModal', 'editFreeModal', 'saleModal'];
     
     modals.forEach(modalId => {
@@ -142,28 +158,44 @@ window.addEventListener('click', function(event) {
             closeModal(modalId);
         }
     });
+    
+    // Закрытие мобильного меню при клике на оверлей
     const overlay = document.getElementById('menuOverlay');
     if (overlay && event.target === overlay && overlay.classList.contains('active')) {
         closeMobileMenu();
     }
 });
+        // Дополнительный скрипт для страницы игр
         document.addEventListener('DOMContentLoaded', function() {
+            // Показываем индикатор при обновлении
             const syncIndicator = document.getElementById('syncIndicator');
+            
+            // Проверяем обновления каждые 2 секунды
             setInterval(() => {
                 const freshGames = JSON.parse(localStorage.getItem('games')) || [];
                 const currentGames = window.games || [];
                 
                 if (JSON.stringify(freshGames) !== JSON.stringify(currentGames)) {
                     console.log('🎮 Обнаружены новые данные игр');
+                    
+                    // Показываем индикатор
                     syncIndicator.style.display = 'block';
                     syncIndicator.textContent = '🔄 Обновление списка игр...';
+                    
+                    // Обновляем данные
                     window.games = freshGames;
+                    
+                    // Обновляем интерфейс
                     setTimeout(() => {
                         if (typeof displayGames === 'function') {
                             displayGames();
+                            
+                            // Показываем уведомление
                             if (typeof showNotification === 'function') {
                                 showNotification('Список игр обновлен!', 'info', 2000);
                             }
+                            
+                            // Скрываем индикатор
                             setTimeout(() => {
                                 syncIndicator.style.display = 'none';
                             }, 2000);
@@ -171,6 +203,8 @@ window.addEventListener('click', function(event) {
                     }, 500);
                 }
             }, 2000);
+            
+            // Автоматическое обновление селектов на других страницах
             if (typeof loadGamesForSelect === 'function') {
                 setInterval(() => {
                     loadGamesForSelect();
