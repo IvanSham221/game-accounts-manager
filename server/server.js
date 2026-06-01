@@ -7,7 +7,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Настройки для Render
+require('dotenv').config();
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -16,17 +16,12 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Статические файлы (опционально, если хочешь хостить фронтенд на том же сервере)
 app.use(express.static(path.join(__dirname, '../')));
 
-// Логирование запросов
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
 });
-
-// Тестовый эндпоинт
 app.get('/api/test', (req, res) => {
     res.json({ 
         status: 'ok', 
@@ -36,7 +31,6 @@ app.get('/api/test', (req, res) => {
     });
 });
 
-// Проверка здоровья сервера (для Render)
 app.get('/health', (req, res) => {
     res.status(200).json({ 
         status: 'healthy',
@@ -45,14 +39,12 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Получение информации об игре
 app.get('/api/game/:productId/:region', async (req, res) => {
     const { productId, region } = req.params;
     
     console.log(`🎮 Запрос игры: ${productId} (${region})`);
     
     try {
-        // Добавляем задержку для избежания бана
         await new Promise(resolve => setTimeout(resolve, 500));
         
         const gameData = await fetchGameData(productId, region);
@@ -61,7 +53,6 @@ app.get('/api/game/:productId/:region', async (req, res) => {
     } catch (error) {
         console.error('❌ Ошибка запроса:', error.message);
         
-        // Возвращаем демо-данные с информацией об ошибке
         res.json({
             ...getDemoData(productId, region),
             error: error.message,
@@ -69,8 +60,6 @@ app.get('/api/game/:productId/:region', async (req, res) => {
         });
     }
 });
-
-// Массовая проверка игр (новый эндпоинт)
 app.post('/api/games/batch', async (req, res) => {
     const { games } = req.body;
     
@@ -94,8 +83,6 @@ app.post('/api/games/batch', async (req, res) => {
                     success: true,
                     data: data
                 });
-                
-                // Задержка между запросами
                 await new Promise(resolve => setTimeout(resolve, 800));
                 
             } catch (error) {
@@ -117,7 +104,31 @@ app.post('/api/games/batch', async (req, res) => {
     }
 });
 
-// Функция получения данных
+function checkPassword(inputPassword) {
+    const correctPassword = process.env.ADMIN_PASSWORD;
+    return inputPassword === correctPassword;
+}
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    
+    console.log(`Попытка входа: ${username}`);
+    if (username === 'Ivan' && checkPassword(password)) {
+        console.log('✅ Админ вошёл!');
+        return res.json({
+            success: true,
+            user: {
+                username: 'Ivan',
+                name: 'Иван',
+                role: 'admin'
+            }
+        });
+    }
+    return res.json({
+        success: true,
+        requireLocalCheck: true
+    });
+});
+
 async function fetchGameData(productId, region) {
     const storeUrl = `https://store.playstation.com/${region === 'TR' ? 'tr-tr' : 'uk-ua'}/product/${productId}`;
     
@@ -149,7 +160,6 @@ async function fetchGameData(productId, region) {
     } catch (error) {
         console.error(`❌ Ошибка запроса ${productId}:`, error.message);
         
-        // Пробуем альтернативный URL
         try {
             const altUrl = `https://store.playstation.com/${region === 'TR' ? 'tr-tr' : 'uk-ua'}/concept/${productId}`;
             console.log(`🔄 Пробую альтернативный URL: ${altUrl}`);
@@ -169,14 +179,10 @@ async function fetchGameData(productId, region) {
         }
     }
 }
-
-// Парсинг HTML
 function parseHTML(html, region, productId, url) {
     const $ = cheerio.load(html);
     
     let price = 0, originalPrice = 0, name = '', discount = 0, image = '';
-    
-    // 1. Ищем в JSON-LD
     const jsonLd = $('script[type="application/ld+json"]').html();
     if (jsonLd) {
         try {
@@ -192,8 +198,6 @@ function parseHTML(html, region, productId, url) {
             console.log('Ошибка парсинга JSON-LD:', e.message);
         }
     }
-    
-    // 2. Ищем в мета-тегах
     if (!price) {
         const metaPrice = $('meta[property="product:price:amount"]').attr('content');
         if (metaPrice) price = parseFloat(metaPrice);
@@ -208,8 +212,6 @@ function parseHTML(html, region, productId, url) {
         const metaName = $('meta[property="og:title"]').attr('content');
         if (metaName) name = metaName.replace(' - PlayStation Store', '');
     }
-    
-    // 3. Ищем в HTML
     if (!name) {
         name = $('h1').first().text() || 
                $('title').text().replace(' - PlayStation Store', '') ||
@@ -220,16 +222,12 @@ function parseHTML(html, region, productId, url) {
         const metaImage = $('meta[property="og:image"]').attr('content');
         if (metaImage) image = metaImage;
     }
-    
-    // 4. Ищем скидку
     const discountElement = $('[data-qa="mfeCtaMain#offer0#discountInfo"], .discount-info, .discount-percentage, .psw-fill-xsmall');
     if (discountElement.length > 0) {
         const discountText = discountElement.text();
         const match = discountText.match(/(\d+)%/);
         if (match) discount = parseInt(match[1]);
     }
-    
-    // 5. Ищем цену в различных элементах
     if (!price || price === 0) {
         const priceElement = $('[data-qa="mfeCtaMain#offer0#finalPrice"], .price, .psw-price');
         if (priceElement.length > 0) {
@@ -240,8 +238,6 @@ function parseHTML(html, region, productId, url) {
             }
         }
     }
-    
-    // 6. Ищем старую цену
     if ((!originalPrice || originalPrice === 0) && discount > 0) {
         const originalElement = $('[data-qa="mfeCtaMain#offer0#originalPrice"], .original-price, .psw-strike-price');
         if (originalElement.length > 0) {
@@ -252,13 +248,9 @@ function parseHTML(html, region, productId, url) {
             }
         }
     }
-    
-    // Если не нашли скидку, но есть старая цена
     if (!discount && originalPrice > 0 && price > 0) {
         discount = Math.round((1 - price / originalPrice) * 100);
     }
-    
-    // Если не нашли цену, используем демо
     if (!price || price === 0) {
         console.log(`⚠️ Цена не найдена для ${productId}, возвращаю демо-данные`);
         return getDemoData(productId, region);
@@ -288,8 +280,6 @@ function parseHTML(html, region, productId, url) {
         scrapedAt: new Date().toISOString()
     };
 }
-
-// Демо-данные
 function getDemoData(productId, region) {
     const discount = Math.random() > 0.5 ? Math.floor(Math.random() * 30) + 10 : 0;
     const basePrice = region === 'TR' ? 
@@ -321,8 +311,6 @@ function getDemoData(productId, region) {
         note: 'Демо-данные (реальные данные не найдены)'
     };
 }
-
-// Обработка 404
 app.use((req, res, next) => {
     res.status(404).json({
         error: 'Маршрут не найден',
@@ -330,8 +318,6 @@ app.use((req, res, next) => {
         method: req.method
     });
 });
-
-// Обработка ошибок
 app.use((err, req, res, next) => {
     console.error('❌ Ошибка сервера:', err.stack);
     
@@ -341,8 +327,6 @@ app.use((err, req, res, next) => {
         timestamp: new Date().toISOString()
     });
 });
-
-// Запуск сервера
 const server = app.listen(PORT, () => {
     console.log('\n' + '='.repeat(50));
     console.log(`🚀 PS Store API Server запущен`);
@@ -351,13 +335,10 @@ const server = app.listen(PORT, () => {
     console.log(`⏰ Время запуска: ${new Date().toISOString()}`);
     console.log('='.repeat(50) + '\n');
     
-    // Проверяем доступность
     console.log(`✅ Сервер доступен по адресу:`);
     console.log(`   http://localhost:${PORT}/api/test`);
     console.log(`   http://localhost:${PORT}/health\n`);
 });
-
-// Обработка graceful shutdown
 process.on('SIGTERM', () => {
     console.log('🔄 Получен SIGTERM, завершаю работу...');
     server.close(() => {
