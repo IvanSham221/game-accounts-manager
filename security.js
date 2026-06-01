@@ -1,19 +1,33 @@
+// security.js - УЛУЧШЕННАЯ ВЕРСИЯ С БЕЗОПАСНОСТЬЮ
+
 const SecurityManager = {
+    // Простое хеширование паролей (в продакшене используйте bcrypt или аналоги)
     hashPassword: function(password) {
         if (!password || typeof password !== 'string') {
         return '';
     }
+    
+    // ПРОСТОЙ И СТАБИЛЬНЫЙ алгоритм
+    // 1. Используем фиксированную соль
     const salt = '@PSHub_Fixed_Salt_2025';
+    
+    // 2. Создаем простой хеш (один и тот же для одинаковых паролей)
     let hash = 0;
+    
+    // Добавляем соль в начало пароля
     const saltedPassword = salt + password;
     
     for (let i = 0; i < saltedPassword.length; i++) {
         const char = saltedPassword.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
-        hash = Math.abs(hash & hash);
+        hash = Math.abs(hash & hash); // Всегда положительный
     }
+    
+    // 3. Консистентное форматирование
     return 'pshub_' + hash.toString(36) + '_' + password.length;
     },
+
+    // Создание хеша для нового пользователя
     createUserHash: function(username, password) {
         const combined = username + ':' + password + ':PSHub_Secure';
         let hash = 0;
@@ -27,111 +41,103 @@ const SecurityManager = {
         return 'pshub_' + Math.abs(hash).toString(36);
     },
 
-    validateLogin: async function(username, password) {
-    console.log(`🔐 Попытка входа: ${username}`);
-    
-    username = (username || '').toString().trim();
-    password = (password || '').toString();
-    
-    if (!username || !password) {
-        console.warn('❌ Пустые логин или пароль');
-        return {
-            success: false,
-            error: 'Заполните все поля'
-        };
-    }
-    
-    // ===== НОВАЯ ЧАСТЬ: проверка через сервер =====
-    const serverUrl = 'https://ps-store-api.onrender.com';
-    
-    try {
-        // Отправляем запрос на сервер
-        const response = await fetch(`${serverUrl}/api/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
+    // Валидация логина
+    validateLogin: function(username, password) {
+        console.log(`🔐 Попытка входа: ${username}`);
         
-        const data = await response.json();
+        // Триммируем входные данные
+        username = (username || '').toString().trim();
+        password = (password || '').toString();
         
-        // Если сервер подтвердил вход (администратор)
-        if (data.success && data.user) {
-            console.log(`✅ ${data.user.name} вошел через сервер`);
-            return { success: true, user: data.user };
-        }
-        
-        // Если сервер сказал "проверь локально" — значит, это работник
-        if (data.requireLocalCheck) {
-            console.log(`👷 Проверяем работника ${username} локально...`);
-            return this.validateLocalWorker(username, password);
-        }
-        
-        return { success: false, error: data.error || 'Ошибка входа' };
-        
-    } catch (error) {
-        // Если сервер не запущен — проверяем локально
-        console.warn('⚠️ Сервер недоступен, проверяем локально:', error.message);
-        return this.validateLocalWorker(username, password);
-    }
-    // ===== КОНЕЦ НОВОЙ ЧАСТИ =====
-},
-
-// ===== НОВАЯ ФУНКЦИЯ: локальная проверка работников =====
-validateLocalWorker: function(username, password) {
-    try {
-        const workersStr = localStorage.getItem('workers');
-        if (!workersStr) {
-            console.warn('❌ Нет данных о работниках');
+        if (!username || !password) {
+            console.warn('❌ Пустые логин или пароль');
             return {
                 success: false,
-                error: 'Нет данных о пользователях'
+                error: 'Заполните все поля'
             };
         }
 
-        const workers = JSON.parse(workersStr);
-        console.log(`👥 Проверка среди ${workers.length} работников`);
-        const hashedInputPassword = this.hashPassword(password);
-        
-        const worker = workers.find(w => {
-            if (!w || !w.username) return false;
-            
-            const usernameMatch = w.username.toString().trim().toLowerCase() === username.toLowerCase();
-            const passwordMatch = w.password === hashedInputPassword || w.password === password;
-            const isActive = w.active !== false;
-            
-            return usernameMatch && passwordMatch && isActive;
-        });
+        // 1. Проверка администратора (жестко закодирован)
+        if (username === 'Ivan') {
+            // Для администратора используем прямое сравнение (без хеширования в демо)
+            if (password === '@Az27831501112') {
+                console.log('✅ Администратор Ivan вошел');
+                return {
+                    success: true,
+                    user: {
+                        username: 'Ivan',
+                        name: 'Иван',
+                        role: 'admin',
+                        id: 'admin_1',
+                        isAdmin: true
+                    }
+                };
+            } else {
+                console.warn('❌ Неверный пароль администратора');
+                return {
+                    success: false,
+                    error: 'Неверный пароль'
+                };
+            }
+        }
 
-        if (worker) {
-            console.log(`✅ Работник ${worker.name} вошел (${worker.role || 'worker'})`);
+        try {
+            // 2. Проверка работников из хранилища
+            const workersStr = localStorage.getItem('workers');
+            if (!workersStr) {
+                console.warn('❌ Нет данных о работниках');
+                return {
+                    success: false,
+                    error: 'Нет данных о пользователях'
+                };
+            }
+
+            const workers = JSON.parse(workersStr);
+            console.log(`👥 Проверка среди ${workers.length} работников`);
+
+            // Хешируем введенный пароль для сравнения
+            const hashedInputPassword = this.hashPassword(password);
             
+            const worker = workers.find(w => {
+                if (!w || !w.username) return false;
+                
+                const usernameMatch = w.username.toString().trim().toLowerCase() === username.toLowerCase();
+                const passwordMatch = w.password === hashedInputPassword || w.password === password; // Поддержка старых паролей
+                const isActive = w.active !== false; // По умолчанию true
+                
+                return usernameMatch && passwordMatch && isActive;
+            });
+
+            if (worker) {
+                console.log(`✅ Работник ${worker.name} вошел (${worker.role || 'worker'})`);
+                
+                return {
+                    success: true,
+                    user: {
+                        username: worker.username,
+                        name: worker.name || worker.username,
+                        role: worker.role || 'worker',
+                        id: 'worker_' + (worker.id || worker.username),
+                        isAdmin: worker.role === 'admin',
+                        created: worker.created
+                    }
+                };
+            }
+            
+            console.warn('❌ Работник не найден или не активен');
             return {
-                success: true,
-                user: {
-                    username: worker.username,
-                    name: worker.name || worker.username,
-                    role: worker.role || 'worker',
-                    id: 'worker_' + (worker.id || worker.username),
-                    isAdmin: worker.role === 'admin',
-                    created: worker.created
-                }
+                success: false,
+                error: 'Неверный логин, пароль или учетная запись неактивна'
+            };
+            
+        } catch (e) {
+            console.error('❌ Ошибка при проверке работников:', e);
+            return {
+                success: false,
+                error: 'Ошибка системы аутентификации'
             };
         }
-        
-        console.warn('❌ Работник не найден или не активен');
-        return {
-            success: false,
-            error: 'Неверный логин, пароль или учетная запись неактивна'
-        };
-        
-    } catch (e) {
-        console.error('❌ Ошибка при проверке работников:', e);
-        return {
-            success: false,
-            error: 'Ошибка системы аутентификации'
-        };
-    }
-},
+    },
 
     // Начало сессии
     startSession: function(user) {
@@ -177,6 +183,8 @@ validateLocalWorker: function(username, password) {
             }
 
             const user = JSON.parse(userStr);
+            
+            // Проверка времени жизни сессии (8 часов)
             const sessionAge = Date.now() - parseInt(sessionStart);
             const eightHours = 8 * 60 * 60 * 1000;
             
@@ -185,6 +193,8 @@ validateLocalWorker: function(username, password) {
                 this.logout();
                 return false;
             }
+
+            // Проверка бездействия (30 минут)
             const inactivityTime = Date.now() - parseInt(lastActivity || sessionStart);
             const thirtyMinutes = 30 * 60 * 1000;
             
@@ -193,6 +203,8 @@ validateLocalWorker: function(username, password) {
                 this.logout();
                 return false;
             }
+
+            // Для работников проверяем активность в списке работников
             if (user.role === 'worker') {
                 try {
                     const workers = JSON.parse(localStorage.getItem('workers') || '[]');
@@ -217,12 +229,15 @@ validateLocalWorker: function(username, password) {
         }
     },
 
+    // Получение текущего пользователя
     getCurrentUser: function() {
         try {
             const userStr = localStorage.getItem('currentUser');
             if (!userStr) return null;
             
             const user = JSON.parse(userStr);
+            
+            // Обновляем время активности
             this.updateSession();
             
             return user;
@@ -232,6 +247,7 @@ validateLocalWorker: function(username, password) {
         }
     },
 
+    // Проверка прав администратора
     isAdmin: function() {
         const user = this.getCurrentUser();
         return user && (user.role === 'admin' || user.isAdmin === true);
@@ -241,9 +257,13 @@ validateLocalWorker: function(username, password) {
     logout: function() {
         const user = this.getCurrentUser();
         console.log(`👋 Выход пользователя: ${user ? user.name : 'unknown'}`);
+        
+        // Очищаем только сессионные данные
         localStorage.removeItem('currentUser');
         localStorage.removeItem('session_start');
         localStorage.removeItem('last_activity');
+        
+        // Перенаправляем на страницу входа
         setTimeout(() => {
             if (!window.location.pathname.includes('login.html')) {
                 window.location.href = 'login.html';
@@ -251,6 +271,7 @@ validateLocalWorker: function(username, password) {
         }, 100);
     },
 
+    // Обновление времени активности
     updateSession: function() {
         try {
             localStorage.setItem('last_activity', Date.now().toString());
@@ -272,12 +293,15 @@ validateLocalWorker: function(username, password) {
         }
     },
 
+    // Защита от XSS - очистка ввода
     sanitizeInput: function(input) {
         if (input === null || input === undefined) return '';
         
         if (typeof input !== 'string') {
             input = String(input);
         }
+        
+        // Удаляем опасные символы
         return input.replace(/[<>&'"`]/g, function(match) {
             const entities = {
                 '<': '&lt;',
@@ -291,12 +315,14 @@ validateLocalWorker: function(username, password) {
         }).trim();
     },
 
+    // Проверка email
     isValidEmail: function(email) {
         if (!email) return false;
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
     },
 
+    // Проверка сложности пароля
     isStrongPassword: function(password) {
         if (!password) return false;
         
@@ -313,6 +339,7 @@ validateLocalWorker: function(username, password) {
 
     canChangeSaleManager: function() {
     const user = this.getCurrentUser();
+    // Только админ может менять менеджера
     return user && user.role === 'admin';
 },
 
@@ -328,13 +355,19 @@ validateLocalWorker: function(username, password) {
         
         return password;
     },
+
+    // Инициализация
     init: function() {
         console.log('✅ SecurityManager инициализирован');
+        
+        // Автоматическая проверка сессии каждую минуту
         setInterval(() => {
             if (this.isSessionValid()) {
                 this.updateSession();
             }
         }, 60000);
+        
+        // Обработчик активности пользователя
         document.addEventListener('click', () => this.updateSession());
         document.addEventListener('keypress', () => this.updateSession());
         document.addEventListener('scroll', () => this.updateSession());
@@ -342,8 +375,11 @@ validateLocalWorker: function(username, password) {
         return true;
     }
 };
+
+// Экспорт
 window.security = SecurityManager;
 
+// Автоматическая инициализация при загрузке
 if (typeof window !== 'undefined') {
     setTimeout(() => {
         SecurityManager.init();
