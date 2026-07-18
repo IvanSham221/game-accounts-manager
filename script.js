@@ -911,6 +911,17 @@ function initApp() {
             showNotification('Обнаружено расхождение в данных продаж. Рекомендуется провести диагностику.', 'warning', 5000);
         }
     }, 3000);
+    // Добавляем кнопку загрузки всех продаж
+    setTimeout(addLoadAllSalesButton, 500);
+    
+    // Загружаем все продажи из Firebase при старте
+    setTimeout(() => {
+        loadAllSalesFromFirebase().then(allSales => {
+            if (allSales && allSales.length > 0) {
+                console.log(`✅ Загружено ${allSales.length} продаж из облака`);
+            }
+        });
+    }, 1000);
 }
 }
 
@@ -4821,61 +4832,60 @@ function openSaleModal(accountId, positionType, positionName, positionIndex) {
     }, 100);
 }
 
+// ============================================================
+// ИСПРАВЛЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ ПРОДАЖ (С РАЗДЕЛЕНИЕМ ХРАНИЛИЩ)
+// ============================================================
 async function confirmSaleAndShowData() {
     const salePrice = document.getElementById('salePrice').value;
     const marketplace = document.getElementById('saleMarketplace').value;
     const saleDate = document.getElementById('saleDate').value;
     const saleTime = document.getElementById('saleTime').value;
     const saleNotes = document.getElementById('saleNotes').value;
-    
+
     if (!salePrice) {
         showNotification('Введите цену продажи', 'warning');
         return;
     }
-    
+
     let price = parseFloat(salePrice);
-    
-    // РАСЧЕТ КОМИССИИ ТОЛЬКО ДЛЯ НОВЫХ ПРОДАЖ
+
+    // РАСЧЕТ КОМИССИИ
     let finalPrice = price;
     let commissionData = null;
-    
+
     if (marketplace === 'funpay') {
         commissionData = calculateFPCommission(price);
         finalPrice = commissionData.final;
         console.log(`💰 Funpay комиссия: ${price} - ${commissionData.commission} = ${finalPrice}`);
     }
-    
-    // ==== ИСПРАВЛЕНИЕ: Используем московское время для сохранения ====
+
+    // ВРЕМЯ (Московское)
     let saleDateTime;
     let timestamp;
-    
+
     if (saleDate && saleTime) {
-        // Если дата и время выбраны вручную, создаем объект с учетом московского времени
         const [year, month, day] = saleDate.split('-').map(Number);
         const [hours, minutes] = saleTime.split(':').map(Number);
-        
-        // Создаем дату в московском времени
         const moscowDate = new Date(Date.UTC(year, month - 1, day, hours - 3, minutes));
         timestamp = moscowDate.getTime();
         saleDateTime = `${saleDate} ${saleTime}`;
     } else {
-        // Если не выбраны, используем текущее московское время
         const moscowTime = getSimpleMoscowDateTime();
         saleDateTime = moscowTime.datetime;
         timestamp = moscowTime.timestamp;
     }
-    
+
     const accountIndex = accounts.findIndex(acc => acc.id === window.currentSaleAccount);
     if (accountIndex === -1) {
         showNotification('Аккаунт не найден', 'error');
         return;
     }
-    
-    // ГЕНЕРАЦИЯ УНИКАЛЬНОГО ID С ТАЙМСТЭМПОМ
+
+    // УНИКАЛЬНЫЙ ID
     const positionId = `${window.currentSaleAccount}_${window.currentSalePosition}_${window.currentSalePositionIndex}_${timestamp}`;
-    
+
     const currentUser = security.getCurrentUser();
-    
+
     // СОЗДАЕМ ЗАПИСЬ О ПРОДАЖЕ
     const newSale = {
         id: positionId,
@@ -4901,70 +4911,276 @@ async function confirmSaleAndShowData() {
         managerRole: currentUser ? currentUser.role : 'unknown',
         marketplace: marketplace || 'telegram',
         commissionApplied: marketplace === 'funpay',
-        // Добавляем информацию о часовом поясе
         timezone: 'Europe/Moscow',
         timezoneOffset: '+03:00'
     };
-    
+
     console.log('💾 Создана новая продажа:', newSale);
-    console.log('⏰ Время:', saleDateTime);
-    
+
     try {
-        // Шаг 1: Добавляем в локальный массив
+        // ===== 1. ДОБАВЛЯЕМ В МАССИВ =====
         sales.push(newSale);
-        console.log('📱 Добавлено в локальный массив. Всего продаж:', sales.length);
+        console.log('📱 Добавлено в массив. Всего продаж:', sales.length);
+
+        // ===== 2. СОХРАНЯЕМ В LOCALSTORAGE (ТОЛЬКО КЕШ) =====
+        // Храним только последние 500 продаж в localStorage, чтобы не превысить лимит
+        const MAX_LOCAL_CACHE = 500;
+        let cacheSales = sales;
         
-        // Шаг 2: Сохраняем локально
-        localStorage.setItem('sales', JSON.stringify(sales));
-        console.log('💾 Сохранено в localStorage');
-        
-        // Шаг 3: Пытаемся синхронизировать с Firebase
+        if (sales.length > MAX_LOCAL_CACHE) {
+            // Берем только последние N записей для кеша
+            cacheSales = sales.slice(-MAX_LOCAL_CACHE);
+            console.log(`⚠️ Локальный кеш: ${MAX_LOCAL_CACHE} из ${sales.length} продаж`);
+        }
+
+        // Сохраняем кеш в localStorage
+        try {
+            localStorage.setItem('sales', JSON.stringify(cacheSales));
+            console.log('💾 Кеш сохранен в localStorage');
+        } catch (cacheError) {
+            console.warn('⚠️ Не удалось сохранить кеш в localStorage:', cacheError);
+            // Если даже 500 не влезает - пробуем 100
+            try {
+                const emergencyCache = sales.slice(-100);
+                localStorage.setItem('sales', JSON.stringify(emergencyCache));
+                console.log('⚠️ Экстренный кеш: 100 продаж');
+            } catch (emergencyError) {
+                console.error('❌ Не удалось сохранить даже экстренный кеш');
+                // Очищаем localStorage для продаж
+                localStorage.removeItem('sales');
+            }
+        }
+
+        // ===== 3. СОХРАНЯЕМ В FIREBASE (ВСЕ ПРОДАЖИ) =====
+        let firebaseSuccess = false;
+        let firebaseError = null;
+
+        // Используем специальный метод для сохранения одной продажи
         if (window.dataSync && window.dataSync.saveSale) {
             console.log('🔄 Использую dataSync.saveSale...');
-            const result = await window.dataSync.saveSale(newSale);
-            
-            if (result.synced) {
-                console.log('✅ Продажа синхронизирована через dataSync');
-                showNotification('✅ Продажа сохранена и синхронизирована!', 'success');
-            } else {
-                console.log('⚠️ dataSync сохранил локально:', result);
-                showNotification('✅ Продажа сохранена локально', 'warning');
+            try {
+                const result = await window.dataSync.saveSale(newSale);
+                if (result.synced) {
+                    firebaseSuccess = true;
+                    console.log('✅ Продажа синхронизирована через dataSync');
+                } else {
+                    console.log('⚠️ dataSync сохранил локально:', result);
+                }
+            } catch (error) {
+                firebaseError = error;
+                console.error('❌ Ошибка dataSync:', error);
             }
-        } 
-        else if (firebase && firebase.database) {
+        } else if (firebase && firebase.database) {
             console.log('🔥 Записываю в Firebase напрямую...');
-            const db = firebase.database();
-            
-            const saleRef = db.ref('sales').child(positionId);
-            await saleRef.set(newSale);
-            
-            console.log('✅ Продажа записана в Firebase с ID:', positionId);
-            showNotification('✅ Продажа сохранена в облаке!', 'success');
-        }
-        else {
+            try {
+                const db = firebase.database();
+                await db.ref('sales/' + positionId).set(newSale);
+                firebaseSuccess = true;
+                console.log('✅ Продажа записана в Firebase');
+            } catch (error) {
+                firebaseError = error;
+                console.error('❌ Ошибка Firebase:', error);
+            }
+        } else {
             console.log('📱 Firebase недоступен, только локальное сохранение');
+        }
+
+        // ===== 4. ПОКАЗЫВАЕМ РЕЗУЛЬТАТ =====
+        if (firebaseSuccess) {
+            showNotification('✅ Продажа сохранена в облаке!', 'success');
+        } else if (firebaseError) {
+            showNotification(`⚠️ Продажа сохранена локально (ошибка: ${firebaseError.message})`, 'warning');
+        } else {
             showNotification('✅ Продажа сохранена локально', 'warning');
         }
-        
-        // Шаг 4: Обновляем отображение
+
+        // ===== 5. ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ =====
         refreshSearchResultsAfterSaleUpdate();
-        
-        // Шаг 5: Показываем данные клиенту
+
+        // ===== 6. ПОКАЗЫВАЕМ ДАННЫЕ КЛИЕНТУ =====
         showAccountDataAfterSale(window.currentSaleAccount);
-        
+
+        // ===== 7. ДИАГНОСТИКА РАЗМЕРА =====
+        try {
+            const storageSize = new Blob([JSON.stringify(localStorage)]).size / 1024;
+            console.log(`📊 Размер localStorage: ${storageSize.toFixed(2)} KB`);
+        } catch (e) {}
+
     } catch (error) {
         console.error('❌ Критическая ошибка при сохранении продажи:', error);
         showNotification('❌ Ошибка при сохранении продажи. Проверьте консоль.', 'error');
-        
-        // Сохраняем хотя бы локально при ошибке
+
+        // АВАРИЙНОЕ СОХРАНЕНИЕ ТОЛЬКО ЛОКАЛЬНО
         try {
-            localStorage.setItem('sales', JSON.stringify(sales));
-            showNotification('✅ Продажа сохранена локально (ошибка синхронизации)', 'warning');
-        } catch (localError) {
-            console.error('❌ Ошибка локального сохранения:', localError);
+            const emergencySales = sales.slice(-50);
+            localStorage.setItem('sales', JSON.stringify(emergencySales));
+            showNotification('⚠️ Аварийное сохранение: 50 последних продаж', 'warning');
+        } catch (emergencyError) {
+            console.error('❌ Критическая ошибка аварийного сохранения:', emergencyError);
             showNotification('❌ Не удалось сохранить продажу', 'error');
         }
     }
+}
+
+// ============================================================
+// ФУНКЦИЯ ЗАГРУЗКИ ВСЕХ ПРОДАЖ ИЗ FIREBASE
+// ============================================================
+async function loadAllSalesFromFirebase() {
+    console.log('📥 Загрузка всех продаж из Firebase...');
+    
+    try {
+        if (window.dataSync && window.dataSync.loadData) {
+            const allSales = await window.dataSync.loadData('sales');
+            if (allSales && allSales.length > 0) {
+                sales = allSales;
+                console.log(`✅ Загружено ${sales.length} продаж из Firebase`);
+                
+                // Обновляем кеш в localStorage (последние 500)
+                const MAX_CACHE = 500;
+                if (sales.length > MAX_CACHE) {
+                    const cacheSales = sales.slice(-MAX_CACHE);
+                    localStorage.setItem('sales', JSON.stringify(cacheSales));
+                    console.log(`📦 Кеш обновлен: ${cacheSales.length} продаж`);
+                } else {
+                    localStorage.setItem('sales', JSON.stringify(sales));
+                }
+                
+                return sales;
+            }
+        } else if (firebase && firebase.database) {
+            const db = firebase.database();
+            const snapshot = await db.ref('sales').once('value');
+            if (snapshot.exists()) {
+                const salesObj = snapshot.val();
+                const allSales = Object.values(salesObj || {});
+                sales = allSales;
+                console.log(`✅ Загружено ${sales.length} продаж из Firebase (прямой запрос)`);
+                
+                // Обновляем кеш
+                const MAX_CACHE = 500;
+                if (sales.length > MAX_CACHE) {
+                    const cacheSales = sales.slice(-MAX_CACHE);
+                    localStorage.setItem('sales', JSON.stringify(cacheSales));
+                } else {
+                    localStorage.setItem('sales', JSON.stringify(sales));
+                }
+                
+                return sales;
+            }
+        }
+        
+        // Если Firebase недоступен - загружаем из кеша
+        const cached = JSON.parse(localStorage.getItem('sales')) || [];
+        if (cached.length > 0) {
+            sales = cached;
+            console.log(`📂 Загружено из кеша: ${sales.length} продаж`);
+        }
+        
+        return sales;
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки продаж:', error);
+        return [];
+    }
+}
+
+// ============================================================
+// ФУНКЦИЯ ДЛЯ ПРИНУДИТЕЛЬНОЙ ЗАГРУЗКИ ВСЕХ ПРОДАЖ (ДЛЯ ОТЧЕТОВ)
+// ============================================================
+async function refreshAllSales() {
+    console.log('🔄 Обновление всех продаж из Firebase...');
+    
+    const loadingNotification = showNotification('Загрузка всех продаж...', 'info', 2000);
+    
+    try {
+        const allSales = await loadAllSalesFromFirebase();
+        
+        if (allSales && allSales.length > 0) {
+            // Обновляем глобальную переменную
+            if (typeof window.sales !== 'undefined') {
+                window.sales = allSales;
+            }
+            
+            // Обновляем UI на текущей странице
+            const currentPage = window.location.pathname.split('/').pop();
+            
+            if (currentPage === 'reports.html' && typeof generateFullReport === 'function') {
+                setTimeout(() => generateFullReport(), 300);
+            }
+            
+            if (currentPage === 'manager.html') {
+                const searchInput = document.getElementById('managerGameSearch');
+                if (searchInput && searchInput.value.trim()) {
+                    setTimeout(() => searchByGame(), 300);
+                }
+            }
+            
+            if (currentPage === 'workers-stats.html' && typeof generateWorkersStats === 'function') {
+                setTimeout(() => generateWorkersStats(), 300);
+            }
+            
+            showNotification(`✅ Загружено ${allSales.length} продаж`, 'success', 2000);
+            return allSales;
+        } else {
+            showNotification('ℹ️ Нет продаж в системе', 'info', 2000);
+            return [];
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка обновления продаж:', error);
+        showNotification('❌ Ошибка загрузки продаж', 'error', 2000);
+        return [];
+    }
+}
+
+// ============================================================
+// ДОБАВЛЯЕМ КНОПКУ "ЗАГРУЗИТЬ ВСЕ ПРОДАЖИ" В ИНТЕРФЕЙС
+// ============================================================
+function addLoadAllSalesButton() {
+    // Проверяем, не на странице ли входа
+    if (window.location.pathname.includes('login.html') || 
+        window.location.pathname.includes('index.html')) {
+        return;
+    }
+    
+    // Проверяем, есть ли уже такая кнопка
+    if (document.getElementById('loadAllSalesBtn')) return;
+    
+    // Ищем контейнер для кнопки
+    let container = document.querySelector('.section h2 + div');
+    
+    if (!container) {
+        // Создаем контейнер в шапке
+        container = document.createElement('div');
+        container.style.cssText = 'margin-bottom: 20px; display: flex; justify-content: flex-end; gap: 10px;';
+        
+        // Добавляем после заголовка
+        const title = document.querySelector('.container h1');
+        if (title && title.parentNode) {
+            title.parentNode.insertBefore(container, title.nextSibling);
+        } else {
+            document.querySelector('.container')?.prepend(container);
+        }
+    }
+    
+    // Создаем кнопку
+    const btn = document.createElement('button');
+    btn.id = 'loadAllSalesBtn';
+    btn.className = 'btn btn-primary';
+    btn.innerHTML = '📥 Загрузить все продажи';
+    btn.title = 'Загрузить все продажи из Firebase (может занять время)';
+    btn.onclick = async function() {
+        this.disabled = true;
+        this.innerHTML = '⏳ Загрузка...';
+        
+        await refreshAllSales();
+        
+        this.disabled = false;
+        this.innerHTML = '📥 Загрузить все продажи';
+    };
+    
+    container.appendChild(btn);
+    console.log('✅ Кнопка "Загрузить все продажи" добавлена');
 }
 
 // Добавь в script.js
