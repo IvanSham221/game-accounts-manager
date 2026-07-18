@@ -95,71 +95,79 @@ class FirebaseSync {
             }
         });
 
-        // Слушатель для продаж (ИСПРАВЛЕН)
-        this.db.ref('sales').on('value', (snapshot) => {
-            if (snapshot.exists()) {
-                try {
-                    const salesObj = snapshot.val();
-                    
-                    // Убираем сохранение sales_firebase - оно вызывает переполнение localStorage
-                    // localStorage.setItem('sales_firebase', JSON.stringify(salesObj)); // ← УДАЛЕНО
-                    
-                    // Преобразуем в массив для совместимости
-                    const salesArray = Object.values(salesObj || {});
-                    
-                    // Сохраняем ТОЛЬКО кеш (последние 500)
-                    safeSaveSales(salesArray);
-                    
-                    console.log('🔄 Продажи синхронизированы из Firebase:', salesArray.length);
-                    
-                    // Обновляем глобальную переменную
-                    if (typeof window.sales !== 'undefined') {
-                        window.sales = salesArray;
-                        console.log('📊 Продажи обновлены в памяти:', window.sales.length);
-                    }
-                    
-                    // Обновляем UI если нужно
-                    setTimeout(() => {
-                        const currentPage = window.location.pathname.split('/').pop();
-                        
-                        if (currentPage === 'reports.html') {
-                            if (typeof generateFullReport === 'function') {
-                                generateFullReport();
-                            }
-                            if (typeof showNotification === 'function') {
-                                showNotification('Отчет обновлен с сервера', 'info', 2000);
-                            }
-                        }
-                        
-                        if (currentPage === 'manager.html') {
-                            const searchInput = document.getElementById('managerGameSearch');
-                            if (searchInput && searchInput.value.trim()) {
-                                setTimeout(() => {
-                                    if (typeof searchByGame === 'function') {
-                                        searchByGame();
-                                    }
-                                }, 500);
-                            }
-                        }
-                        
-                        if (currentPage === 'workers-stats.html') {
-                            if (typeof generateWorkersStats === 'function') {
-                                setTimeout(generateWorkersStats, 500);
-                            }
-                        }
-                    }, 300);
-                    
-                } catch (error) {
-                    console.error('❌ Ошибка синхронизации продаж:', error);
-                }
-            } else {
-                console.log('📊 Нет продаж в Firebase');
-                localStorage.setItem('sales', JSON.stringify([]));
-                if (typeof window.sales !== 'undefined') {
-                    window.sales = [];
-                }
+// Слушатель для продаж (ВСЕ ПРОДАЖИ В ПАМЯТИ)
+this.db.ref('sales').on('value', (snapshot) => {
+    if (snapshot.exists()) {
+        try {
+            const salesObj = snapshot.val();
+            const salesArray = Object.values(salesObj || {});
+            
+            // ===== СОХРАНЯЕМ ВСЕ ПРОДАЖИ В ПАМЯТЬ =====
+            if (typeof window.sales !== 'undefined') {
+                window.sales = salesArray;
+                console.log(`📊 В памяти: ${window.sales.length} продаж`);
             }
-        });
+            
+            // Обновляем глобальную переменную
+            sales = salesArray;
+            
+            // ===== КЕШИРУЕМ В localStorage (опционально, для быстрого доступа) =====
+            try {
+                // Пытаемся сохранить все продажи в localStorage
+                localStorage.setItem('sales', JSON.stringify(salesArray));
+                console.log('📦 Все продажи сохранены в кеш');
+            } catch (cacheError) {
+                // Если не влезает - сохраняем только последние 500 для кеша
+                const cached = salesArray.slice(-500);
+                localStorage.setItem('sales', JSON.stringify(cached));
+                console.log(`📦 Кеш: ${cached.length} из ${salesArray.length} продаж`);
+            }
+            
+            console.log(`🔄 Продажи синхронизированы из Firebase: ${salesArray.length}`);
+            
+            // ===== ОБНОВЛЯЕМ UI =====
+            setTimeout(() => {
+                const currentPage = window.location.pathname.split('/').pop();
+                
+                if (currentPage === 'reports.html') {
+                    if (typeof generateFullReport === 'function') {
+                        generateFullReport();
+                    }
+                    if (typeof showNotification === 'function') {
+                        showNotification(`Отчет обновлен: ${salesArray.length} продаж`, 'info', 2000);
+                    }
+                }
+                
+                if (currentPage === 'manager.html') {
+                    const searchInput = document.getElementById('managerGameSearch');
+                    if (searchInput && searchInput.value.trim()) {
+                        setTimeout(() => {
+                            if (typeof searchByGame === 'function') {
+                                searchByGame();
+                            }
+                        }, 500);
+                    }
+                }
+                
+                if (currentPage === 'workers-stats.html') {
+                    if (typeof generateWorkersStats === 'function') {
+                        setTimeout(generateWorkersStats, 500);
+                    }
+                }
+            }, 300);
+            
+        } catch (error) {
+            console.error('❌ Ошибка синхронизации продаж:', error);
+        }
+    } else {
+        console.log('📊 Нет продаж в Firebase');
+        localStorage.setItem('sales', JSON.stringify([]));
+        if (typeof window.sales !== 'undefined') {
+            window.sales = [];
+        }
+        sales = [];
+    }
+});
         
         // Мониторинг добавления новых продаж
         this.db.ref('sales').on('child_added', (snapshot) => {
@@ -269,9 +277,6 @@ class FirebaseSync {
             const salesSnap = await this.db.ref('sales').once('value');
             if (salesSnap.exists()) {
                 const salesObj = salesSnap.val();
-                
-                // Убираем сохранение sales_firebase - оно вызывает переполнение localStorage
-                // localStorage.setItem('sales_firebase', JSON.stringify(salesObj)); // ← УДАЛЕНО
                 
                 const salesArray = Object.values(salesObj || {});
                 
@@ -775,9 +780,6 @@ function setupDataListeners() {
         if (snapshot.exists()) {
             try {
                 const salesObj = snapshot.val();
-                
-                // Убираем сохранение sales_firebase - оно вызывает переполнение localStorage
-                // localStorage.setItem('sales_firebase', JSON.stringify(salesObj)); // ← УДАЛЕНО
                 
                 const salesArray = Object.values(salesObj || {});
                 

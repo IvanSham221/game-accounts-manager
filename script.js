@@ -807,10 +807,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// ============================================================
+// ЗАГРУЗКА ВСЕХ ДАННЫХ (ВКЛЮЧАЯ ВСЕ ПРОДАЖИ)
+// ============================================================
 async function loadAllDataWithSync() {
     try {
         console.log('🔄 Загружаем данные с синхронизацией...');
         
+        // Загружаем игры и аккаунты
         if (window.dataSync && window.dataSync.forceFullSync) {
             await dataSync.forceFullSync();
         }
@@ -818,11 +822,56 @@ async function loadAllDataWithSync() {
         // Обновляем глобальные переменные
         games = JSON.parse(localStorage.getItem('games')) || [];
         accounts = JSON.parse(localStorage.getItem('accounts')) || [];
-        sales = JSON.parse(localStorage.getItem('sales')) || [];
         
-        // ===== ДОБАВЛЯЕМ СИНХРОНИЗАЦИЮ НАЗВАНИЙ =====
+        // ===== ВАЖНО: Загружаем ВСЕ продажи из Firebase =====
+        console.log('📥 Загружаем ВСЕ продажи из Firebase...');
+        
+        if (window.dataSync && window.dataSync.loadData) {
+            // Загружаем ВСЕ продажи из Firebase в память
+            const allSales = await window.dataSync.loadData('sales');
+            if (allSales && allSales.length > 0) {
+                sales = allSales;
+                window.sales = allSales; // Сохраняем в глобальную переменную
+                console.log(`✅ Загружено ${sales.length} продаж из Firebase`);
+                
+                // Кешируем в localStorage (только для быстрого доступа, но не для отображения)
+                try {
+                    // Пытаемся сохранить все
+                    localStorage.setItem('sales', JSON.stringify(sales));
+                } catch (e) {
+                    // Если не влезает - сохраняем только последние 500 как кеш
+                    const cached = sales.slice(-500);
+                    localStorage.setItem('sales', JSON.stringify(cached));
+                    console.log('📦 Кеш сохранен (500 последних)');
+                }
+            } else {
+                sales = JSON.parse(localStorage.getItem('sales')) || [];
+                console.log(`📂 Загружено из кеша: ${sales.length} продаж`);
+            }
+        } else if (firebase && firebase.database) {
+            // Прямая загрузка из Firebase
+            const snapshot = await firebase.database().ref('sales').once('value');
+            if (snapshot.exists()) {
+                const salesObj = snapshot.val();
+                const allSales = Object.values(salesObj || {});
+                sales = allSales;
+                window.sales = allSales;
+                console.log(`✅ Загружено ${sales.length} продаж из Firebase (прямой запрос)`);
+                
+                // Кешируем
+                try {
+                    localStorage.setItem('sales', JSON.stringify(sales));
+                } catch (e) {
+                    const cached = sales.slice(-500);
+                    localStorage.setItem('sales', JSON.stringify(cached));
+                }
+            } else {
+                sales = [];
+            }
+        }
+        
+        // ===== СИНХРОНИЗАЦИЯ НАЗВАНИЙ ИГР =====
         await syncGameNamesInAllData();
-        // ===== КОНЕЦ ДОБАВЛЕНИЯ =====
         
         // Убедимся, что у всех аккаунтов есть массив комментариев
         accounts.forEach(account => {
@@ -6776,10 +6825,40 @@ function closeFreeModal() {
 // ОТЧЕТЫ И СТАТИСТИКА
 // ============================================
 
+// ============================================================
+// ОТЧЕТЫ - ПОКАЗЫВАЕМ ВСЕ ПРОДАЖИ ИЗ ПАМЯТИ
+// ============================================================
 function generateReport() {
-    // Просто показываем полную статистику за всё время
+    console.log(`📊 Генерация отчета: ${sales.length} продаж в памяти`);
+    
+    // Проверяем, есть ли продажи в памяти
+    if (sales.length === 0) {
+        // Пытаемся загрузить из Firebase если в памяти пусто
+        if (firebase && firebase.database) {
+            firebase.database().ref('sales').once('value').then(snapshot => {
+                if (snapshot.exists()) {
+                    const salesObj = snapshot.val();
+                    const allSales = Object.values(salesObj || {});
+                    sales = allSales;
+                    window.sales = allSales;
+                    console.log(`✅ Загружено ${sales.length} продаж из Firebase`);
+                    displayReportResults(sales, 'все время', 'все время');
+                } else {
+                    displayReportResults([], 'все время', 'все время');
+                }
+            }).catch(err => {
+                console.error('Ошибка загрузки продаж:', err);
+                displayReportResults([], 'все время', 'все время');
+            });
+        } else {
+            displayReportResults([], 'все время', 'все время');
+        }
+        return;
+    }
+    
+    // Показываем все продажи из памяти
     displayReportResults(sales, 'все время', 'все время');
-    showNotification('Показана статистика за всё время 📊', 'info');
+    showNotification(`📊 Показана статистика: ${sales.length} продаж`, 'info');
 }
 
 function generateFullReport() {
