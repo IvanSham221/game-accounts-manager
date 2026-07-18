@@ -808,69 +808,69 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================================================
-// ЗАГРУЗКА ВСЕХ ДАННЫХ (ВКЛЮЧАЯ ВСЕ ПРОДАЖИ)
+// ЗАГРУЗКА ВСЕХ ДАННЫХ (ВКЛЮЧАЯ ВСЕ ПРОДАЖИ ИЗ FIREBASE)
 // ============================================================
 async function loadAllDataWithSync() {
     try {
         console.log('🔄 Загружаем данные с синхронизацией...');
         
-        // Загружаем игры и аккаунты
+        // ===== 1. ЗАГРУЖАЕМ ИГРЫ И АККАУНТЫ =====
         if (window.dataSync && window.dataSync.forceFullSync) {
             await dataSync.forceFullSync();
         }
         
-        // Обновляем глобальные переменные
+        // Обновляем глобальные переменные из localStorage
         games = JSON.parse(localStorage.getItem('games')) || [];
         accounts = JSON.parse(localStorage.getItem('accounts')) || [];
         
-        // ===== ВАЖНО: Загружаем ВСЕ продажи из Firebase =====
+        // ===== 2. ЗАГРУЖАЕМ ВСЕ ПРОДАЖИ ИЗ FIREBASE =====
         console.log('📥 Загружаем ВСЕ продажи из Firebase...');
         
-        if (window.dataSync && window.dataSync.loadData) {
-            // Загружаем ВСЕ продажи из Firebase в память
-            const allSales = await window.dataSync.loadData('sales');
-            if (allSales && allSales.length > 0) {
-                sales = allSales;
-                window.sales = allSales; // Сохраняем в глобальную переменную
-                console.log(`✅ Загружено ${sales.length} продаж из Firebase`);
-                
-                // Кешируем в localStorage (только для быстрого доступа, но не для отображения)
-                try {
-                    // Пытаемся сохранить все
-                    localStorage.setItem('sales', JSON.stringify(sales));
-                } catch (e) {
-                    // Если не влезает - сохраняем только последние 500 как кеш
-                    const cached = sales.slice(-500);
-                    localStorage.setItem('sales', JSON.stringify(cached));
-                    console.log('📦 Кеш сохранен (500 последних)');
+        if (firebase && firebase.database) {
+            try {
+                const snapshot = await firebase.database().ref('sales').once('value');
+                if (snapshot.exists()) {
+                    const salesObj = snapshot.val();
+                    const allSales = Object.values(salesObj || {});
+                    
+                    // ===== СОХРАНЯЕМ ВСЕ ПРОДАЖИ В ПАМЯТЬ =====
+                    sales = allSales;
+                    window.sales = allSales;
+                    
+                    console.log(`✅ Загружено ${sales.length} продаж из Firebase (ВСЕ!)`);
+                    
+                    // ===== КЕШИРУЕМ В localStorage (сколько влезет) =====
+                    try {
+                        localStorage.setItem('sales', JSON.stringify(allSales));
+                        console.log('📦 Все продажи сохранены в кеш');
+                    } catch (cacheError) {
+                        // Если не влезает - сохраняем только последние 500 для кеша
+                        const cached = allSales.slice(-500);
+                        localStorage.setItem('sales', JSON.stringify(cached));
+                        console.log(`📦 Кеш: ${cached.length} из ${allSales.length} продаж`);
+                    }
+                    
+                } else {
+                    console.log('📊 Нет продаж в Firebase');
+                    sales = [];
+                    window.sales = [];
+                    localStorage.setItem('sales', JSON.stringify([]));
                 }
-            } else {
+            } catch (error) {
+                console.error('❌ Ошибка загрузки продаж из Firebase:', error);
+                // Fallback - загружаем из localStorage
                 sales = JSON.parse(localStorage.getItem('sales')) || [];
+                window.sales = sales;
                 console.log(`📂 Загружено из кеша: ${sales.length} продаж`);
             }
-        } else if (firebase && firebase.database) {
-            // Прямая загрузка из Firebase
-            const snapshot = await firebase.database().ref('sales').once('value');
-            if (snapshot.exists()) {
-                const salesObj = snapshot.val();
-                const allSales = Object.values(salesObj || {});
-                sales = allSales;
-                window.sales = allSales;
-                console.log(`✅ Загружено ${sales.length} продаж из Firebase (прямой запрос)`);
-                
-                // Кешируем
-                try {
-                    localStorage.setItem('sales', JSON.stringify(sales));
-                } catch (e) {
-                    const cached = sales.slice(-500);
-                    localStorage.setItem('sales', JSON.stringify(cached));
-                }
-            } else {
-                sales = [];
-            }
+        } else {
+            // Если Firebase недоступен - загружаем из localStorage
+            sales = JSON.parse(localStorage.getItem('sales')) || [];
+            window.sales = sales;
+            console.log(`📂 Загружено из кеша: ${sales.length} продаж`);
         }
         
-        // ===== СИНХРОНИЗАЦИЯ НАЗВАНИЙ ИГР =====
+        // ===== 3. СИНХРОНИЗАЦИЯ НАЗВАНИЙ ИГР =====
         await syncGameNamesInAllData();
         
         // Убедимся, что у всех аккаунтов есть массив комментариев
@@ -882,14 +882,38 @@ async function loadAllDataWithSync() {
         
         console.log(`📊 Данные загружены: ${games.length} игр, ${accounts.length} аккаунтов, ${sales.length} продаж`);
         
+        // ===== 4. ОБНОВЛЯЕМ UI =====
+        setTimeout(() => {
+            const currentPage = window.location.pathname.split('/').pop();
+            
+            if (currentPage === 'reports.html' && typeof generateFullReport === 'function') {
+                generateFullReport();
+            }
+            if (currentPage === 'manager.html' && typeof loadGamesForManager === 'function') {
+                loadGamesForManager();
+                // Если есть поиск - обновляем
+                const searchInput = document.getElementById('managerGameSearch');
+                if (searchInput && searchInput.value.trim()) {
+                    setTimeout(() => {
+                        if (typeof searchByGame === 'function') {
+                            searchByGame();
+                        }
+                    }, 500);
+                }
+            }
+            if (currentPage === 'workers-stats.html' && typeof generateWorkersStats === 'function') {
+                generateWorkersStats();
+            }
+        }, 500);
+        
     } catch (error) {
         console.error('❌ Ошибка при загрузке данных:', error);
         games = JSON.parse(localStorage.getItem('games')) || [];
         accounts = JSON.parse(localStorage.getItem('accounts')) || [];
         sales = JSON.parse(localStorage.getItem('sales')) || [];
+        window.sales = sales;
     }
 }
-
 function initApp() {
     const currentPage = window.location.pathname.split('/').pop();
     const user = security.getCurrentUser();
