@@ -810,116 +810,29 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================================
 // ЗАГРУЗКА ВСЕХ ДАННЫХ (ВКЛЮЧАЯ ВСЕ ПРОДАЖИ ИЗ FIREBASE)
 // ============================================================
+// ============================================================
+// ЗАГРУЗКА ДАННЫХ (СТАРЫЙ МЕТОД - БОЛЬШЕ НЕ ИСПОЛЬЗУЕТСЯ)
+// ============================================================
 async function loadAllDataWithSync() {
-    try {
-        console.log('🔄 Загружаем данные с синхронизацией...');
-        
-        // ===== 1. ЗАГРУЖАЕМ ИГРЫ И АККАУНТЫ =====
-        if (window.dataSync && window.dataSync.forceFullSync) {
-            await dataSync.forceFullSync();
-        }
-        
-        // Обновляем глобальные переменные из localStorage
-        games = JSON.parse(localStorage.getItem('games')) || [];
-        accounts = JSON.parse(localStorage.getItem('accounts')) || [];
-        
-        // ===== 2. ЗАГРУЖАЕМ ВСЕ ПРОДАЖИ ИЗ FIREBASE =====
-        console.log('📥 Загружаем ВСЕ продажи из Firebase...');
-        
-        if (firebase && firebase.database) {
-            try {
-                const snapshot = await firebase.database().ref('sales').once('value');
-                if (snapshot.exists()) {
-                    const salesObj = snapshot.val();
-                    const allSales = Object.values(salesObj || {});
-                    
-                    // ===== СОХРАНЯЕМ ВСЕ ПРОДАЖИ В ПАМЯТЬ =====
-                    sales = allSales;
-                    window.sales = allSales;
-                    
-                    console.log(`✅ Загружено ${sales.length} продаж из Firebase (ВСЕ!)`);
-                    
-                    // ===== КЕШИРУЕМ В localStorage (сколько влезет) =====
-                    try {
-                        localStorage.setItem('sales', JSON.stringify(allSales));
-                        console.log('📦 Все продажи сохранены в кеш');
-                    } catch (cacheError) {
-                        // Если не влезает - сохраняем только последние 500 для кеша
-                        const cached = allSales.slice(-500);
-                        localStorage.setItem('sales', JSON.stringify(cached));
-                        console.log(`📦 Кеш: ${cached.length} из ${allSales.length} продаж`);
-                    }
-                    
-                } else {
-                    console.log('📊 Нет продаж в Firebase');
-                    sales = [];
-                    window.sales = [];
-                    localStorage.setItem('sales', JSON.stringify([]));
-                }
-            } catch (error) {
-                console.error('❌ Ошибка загрузки продаж из Firebase:', error);
-                // Fallback - загружаем из localStorage
-                sales = JSON.parse(localStorage.getItem('sales')) || [];
-                window.sales = sales;
-                console.log(`📂 Загружено из кеша: ${sales.length} продаж`);
-            }
-        } else {
-            // Если Firebase недоступен - загружаем из localStorage
-            sales = JSON.parse(localStorage.getItem('sales')) || [];
-            window.sales = sales;
-            console.log(`📂 Загружено из кеша: ${sales.length} продаж`);
-        }
-        
-        // ===== 3. СИНХРОНИЗАЦИЯ НАЗВАНИЙ ИГР =====
-        await syncGameNamesInAllData();
-        
-        // Убедимся, что у всех аккаунтов есть массив комментариев
-        accounts.forEach(account => {
-            if (!account.comments) {
-                account.comments = [];
-            }
-        });
-        
-        console.log(`📊 Данные загружены: ${games.length} игр, ${accounts.length} аккаунтов, ${sales.length} продаж`);
-        
-        // ===== 4. ОБНОВЛЯЕМ UI =====
-        setTimeout(() => {
-            const currentPage = window.location.pathname.split('/').pop();
-            
-            if (currentPage === 'reports.html' && typeof generateFullReport === 'function') {
-                generateFullReport();
-            }
-            if (currentPage === 'manager.html' && typeof loadGamesForManager === 'function') {
-                loadGamesForManager();
-                // Если есть поиск - обновляем
-                const searchInput = document.getElementById('managerGameSearch');
-                if (searchInput && searchInput.value.trim()) {
-                    setTimeout(() => {
-                        if (typeof searchByGame === 'function') {
-                            searchByGame();
-                        }
-                    }, 500);
-                }
-            }
-            if (currentPage === 'workers-stats.html' && typeof generateWorkersStats === 'function') {
-                generateWorkersStats();
-            }
-        }, 500);
-        
-    } catch (error) {
-        console.error('❌ Ошибка при загрузке данных:', error);
-        games = JSON.parse(localStorage.getItem('games')) || [];
-        accounts = JSON.parse(localStorage.getItem('accounts')) || [];
-        sales = JSON.parse(localStorage.getItem('sales')) || [];
-        window.sales = sales;
-    }
+    // Эта функция больше не используется!
+    // Теперь данные загружаются через loadGamesFromFirebase(), loadAccountsFromFirebase() и т.д.
+    console.log('⚠️ loadAllDataWithSync() устарела. Используйте отдельные функции загрузки.');
+    
+    // Просто загружаем игры и аккаунты (без продаж)
+    await loadGamesFromFirebase();
+    await loadAccountsFromFirebase();
+    
+    // Продажи НЕ загружаем!
+    console.log('✅ Загружены только игры и аккаунты (продажи пропущены)');
 }
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ (С ЛЕНИВОЙ ЗАГРУЗКОЙ)
+// ============================================================
 function initApp() {
     const currentPage = window.location.pathname.split('/').pop();
     const user = security.getCurrentUser();
     
     if (!user) {
-        // Если нет пользователя, перенаправляем на логин
         if (currentPage !== 'login.html' && currentPage !== 'index.html') {
             window.location.href = 'login.html';
         }
@@ -927,101 +840,273 @@ function initApp() {
     }
     
     console.log('👤 Пользователь:', user.name, `(${user.role})`);
+    console.log(`📄 Текущая страница: ${currentPage}`);
     
-    // Обновляем навигацию
+    // ===== ОПРЕДЕЛЯЕМ, КАКИЕ ДАННЫЕ НУЖНЫ =====
+    const needsGames = ['add-account.html', 'accounts.html', 'games.html', 'manager.html', 'prices.html', 'free-accounts.html', 'reports.html', 'workers-stats.html'];
+    const needsAccounts = ['accounts.html', 'free-accounts.html', 'manager.html', 'reports.html', 'workers-stats.html'];
+    const needsSales = ['reports.html', 'workers-stats.html']; // ← manager.html УБРАЛИ!
+    const needsWorkers = ['workers.html', 'workers-stats.html'];
+    
+    // ===== ЗАГРУЖАЕМ ТОЛЬКО НУЖНЫЕ ДАННЫЕ =====
+    
+    // 1. Игры (нужны почти везде)
+    if (needsGames.includes(currentPage)) {
+        loadGamesFromFirebase().then(() => {
+            console.log('✅ Игры загружены');
+            if (!needsAccounts.includes(currentPage) && !needsSales.includes(currentPage)) {
+                initPage(currentPage);
+            }
+        });
+    }
+    
+    // 2. Аккаунты (нужны на страницах с аккаунтами)
+    if (needsAccounts.includes(currentPage)) {
+        loadAccountsFromFirebase().then(() => {
+            console.log('✅ Аккаунты загружены');
+            if (!needsSales.includes(currentPage)) {
+                initPage(currentPage);
+            }
+        });
+    }
+    
+    // 3. Продажи — ТОЛЬКО на страницах отчетов!
+    if (needsSales.includes(currentPage)) {
+        loadSalesFromFirebase().then(() => {
+            console.log('✅ Продажи загружены');
+            initPage(currentPage);
+        });
+    }
+    
+    // 4. Работники
+    if (needsWorkers.includes(currentPage)) {
+        loadWorkersFromFirebase().then(() => {
+            console.log('✅ Работники загружены');
+            if (!needsGames.includes(currentPage) && !needsAccounts.includes(currentPage) && !needsSales.includes(currentPage)) {
+                initPage(currentPage);
+            }
+        });
+    }
+    
+    // 5. Страница manager.html — загружаем только игры и аккаунты, продажи НЕ загружаем!
+    if (currentPage === 'manager.html') {
+        // Уже загрузили игры и аккаунты выше
+        // Продажи будут загружены при поиске
+        setTimeout(() => {
+            initPage(currentPage);
+        }, 500);
+    }
+    
+    // 6. Если страница не требует данных — просто инициализируем
+    if (!needsGames.includes(currentPage) && 
+        !needsAccounts.includes(currentPage) && 
+        !needsSales.includes(currentPage) &&
+        !needsWorkers.includes(currentPage)) {
+        initPage(currentPage);
+    }
+    
+    // Обновляем навигацию и меню
     if (typeof updateNavigation === 'function') {
         updateNavigation();
     }
-    
-    // Инициализируем мобильное меню
     initMobileMenu();
-    
-    // Инициализируем UI улучшения
     initUIEnhancements();
-
-    // Инициализируем Firebase слушатели
-    setTimeout(initFirebaseListeners, 1000);
     
-    // Загружаем данные с синхронизацией
-    loadAllDataWithSync().then(() => {
-        console.log(`✅ Все данные загружены: ${games.length} игр, ${accounts.length} аккаунтов, ${sales.length} продаж`);
-        
-        // Инициализируем страницы
-        initPage(currentPage);
-        
-        // Инициализируем автодополнение если есть
-        initAutocomplete();
-        
-        // Запускаем проверку обновлений
-        startSyncChecker();
-        
-        // Показываем уведомление
-        showNotification(`Добро пожаловать, ${user.name}! 👋`, 'info', 2000);
-        
-    }).catch(error => {
-        console.error('❌ Ошибка загрузки данных:', error);
-        showNotification('Ошибка загрузки данных. Проверьте соединение.', 'error');
-        
-        // Пробуем загрузить из локального хранилища
-        loadFromLocalStorage();
-        initPage(currentPage);
-    });
-
     setTimeout(() => {
         initMobileMenu();
     }, 100);
-    function initAppWithDiagnostics() {
-    initApp();
-    
-    // Добавляем кнопку диагностики
-    setTimeout(addDiagnosticButton, 1000);
-    
-    // Автоматическая проверка при загрузке
-    setTimeout(() => {
-        const localSales = JSON.parse(localStorage.getItem('sales')) || [];
-        if (Math.abs(sales.length - localSales.length) > 0) {
-            console.warn('⚠️ Обнаружено расхождение данных продаж при загрузке');
-            showNotification('Обнаружено расхождение в данных продаж. Рекомендуется провести диагностику.', 'warning', 5000);
-        }
-    }, 3000);
-    // Добавляем кнопку загрузки всех продаж
-    setTimeout(addLoadAllSalesButton, 500);
-    
-    // Загружаем все продажи из Firebase при старте
-    setTimeout(() => {
-        loadAllSalesFromFirebase().then(allSales => {
-            if (allSales && allSales.length > 0) {
-                console.log(`✅ Загружено ${allSales.length} продаж из облака`);
-            }
-        });
-    }, 1000);
-}
 }
 
+// ============================================================
+// ЛЕНИВАЯ ЗАГРУЗКА ДАННЫХ
+// ============================================================
+
+// Загрузка только игр
+async function loadGamesFromFirebase() {
+    console.log('🎮 Загружаем игры...');
+    
+    if (games.length > 0) {
+        console.log(`✅ Игры уже загружены: ${games.length}`);
+        return games;
+    }
+    
+    try {
+        if (window.dataSync && window.dataSync.loadData) {
+            const data = await window.dataSync.loadData('games');
+            if (data && data.length > 0) {
+                games = data;
+                console.log(`✅ Загружено ${games.length} игр`);
+                return games;
+            }
+        }
+        
+        if (firebase && firebase.database) {
+            const snapshot = await firebase.database().ref('games').once('value');
+            if (snapshot.exists()) {
+                const gamesObj = snapshot.val();
+                const gamesArray = Object.values(gamesObj || {});
+                games = gamesArray;
+                localStorage.setItem('games', JSON.stringify(gamesArray));
+                console.log(`✅ Загружено ${games.length} игр (прямой запрос)`);
+                return games;
+            }
+        }
+        
+        games = JSON.parse(localStorage.getItem('games')) || [];
+        console.log(`📂 Загружено из кеша: ${games.length} игр`);
+        return games;
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки игр:', error);
+        games = JSON.parse(localStorage.getItem('games')) || [];
+        return games;
+    }
+}
+
+async function loadAccountsFromFirebase() {
+    console.log('📋 Загружаем аккаунты...');
+    
+    if (accounts.length > 0) {
+        console.log(`✅ Аккаунты уже загружены: ${accounts.length}`);
+        return accounts;
+    }
+    
+    try {
+        if (window.dataSync && window.dataSync.loadData) {
+            const data = await window.dataSync.loadData('accounts');
+            if (data && data.length > 0) {
+                accounts = data;
+                console.log(`✅ Загружено ${accounts.length} аккаунтов`);
+                return accounts;
+            }
+        }
+        
+        if (firebase && firebase.database) {
+            const snapshot = await firebase.database().ref('accounts').once('value');
+            if (snapshot.exists()) {
+                const accountsObj = snapshot.val();
+                const accountsArray = Object.values(accountsObj || {});
+                accounts = accountsArray;
+                localStorage.setItem('accounts', JSON.stringify(accountsArray));
+                console.log(`✅ Загружено ${accounts.length} аккаунтов (прямой запрос)`);
+                return accounts;
+            }
+        }
+        
+        accounts = JSON.parse(localStorage.getItem('accounts')) || [];
+        console.log(`📂 Загружено из кеша: ${accounts.length} аккаунтов`);
+        return accounts;
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки аккаунтов:', error);
+        accounts = JSON.parse(localStorage.getItem('accounts')) || [];
+        return accounts;
+    }
+}
+
+async function loadSalesFromFirebase() {
+    console.log('💰 Загружаем продажи...');
+    
+    if (sales.length > 0) {
+        console.log(`✅ Продажи уже загружены: ${sales.length}`);
+        return sales;
+    }
+    
+    try {
+        if (window.dataSync && window.dataSync.loadData) {
+            const data = await window.dataSync.loadData('sales');
+            if (data && data.length > 0) {
+                sales = data;
+                window.sales = data;
+                console.log(`✅ Загружено ${sales.length} продаж`);
+                return sales;
+            }
+        }
+        
+        if (firebase && firebase.database) {
+            const snapshot = await firebase.database().ref('sales').once('value');
+            if (snapshot.exists()) {
+                const salesObj = snapshot.val();
+                const salesArray = Object.values(salesObj || {});
+                sales = salesArray;
+                window.sales = salesArray;
+                
+                // Кешируем в localStorage (сколько влезет)
+                try {
+                    localStorage.setItem('sales', JSON.stringify(salesArray));
+                } catch (e) {
+                    const cached = salesArray.slice(-500);
+                    localStorage.setItem('sales', JSON.stringify(cached));
+                }
+                
+                console.log(`✅ Загружено ${sales.length} продаж (прямой запрос)`);
+                return sales;
+            }
+        }
+        
+        sales = JSON.parse(localStorage.getItem('sales')) || [];
+        window.sales = sales;
+        console.log(`📂 Загружено из кеша: ${sales.length} продаж`);
+        return sales;
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки продаж:', error);
+        sales = JSON.parse(localStorage.getItem('sales')) || [];
+        window.sales = sales;
+        return sales;
+    }
+}
+
+async function loadWorkersFromFirebase() {
+    console.log('👷 Загружаем работников...');
+    
+    try {
+        if (window.dataSync && window.dataSync.loadWorkers) {
+            const data = await window.dataSync.loadWorkers();
+            if (data && data.length > 0) {
+                localStorage.setItem('workers', JSON.stringify(data));
+                console.log(`✅ Загружено ${data.length} работников`);
+                return data;
+            }
+        }
+        
+        if (firebase && firebase.database) {
+            const snapshot = await firebase.database().ref('workers').once('value');
+            if (snapshot.exists()) {
+                const workersObj = snapshot.val();
+                const workersArray = Object.values(workersObj || {});
+                localStorage.setItem('workers', JSON.stringify(workersArray));
+                console.log(`✅ Загружено ${workersArray.length} работников (прямой запрос)`);
+                return workersArray;
+            }
+        }
+        
+        const workers = JSON.parse(localStorage.getItem('workers')) || [];
+        console.log(`📂 Загружено из кеша: ${workers.length} работников`);
+        return workers;
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки работников:', error);
+        return JSON.parse(localStorage.getItem('workers')) || [];
+    }
+}
+
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ СТРАНИЦЫ (С УЧЕТОМ ЛЕНИВОЙ ЗАГРУЗКИ)
+// ============================================================
 function initPage(currentPage) {
+    console.log(`📄 Инициализация страницы: ${currentPage}`);
+    
     switch(currentPage) {
         case 'add-account.html':
             if (typeof loadGamesForSelect === 'function') {
                 loadGamesForSelect();
             }
-            // Инициализация поиска игр для add-account
             setTimeout(() => {
                 if (typeof initGameSearchForAddAccount === 'function') {
                     initGameSearchForAddAccount();
                 }
             }, 500);
-            
-            // Слушаем изменения в localStorage
-            window.addEventListener('storage', function(e) {
-                if (e.key === 'games' && window.location.pathname.includes('add-account.html')) {
-                    console.log('🔄 Обнаружено изменение игр, обновляем поиск');
-                    setTimeout(() => {
-                        if (typeof initGameSearchForAddAccount === 'function') {
-                            initGameSearchForAddAccount();
-                        }
-                    }, 100);
-                }
-            });
             break;
             
         case 'accounts.html':
@@ -1040,28 +1125,34 @@ function initPage(currentPage) {
             break;
             
         case 'manager.html':
+            // Загружаем только игры для селекта
             if (typeof loadGamesForManager === 'function') {
                 loadGamesForManager();
             }
+            
+            // Показываем приглашение к поиску (без загрузки продаж)
+            const resultsContainer = document.getElementById('searchResults');
+            if (resultsContainer) {
+                resultsContainer.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; color: #94a3b8;">
+                        <div style="font-size: 4em; margin-bottom: 20px;">🔍</div>
+                        <h3 style="color: #64748b; margin-bottom: 10px;">Введите название игры</h3>
+                        <p style="color: #94a3b8;">Продажи загрузятся автоматически при поиске</p>
+                    </div>
+                `;
+            }
+            
             setTimeout(() => {
                 setupGameSelectListener();
             }, 500);
             
-            // Инициализируем кнопку переключения
-            setTimeout(() => {
-                if (typeof updateToggleButtonUI === 'function') {
-                    const searchInput = document.getElementById('managerGameSearch');
-                    const loginInput = document.getElementById('managerLogin');
-                    const searchResults = document.getElementById('searchResults');
-                    
-                    if ((searchResults && searchResults.children.length > 0) || 
-                        (searchInput && searchInput.value.trim()) || 
-                        (loginInput && loginInput.value.trim())) {
-                        updateToggleButtonUI();
-                    }
-                    console.log('🔄 Кнопка переключения инициализирована');
-                }
-            }, 500);
+            // Скрываем кнопку статистики
+            const statsBtn = document.getElementById('showStatsBtn');
+            if (statsBtn) statsBtn.style.display = 'none';
+            
+            // Скрываем кнопку переключения
+            const toggleContainer = document.getElementById('toggleButtonContainer');
+            if (toggleContainer) toggleContainer.style.display = 'none';
             break;
             
         case 'free-accounts.html':
@@ -1072,26 +1163,26 @@ function initPage(currentPage) {
             
         case 'reports.html':
             setTimeout(() => {
-                generateReport();
+                if (typeof generateReport === 'function') {
+                    generateReport();
+                }
             }, 500);
             break;
             
         case 'workers-stats.html':
             setTimeout(() => {
-                generateWorkersStats();
-            }, 500);
-            break;
-            
-        case 'discounts.html':
-            setTimeout(() => {
-                if (typeof initDiscountsPage === 'function') {
-                    initDiscountsPage();
+                if (typeof generateWorkersStats === 'function') {
+                    generateWorkersStats();
                 }
             }, 500);
             break;
             
         case 'workers.html':
             // Страница работников инициализируется своим скриптом
+            break;
+            
+        case 'login.html':
+            // Страница входа
             break;
             
         default:
@@ -3263,7 +3354,7 @@ function loadGamesForManager() {
 }
 
 // Обновим searchByGame, чтобы можно было передать параметр
-function searchByGame(silent = false) {
+async function searchByGame(silent = false) {
     const searchInput = document.getElementById('managerGameSearch');
     const searchTerm = searchInput.value.trim();
     
@@ -3277,32 +3368,55 @@ function searchByGame(silent = false) {
     );
     
     if (!foundGame) {
-        if (!silent) {
-            showNotification(`Игра "${searchTerm}" не найдена`, 'error');
-            
-            const similarGames = games.filter(game => 
-                game.name.toLowerCase().includes(searchTerm.toLowerCase().substring(0, 3))
-            ).slice(0, 5);
-            
-            if (similarGames.length > 0) {
-                const similarList = similarGames.map(game => game.name).join(', ');
-                showNotification(`Возможно, вы искали: ${similarList}`, 'info');
-            }
-        }
-        
-        const statsBtn = document.getElementById('showStatsBtn');
-        if (statsBtn) statsBtn.style.display = 'none';
-        
+        if (!silent) showNotification(`Игра "${searchTerm}" не найдена`, 'error');
         document.getElementById('searchResults').innerHTML = `
-            <div class="empty">
-                <h3>Игра "${searchTerm}" не найдена</h3>
-            </div>
+            <div class="empty"><h3>Игра "${searchTerm}" не найдена</h3></div>
         `;
         return;
     }
     
+    const resultsContainer = document.getElementById('searchResults');
+    resultsContainer.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #64748b;">
+            <div style="font-size: 2em; margin-bottom: 15px;">⏳</div>
+            <div>Загрузка аккаунтов и продаж для "${foundGame.name}"...</div>
+        </div>
+    `;
+    
+    // ===== ЗАГРУЖАЕМ АККАУНТЫ =====
+    if (accounts.length === 0) {
+        await loadAccountsFromFirebase();
+    }
+    
+    // ===== ЗАГРУЖАЕМ ПРОДАЖИ ТОЛЬКО ПО ЭТОЙ ИГРЕ =====
+    console.log(`📥 Загружаем продажи для "${foundGame.name}"...`);
+    
+    let gameSales = [];
+    
+    try {
+        // Используем специальный метод для загрузки продаж по игре
+        if (window.loadSalesOnDemand) {
+            gameSales = await window.loadSalesOnDemand(foundGame.id);
+        } else {
+            // Если метод недоступен — загружаем все и фильтруем
+            if (sales.length === 0) {
+                await loadSalesFromFirebase();
+            }
+            const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
+            const accountIds = gameAccounts.map(acc => acc.id);
+            gameSales = sales.filter(sale => accountIds.includes(sale.accountId));
+        }
+    } catch (error) {
+        console.error('❌ Ошибка загрузки продаж:', error);
+        gameSales = [];
+    }
+    
+    // ===== ФИЛЬТРУЕМ АККАУНТЫ =====
     const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
     
+    console.log(`📊 Найдено: ${gameAccounts.length} аккаунтов, ${gameSales.length} продаж`);
+    
+    // Обновляем UI
     const statsBtn = document.getElementById('showStatsBtn');
     if (statsBtn) {
         if (gameAccounts.length > 0) {
@@ -3315,7 +3429,6 @@ function searchByGame(silent = false) {
     }
     
     document.getElementById('statsSection').style.display = 'none';
-    
     updateToggleButtonUI();
     displaySearchResults(gameAccounts, foundGame.name);
     searchInput.value = foundGame.name;
@@ -3747,34 +3860,44 @@ function displaySearchResults(accountsList, gameName) {
         return;
     }
     
+    // Получаем ID аккаунтов для фильтрации продаж
+    const accountIds = accountsList.map(acc => acc.id);
+    
+    // Функция проверки, продана ли позиция
+    function isPositionSold(accountId, positionType, positionIndex) {
+        // Используем глобальный массив sales (уже загружен при поиске)
+        return sales.some(sale => 
+            sale.accountId === accountId && 
+            sale.positionType === positionType && 
+            sale.positionIndex === positionIndex &&
+            !sale.isTransplanted
+        );
+    }
+    
     // Функция проверки, полностью ли продан аккаунт
     function isAccountFullySold(account) {
         let totalPositions = 0;
         let soldPositions = 0;
         
-        // Считаем все позиции
         ['p2_ps4', 'p3_ps4', 'p2_ps5', 'p3_ps5'].forEach(posType => {
             const count = account.positions[posType] || 0;
             totalPositions += count;
             
-            // Считаем сколько из них продано
             for (let i = 1; i <= count; i++) {
-                if (getPositionSaleInfo(account.id, posType, i)) {
+                if (isPositionSold(account.id, posType, i)) {
                     soldPositions++;
                 }
             }
         });
         
-        // Если есть позиции и все проданы
         return totalPositions > 0 && soldPositions === totalPositions;
     }
     
-    // Фильтруем аккаунты в зависимости от настройки
+    // Фильтруем аккаунты
     let filteredAccounts = accountsList;
     let hiddenCount = 0;
     
     if (!showAllAccounts) {
-        // Скрываем полностью проданные
         filteredAccounts = accountsList.filter(account => !isAccountFullySold(account));
         hiddenCount = accountsList.length - filteredAccounts.length;
     }
@@ -3783,16 +3906,11 @@ function displaySearchResults(accountsList, gameName) {
         всего: accountsList.length,
         показано: filteredAccounts.length,
         скрыто: hiddenCount,
-        showAllAccounts: showAllAccounts
+        продаж_в_памяти: sales.length
     });
     
-    // Генерируем HTML
     let html = '';
     
-    // ==== СТАРАЯ КНОПКА УДАЛЕНА ====
-    // Больше не добавляем блок с кнопкой здесь
-    
-    // Если после фильтрации ничего не осталось
     if (filteredAccounts.length === 0) {
         html += `
             <div style="
@@ -3827,7 +3945,6 @@ function displaySearchResults(accountsList, gameName) {
             </div>
         `;
     } else {
-        // Показываем аккаунты (код без изменений)
         html += filteredAccounts.map(account => {
             const commentsCount = account.comments ? account.comments.length : 0;
             const isSold = isAccountFullySold(account);
@@ -3865,10 +3982,9 @@ function displaySearchResults(accountsList, gameName) {
                         </div>
                     ` : ''}
 
-                    <!-- ВЕРХ: ЛОГИН КЛИКАБЕЛЬНЫЙ И КАРТИНКА -->
+                    <!-- ВЕРХ: ЛОГИН -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <div style="display: flex; align-items: center; gap: 15px;">
-                            <!-- ===== КАРТИНКА ИГРЫ ===== -->
                             ${(() => {
                                 const game = games.find(g => g.id === account.gameId);
                                 if (game && game.imageUrl) {
@@ -3908,7 +4024,6 @@ function displaySearchResults(accountsList, gameName) {
                                     `;
                                 }
                             })()}
-                            <!-- ===== КОНЕЦ КАРТИНКИ ===== -->
                             
                             <div style="
                                 font-size: 1.3em;
@@ -3928,7 +4043,6 @@ function displaySearchResults(accountsList, gameName) {
                             </div>
                         </div>
                         
-                        <!-- ПРАВАЯ ЧАСТЬ: ДАТА ДЕАКТИВАЦИИ И КОММЕНТАРИИ -->
                         <div style="display: flex; align-items: center; gap: 10px;">
                             ${account.deactivated ? `
                                 <div style="
@@ -3979,42 +4093,28 @@ function displaySearchResults(accountsList, gameName) {
                         </div>
                     </div>
                     
-                    <!-- ПОСАДКИ: PS4 слева, PS5 справа -->
-                    <div style="
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 20px;
-                    ">
-                        <!-- ЛЕВАЯ ПОЛОВИНА: PS4 -->
+                    <!-- ПОСАДКИ -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                         <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
                             <div style="font-weight: 700; color: #2d3748; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
                                 <span>🎮</span>
                                 <span>PS4</span>
                             </div>
-                            
-                            <!-- ВСЕ ПОСАДКИ PS4 В ОДНОЙ СТРОКЕ -->
                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                 ${generateSimplePositionButtons(account, 'p2_ps4', 'П2 PS4', 'П2')}
-                                
                                 ${account.positions.p2_ps4 > 0 ? '<div style="margin-right: 15px;"></div>' : ''}
-                                
                                 ${generateSimplePositionButtons(account, 'p3_ps4', 'П3 PS4', 'П3')}
                             </div>
                         </div>
                         
-                        <!-- ПРАВАЯ ПОЛОВИНА: PS5 -->
                         <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
                             <div style="font-weight: 700; color: #2d3748; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
                                 <span>🎮</span>
                                 <span>PS5</span>
                             </div>
-                            
-                            <!-- ВСЕ ПОСАДКИ PS5 В ОДНОЙ СТРОКЕ -->
                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                 ${generateSimplePositionButtons(account, 'p2_ps5', 'П2 PS5', 'П2')}
-                                
                                 ${account.positions.p2_ps5 > 0 ? '<div style="margin-right: 15px;"></div>' : ''}
-                                
                                 ${generateSimplePositionButtons(account, 'p3_ps5', 'П3 PS5', 'П3')}
                             </div>
                         </div>
