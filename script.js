@@ -1125,35 +1125,24 @@ function initPage(currentPage) {
             break;
             
         case 'manager.html':
-            // Загружаем только игры для селекта
-            if (typeof loadGamesForManager === 'function') {
-                loadGamesForManager();
-            }
-            
-            // Показываем приглашение к поиску (без загрузки продаж)
-            const resultsContainer = document.getElementById('searchResults');
-            if (resultsContainer) {
-                resultsContainer.innerHTML = `
-                    <div style="text-align: center; padding: 60px 20px; color: #94a3b8;">
-                        <div style="font-size: 4em; margin-bottom: 20px;">🔍</div>
-                        <h3 style="color: #64748b; margin-bottom: 10px;">Введите название игры</h3>
-                        <p style="color: #94a3b8;">Продажи загрузятся автоматически при поиске</p>
-                    </div>
-                `;
-            }
-            
-            setTimeout(() => {
-                setupGameSelectListener();
-            }, 500);
-            
-            // Скрываем кнопку статистики
-            const statsBtn = document.getElementById('showStatsBtn');
-            if (statsBtn) statsBtn.style.display = 'none';
-            
-            // Скрываем кнопку переключения
-            const toggleContainer = document.getElementById('toggleButtonContainer');
-            if (toggleContainer) toggleContainer.style.display = 'none';
-            break;
+    if (typeof loadGamesForManager === 'function') {
+        loadGamesForManager();
+    }
+    const resultsContainer = document.getElementById('searchResults');
+    if (resultsContainer) {
+        resultsContainer.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; color: #94a3b8;">
+                <div style="font-size: 4em; margin-bottom: 20px;">🔍</div>
+                <h3 style="color: #64748b; margin-bottom: 10px;">Введите название игры</h3>
+                <p style="color: #94a3b8;">Аккаунты и продажи загрузятся при поиске</p>
+            </div>
+        `;
+    }
+    
+    setTimeout(() => {
+        setupGameSelectListener();
+    }, 500);
+    break;
             
         case 'free-accounts.html':
             if (typeof displayFreeAccounts === 'function') {
@@ -2239,6 +2228,9 @@ async function deleteGame(gameId) {
 // ФУНКЦИИ ДЛЯ АККАУНТОВ
 // ============================================
 
+// ============================================================
+// ДОБАВЛЕНИЕ АККАУНТА (С ПРИНУДИТЕЛЬНЫМ ОБНОВЛЕНИЕМ)
+// ============================================================
 async function addAccount() {
     console.log('➕ Добавляем новый аккаунт...');
     
@@ -2248,7 +2240,6 @@ async function addAccount() {
         return;
     }
     
-    // Показываем в консоли куда добавляем
     console.log(`🎮 Добавляем аккаунт в игру: ${formData.gameName}`);
     
     // Создаем новый аккаунт
@@ -2264,17 +2255,63 @@ async function addAccount() {
     accounts.push(newAccount);
     
     try {
-        // Сохраняем
-        await saveToStorage('accounts', accounts);
+        // ===== СОХРАНЯЕМ В FIREBASE =====
+        console.log('💾 Сохраняем аккаунт в Firebase...');
         
-        // Очищаем форму (игра остается выбранной!)
+        if (window.dataSync && window.dataSync.saveData) {
+            await window.dataSync.saveData('accounts', accounts);
+        } else if (firebase && firebase.database) {
+            const db = firebase.database();
+            const accountsObj = {};
+            accounts.forEach(acc => {
+                accountsObj[acc.id] = acc;
+            });
+            await db.ref('accounts').set(accountsObj);
+        }
+        
+        // ===== ОБНОВЛЯЕМ ЛОКАЛЬНОЕ ХРАНИЛИЩЕ =====
+        localStorage.setItem('accounts', JSON.stringify(accounts));
+        console.log(`✅ Аккаунт "${formData.psnLogin}" добавлен. Всего: ${accounts.length}`);
+        
+        // ===== ОЧИЩАЕМ ФОРМУ =====
         clearAccountForm();
         
-        // Показываем успешное сообщение
+        // ===== ПОКАЗЫВАЕМ УВЕДОМЛЕНИЕ =====
         showNotification(`Аккаунт добавлен в "${formData.gameName}"! 🎮`, 'success');
         
-        // Выводим в консоль для отладки
-        console.log(`✅ Аккаунт "${formData.psnLogin}" добавлен к игре "${formData.gameName}"`);
+        // ===== ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ДАННЫЕ НА ДРУГИХ СТРАНИЦАХ =====
+        // Отправляем уведомление через Firebase для других вкладок
+        if (firebase && firebase.database) {
+            try {
+                await firebase.database().ref('lastUpdate').set({
+                    dataType: 'accounts',
+                    timestamp: Date.now(),
+                    user: security.getCurrentUser()?.name || 'Неизвестно'
+                });
+                console.log('📢 Уведомление об обновлении отправлено');
+            } catch (e) {
+                console.warn('Не удалось отправить уведомление:', e);
+            }
+        }
+        
+        // ===== ЕСЛИ МЫ НА STRANICE MANAGER.HTML — ОБНОВЛЯЕМ РЕЗУЛЬТАТЫ ПОИСКА =====
+        const currentPage = window.location.pathname.split('/').pop();
+        if (currentPage === 'manager.html') {
+            const searchInput = document.getElementById('managerGameSearch');
+            if (searchInput && searchInput.value.trim()) {
+                // Обновляем глобальный массив аккаунтов
+                // Перезагружаем аккаунты из Firebase
+                await loadAccountsFromFirebase();
+                
+                // Обновляем результаты поиска
+                setTimeout(() => {
+                    if (typeof searchByGame === 'function') {
+                        searchByGame(true);
+                    }
+                }, 500);
+            }
+        }
+        
         console.log(`📊 Всего аккаунтов в системе: ${accounts.length}`);
         
     } catch (error) {
@@ -3353,7 +3390,9 @@ function loadGamesForManager() {
     }
 }
 
-// Обновим searchByGame, чтобы можно было передать параметр
+// ============================================================
+// ПОИСК ПО ИГРЕ (С ЛЕНИВОЙ ЗАГРУЗКОЙ АККАУНТОВ И ПРОДАЖ)
+// ============================================================
 async function searchByGame(silent = false) {
     const searchInput = document.getElementById('managerGameSearch');
     const searchTerm = searchInput.value.trim();
@@ -3363,6 +3402,7 @@ async function searchByGame(silent = false) {
         return;
     }
     
+    // ===== ИЩЕМ ИГРУ =====
     const foundGame = games.find(game => 
         game.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -3383,36 +3423,28 @@ async function searchByGame(silent = false) {
         </div>
     `;
     
-    // ===== ЗАГРУЖАЕМ АККАУНТЫ =====
+    // ===== ЗАГРУЖАЕМ АККАУНТЫ (ТОЛЬКО ПРИ ПОИСКЕ) =====
     if (accounts.length === 0) {
-        await loadAccountsFromFirebase();
-    }
-    
-    // ===== ЗАГРУЖАЕМ ПРОДАЖИ ТОЛЬКО ПО ЭТОЙ ИГРЕ =====
-    console.log(`📥 Загружаем продажи для "${foundGame.name}"...`);
-    
-    let gameSales = [];
-    
-    try {
-        // Используем специальный метод для загрузки продаж по игре
-        if (window.loadSalesOnDemand) {
-            gameSales = await window.loadSalesOnDemand(foundGame.id);
+        if (window.loadAccountsOnDemand) {
+            await window.loadAccountsOnDemand();
         } else {
-            // Если метод недоступен — загружаем все и фильтруем
-            if (sales.length === 0) {
-                await loadSalesFromFirebase();
-            }
-            const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
-            const accountIds = gameAccounts.map(acc => acc.id);
-            gameSales = sales.filter(sale => accountIds.includes(sale.accountId));
+            await loadAccountsFromFirebase();
         }
-    } catch (error) {
-        console.error('❌ Ошибка загрузки продаж:', error);
-        gameSales = [];
     }
     
-    // ===== ФИЛЬТРУЕМ АККАУНТЫ =====
+    // ===== ЗАГРУЖАЕМ ПРОДАЖИ (ТОЛЬКО ПРИ ПОИСКЕ) =====
+    if (sales.length === 0) {
+        if (window.loadSalesOnDemand) {
+            await window.loadSalesOnDemand(foundGame.id);
+        } else {
+            await loadSalesFromFirebase();
+        }
+    }
+    
+    // ===== ФИЛЬТРУЕМ =====
     const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
+    const accountIds = gameAccounts.map(acc => acc.id);
+    const gameSales = sales.filter(sale => accountIds.includes(sale.accountId));
     
     console.log(`📊 Найдено: ${gameAccounts.length} аккаунтов, ${gameSales.length} продаж`);
     
@@ -3742,7 +3774,10 @@ function setupGameSelectListener() {
     });
 }
 
-function searchByLogin() {
+// ============================================================
+// ПОИСК ПО ЛОГИНУ (С ЛЕНИВОЙ ЗАГРУЗКОЙ)
+// ============================================================
+async function searchByLogin() {
     const loginSearch = document.getElementById('managerLogin').value.trim().toLowerCase();
     
     if (!loginSearch) {
@@ -3750,13 +3785,29 @@ function searchByLogin() {
         return;
     }
     
+    const resultsContainer = document.getElementById('searchResults');
+    resultsContainer.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #64748b;">
+            <div style="font-size: 2em; margin-bottom: 15px;">⏳</div>
+            <div>Поиск аккаунта "${loginSearch}"...</div>
+        </div>
+    `;
+    
+    // ===== ЗАГРУЖАЕМ АККАУНТЫ (ТОЛЬКО ПРИ ПОИСКЕ) =====
+    if (accounts.length === 0) {
+        if (window.loadAccountsOnDemand) {
+            await window.loadAccountsOnDemand();
+        } else {
+            await loadAccountsFromFirebase();
+        }
+    }
+    
     const foundAccounts = accounts.filter(acc => 
         acc.psnLogin.toLowerCase().includes(loginSearch)
     );
     
     if (foundAccounts.length === 0) {
-        document.getElementById('statsSection').style.display = 'none';
-        document.getElementById('searchResults').innerHTML = `
+        resultsContainer.innerHTML = `
             <div class="empty">
                 <h3>Аккаунты с логином "${loginSearch}" не найдены</h3>
             </div>
@@ -3765,15 +3816,29 @@ function searchByLogin() {
         return;
     }
     
-    // Скрываем кнопку статистики при поиске по логину
-    const statsBtn = document.getElementById('showStatsBtn');
-    if (statsBtn) {
-        statsBtn.style.display = 'none';
+    // ===== ЗАГРУЖАЕМ ПРОДАЖИ ДЛЯ НАЙДЕННЫХ АККАУНТОВ =====
+    const accountIds = foundAccounts.map(acc => acc.id);
+    
+    try {
+        const db = firebaseSync ? firebaseSync.db : firebase.database();
+        const snapshot = await db.ref('sales').once('value');
+        if (snapshot.exists()) {
+            const salesObj = snapshot.val();
+            const allSales = Object.values(salesObj || {});
+            const accountSales = allSales.filter(sale => accountIds.includes(sale.accountId));
+            window.sales = accountSales;
+            sales = accountSales;
+            console.log(`✅ Загружено ${accountSales.length} продаж для аккаунтов`);
+        }
+    } catch (error) {
+        console.error('❌ Ошибка загрузки продаж:', error);
+        window.sales = [];
+        sales = [];
     }
     
-    // Скрываем статистику
+    const statsBtn = document.getElementById('showStatsBtn');
+    if (statsBtn) statsBtn.style.display = 'none';
     document.getElementById('statsSection').style.display = 'none';
-    
     displaySearchResults(foundAccounts, `по логину "${loginSearch}"`);
     updateToggleButtonUI();
 }
@@ -3845,6 +3910,9 @@ function debugPositionSales(accountId, positionType, positionIndex) {
     return allSalesForPosition;
 }
 
+// ============================================================
+// ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ПОИСКА
+// ============================================================
 function displaySearchResults(accountsList, gameName) {
     const resultsContainer = document.getElementById('searchResults');
     
@@ -3860,12 +3928,15 @@ function displaySearchResults(accountsList, gameName) {
         return;
     }
     
-    // Получаем ID аккаунтов для фильтрации продаж
+    // ===== ИСПОЛЬЗУЕМ sales ИЗ ПАМЯТИ =====
+    // sales уже загружены в searchByLogin() или searchByGame()
+    console.log(`📊 В памяти ${sales.length} продаж для отображения`);
+    
+    // Получаем ID аккаунтов для быстрой проверки
     const accountIds = accountsList.map(acc => acc.id);
     
     // Функция проверки, продана ли позиция
     function isPositionSold(accountId, positionType, positionIndex) {
-        // Используем глобальный массив sales (уже загружен при поиске)
         return sales.some(sale => 
             sale.accountId === accountId && 
             sale.positionType === positionType && 
@@ -3893,7 +3964,7 @@ function displaySearchResults(accountsList, gameName) {
         return totalPositions > 0 && soldPositions === totalPositions;
     }
     
-    // Фильтруем аккаунты
+    // Фильтруем аккаунты в зависимости от настройки
     let filteredAccounts = accountsList;
     let hiddenCount = 0;
     
@@ -3906,11 +3977,14 @@ function displaySearchResults(accountsList, gameName) {
         всего: accountsList.length,
         показано: filteredAccounts.length,
         скрыто: hiddenCount,
-        продаж_в_памяти: sales.length
+        продаж_в_памяти: sales.length,
+        showAllAccounts: showAllAccounts
     });
     
+    // Генерируем HTML
     let html = '';
     
+    // Если после фильтрации ничего не осталось
     if (filteredAccounts.length === 0) {
         html += `
             <div style="
@@ -3945,6 +4019,7 @@ function displaySearchResults(accountsList, gameName) {
             </div>
         `;
     } else {
+        // Показываем аккаунты
         html += filteredAccounts.map(account => {
             const commentsCount = account.comments ? account.comments.length : 0;
             const isSold = isAccountFullySold(account);
@@ -3982,9 +4057,10 @@ function displaySearchResults(accountsList, gameName) {
                         </div>
                     ` : ''}
 
-                    <!-- ВЕРХ: ЛОГИН -->
+                    <!-- ВЕРХ: ЛОГИН КЛИКАБЕЛЬНЫЙ И КАРТИНКА -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <div style="display: flex; align-items: center; gap: 15px;">
+                            <!-- КАРТИНКА ИГРЫ -->
                             ${(() => {
                                 const game = games.find(g => g.id === account.gameId);
                                 if (game && game.imageUrl) {
@@ -4024,6 +4100,7 @@ function displaySearchResults(accountsList, gameName) {
                                     `;
                                 }
                             })()}
+                            <!-- КОНЕЦ КАРТИНКИ -->
                             
                             <div style="
                                 font-size: 1.3em;
@@ -4043,6 +4120,7 @@ function displaySearchResults(accountsList, gameName) {
                             </div>
                         </div>
                         
+                        <!-- ПРАВАЯ ЧАСТЬ: ДАТА ДЕАКТИВАЦИИ И КОММЕНТАРИИ -->
                         <div style="display: flex; align-items: center; gap: 10px;">
                             ${account.deactivated ? `
                                 <div style="
@@ -4093,28 +4171,42 @@ function displaySearchResults(accountsList, gameName) {
                         </div>
                     </div>
                     
-                    <!-- ПОСАДКИ -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <!-- ПОСАДКИ: PS4 слева, PS5 справа -->
+                    <div style="
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 20px;
+                    ">
+                        <!-- ЛЕВАЯ ПОЛОВИНА: PS4 -->
                         <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
                             <div style="font-weight: 700; color: #2d3748; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
                                 <span>🎮</span>
                                 <span>PS4</span>
                             </div>
+                            
+                            <!-- ВСЕ ПОСАДКИ PS4 В ОДНОЙ СТРОКЕ -->
                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                 ${generateSimplePositionButtons(account, 'p2_ps4', 'П2 PS4', 'П2')}
+                                
                                 ${account.positions.p2_ps4 > 0 ? '<div style="margin-right: 15px;"></div>' : ''}
+                                
                                 ${generateSimplePositionButtons(account, 'p3_ps4', 'П3 PS4', 'П3')}
                             </div>
                         </div>
                         
+                        <!-- ПРАВАЯ ПОЛОВИНА: PS5 -->
                         <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
                             <div style="font-weight: 700; color: #2d3748; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
                                 <span>🎮</span>
                                 <span>PS5</span>
                             </div>
+                            
+                            <!-- ВСЕ ПОСАДКИ PS5 В ОДНОЙ СТРОКЕ -->
                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                 ${generateSimplePositionButtons(account, 'p2_ps5', 'П2 PS5', 'П2')}
+                                
                                 ${account.positions.p2_ps5 > 0 ? '<div style="margin-right: 15px;"></div>' : ''}
+                                
                                 ${generateSimplePositionButtons(account, 'p3_ps5', 'П3 PS5', 'П3')}
                             </div>
                         </div>
@@ -9492,39 +9584,99 @@ function getSimpleMoscowDateTime() {
     };
 }
 
-// Новая функция для универсального поиска
-function performUnifiedSearch() {
+// ============================================================
+// УНИВЕРСАЛЬНЫЙ ПОИСК (ИГРА ИЛИ ЛОГИН)
+// ============================================================
+async function performUnifiedSearch() {
     const searchInput = document.getElementById('managerGameSearch');
     const searchTerm = searchInput.value.trim();
     
     if (!searchTerm) {
-        showNotification('Введите название игры или логин для поиска', 'warning');
+        showNotification('Введите название игры или логин PSN', 'warning');
         return;
     }
     
-    // Пытаемся определить, что ищем
+    // ===== ПРОВЕРЯЕМ, ЭТО ЛОГИН ИЛИ ИГРА =====
     // Если есть @ или специфичные символы - скорее всего логин
-    if (searchTerm.includes('@') || searchTerm.includes('_') || searchTerm.includes('-')) {
+    const isLogin = searchTerm.includes('@') || 
+                    searchTerm.includes('_') || 
+                    searchTerm.includes('.') ||
+                    /^[a-zA-Z0-9._-]+$/.test(searchTerm); // Только латиница, цифры, . _ -
+    
+    if (isLogin) {
         // Поиск по логину
-        const foundAccounts = accounts.filter(acc => 
-            acc.psnLogin.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        
-        if (foundAccounts.length > 0) {
-            document.getElementById('statsSection').style.display = 'none';
-            const statsBtn = document.getElementById('showStatsBtn');
-            if (statsBtn) statsBtn.style.display = 'none';
-            
-            updateToggleButtonUI();
-            displaySearchResults(foundAccounts, `по логину "${searchTerm}"`);
-        } else {
-            // Если не нашли по логину, пробуем найти игру
-            searchByGame(true); // true означает, что не показывать ошибку сразу
-        }
+        console.log('🔍 Поиск по логину:', searchTerm);
+        await searchByLoginDirect(searchTerm);
     } else {
         // Поиск по игре
-        searchByGame();
+        console.log('🔍 Поиск по игре:', searchTerm);
+        await searchByGame();
     }
+}
+
+// ============================================================
+// ПРЯМОЙ ПОИСК ПО ЛОГИНУ (ДЛЯ УНИВЕРСАЛЬНОГО ПОИСКА)
+// ============================================================
+async function searchByLoginDirect(loginSearch) {
+    const resultsContainer = document.getElementById('searchResults');
+    resultsContainer.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #64748b;">
+            <div style="font-size: 2em; margin-bottom: 15px;">⏳</div>
+            <div>Поиск аккаунта "${loginSearch}"...</div>
+        </div>
+    `;
+    
+    if (accounts.length === 0) {
+        await loadAccountsFromFirebase();
+    }
+    
+    const foundAccounts = accounts.filter(acc => 
+        acc.psnLogin.toLowerCase().includes(loginSearch.toLowerCase())
+    );
+    
+    if (foundAccounts.length === 0) {
+        resultsContainer.innerHTML = `
+            <div class="empty">
+                <h3>Аккаунты с логином "${loginSearch}" не найдены</h3>
+            </div>
+        `;
+        showNotification(`Аккаунты с логином "${loginSearch}" не найдены`, 'info');
+        return;
+    }
+    
+    // Загружаем продажи
+    const accountIds = foundAccounts.map(acc => acc.id);
+    
+    try {
+        const db = firebaseSync ? firebaseSync.db : firebase.database();
+        const snapshot = await db.ref('sales').once('value');
+        
+        if (snapshot.exists()) {
+            const salesObj = snapshot.val();
+            const allSales = Object.values(salesObj || {});
+            const accountSales = allSales.filter(sale => accountIds.includes(sale.accountId));
+            
+            window.sales = accountSales;
+            sales = accountSales;
+            
+            console.log(`✅ Загружено ${accountSales.length} продаж для аккаунтов`);
+        } else {
+            window.sales = [];
+            sales = [];
+        }
+    } catch (error) {
+        console.error('❌ Ошибка загрузки продаж:', error);
+        window.sales = [];
+        sales = [];
+    }
+    
+    const statsBtn = document.getElementById('showStatsBtn');
+    if (statsBtn) statsBtn.style.display = 'none';
+    
+    document.getElementById('statsSection').style.display = 'none';
+    
+    displaySearchResults(foundAccounts, `по логину "${loginSearch}"`);
+    updateToggleButtonUI();
 }
 
 // ============================================
