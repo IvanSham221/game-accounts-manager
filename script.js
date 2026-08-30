@@ -3391,7 +3391,7 @@ function loadGamesForManager() {
 }
 
 // ============================================================
-// ПОИСК ПО ИГРЕ (С ЛЕНИВОЙ ЗАГРУЗКОЙ АККАУНТОВ И ПРОДАЖ)
+// ПОИСК ПО ИГРЕ (ВСЕГДА ЗАГРУЖАЕМ СВЕЖИЕ ПРОДАЖИ)
 // ============================================================
 async function searchByGame(silent = false) {
     const searchInput = document.getElementById('managerGameSearch');
@@ -3423,7 +3423,7 @@ async function searchByGame(silent = false) {
         </div>
     `;
     
-    // ===== ЗАГРУЖАЕМ АККАУНТЫ (ТОЛЬКО ПРИ ПОИСКЕ) =====
+    // ===== ЗАГРУЖАЕМ АККАУНТЫ (если ещё не загружены) =====
     if (accounts.length === 0) {
         if (window.loadAccountsOnDemand) {
             await window.loadAccountsOnDemand();
@@ -3432,23 +3432,48 @@ async function searchByGame(silent = false) {
         }
     }
     
-    // ===== ЗАГРУЖАЕМ ПРОДАЖИ (ТОЛЬКО ПРИ ПОИСКЕ) =====
-    if (sales.length === 0) {
+    // ============================================================
+    // ★★★ ВСЕГДА ЗАГРУЖАЕМ СВЕЖИЕ ПРОДАЖИ ДЛЯ ЭТОЙ ИГРЫ ★★★
+    // ============================================================
+    console.log(`📥 Загружаем свежие продажи для "${foundGame.name}"...`);
+    
+    let gameSales = [];
+    
+    try {
+        // Загружаем продажи НАПРЯМУЮ из Firebase только для этой игры
         if (window.loadSalesOnDemand) {
-            await window.loadSalesOnDemand(foundGame.id);
+            // Используем метод, который загружает только по этой игре
+            gameSales = await window.loadSalesOnDemand(foundGame.id);
         } else {
-            await loadSalesFromFirebase();
+            // Fallback: загружаем все и фильтруем
+            const db = firebaseSync ? firebaseSync.db : firebase.database();
+            const snapshot = await db.ref('sales').once('value');
+            if (snapshot.exists()) {
+                const salesObj = snapshot.val();
+                const allSales = Object.values(salesObj || {});
+                
+                const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
+                const accountIds = gameAccounts.map(acc => acc.id);
+                gameSales = allSales.filter(sale => accountIds.includes(sale.accountId));
+            }
         }
+    } catch (error) {
+        console.error('❌ Ошибка загрузки продаж:', error);
+        gameSales = [];
     }
     
-    // ===== ФИЛЬТРУЕМ =====
+    // ===== СОХРАНЯЕМ В ПАМЯТЬ ТОЛЬКО ПРОДАЖИ ЭТОЙ ИГРЫ =====
+    window.sales = gameSales;
+    sales = gameSales;
+    
+    console.log(`✅ Загружено ${gameSales.length} продаж для "${foundGame.name}"`);
+    
+    // ===== ФИЛЬТРУЕМ АККАУНТЫ =====
     const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
-    const accountIds = gameAccounts.map(acc => acc.id);
-    const gameSales = sales.filter(sale => accountIds.includes(sale.accountId));
     
     console.log(`📊 Найдено: ${gameAccounts.length} аккаунтов, ${gameSales.length} продаж`);
     
-    // Обновляем UI
+    // ===== ОБНОВЛЯЕМ UI =====
     const statsBtn = document.getElementById('showStatsBtn');
     if (statsBtn) {
         if (gameAccounts.length > 0) {
@@ -3774,9 +3799,6 @@ function setupGameSelectListener() {
     });
 }
 
-// ============================================================
-// ПОИСК ПО ЛОГИНУ (С ЛЕНИВОЙ ЗАГРУЗКОЙ)
-// ============================================================
 async function searchByLogin() {
     const loginSearch = document.getElementById('managerLogin').value.trim().toLowerCase();
     
@@ -3793,7 +3815,7 @@ async function searchByLogin() {
         </div>
     `;
     
-    // ===== ЗАГРУЖАЕМ АККАУНТЫ (ТОЛЬКО ПРИ ПОИСКЕ) =====
+    // ===== ЗАГРУЖАЕМ АККАУНТЫ =====
     if (accounts.length === 0) {
         if (window.loadAccountsOnDemand) {
             await window.loadAccountsOnDemand();
@@ -3816,19 +3838,27 @@ async function searchByLogin() {
         return;
     }
     
-    // ===== ЗАГРУЖАЕМ ПРОДАЖИ ДЛЯ НАЙДЕННЫХ АККАУНТОВ =====
+    // ============================================================
+    // ★★★ ВСЕГДА ЗАГРУЖАЕМ СВЕЖИЕ ПРОДАЖИ ДЛЯ ЭТИХ АККАУНТОВ ★★★
+    // ============================================================
     const accountIds = foundAccounts.map(acc => acc.id);
     
     try {
         const db = firebaseSync ? firebaseSync.db : firebase.database();
         const snapshot = await db.ref('sales').once('value');
+        
         if (snapshot.exists()) {
             const salesObj = snapshot.val();
             const allSales = Object.values(salesObj || {});
             const accountSales = allSales.filter(sale => accountIds.includes(sale.accountId));
+            
             window.sales = accountSales;
             sales = accountSales;
+            
             console.log(`✅ Загружено ${accountSales.length} продаж для аккаунтов`);
+        } else {
+            window.sales = [];
+            sales = [];
         }
     } catch (error) {
         console.error('❌ Ошибка загрузки продаж:', error);
