@@ -844,8 +844,8 @@ function initApp() {
     
     // ===== ОПРЕДЕЛЯЕМ, КАКИЕ ДАННЫЕ НУЖНЫ =====
     const needsGames = ['add-account.html', 'accounts.html', 'games.html', 'manager.html', 'prices.html', 'free-accounts.html', 'reports.html', 'workers-stats.html'];
-    const needsAccounts = ['accounts.html', 'free-accounts.html', 'manager.html', 'reports.html', 'workers-stats.html'];
-    const needsSales = ['reports.html', 'workers-stats.html']; // ← manager.html УБРАЛИ!
+    const needsAccounts = ['accounts.html', 'free-accounts.html', 'manager.html', 'reports.html'];
+    const needsSales = ['reports.html']; // ← manager.html УБРАЛИ!
     const needsWorkers = ['workers.html', 'workers-stats.html'];
     
     // ===== ЗАГРУЖАЕМ ТОЛЬКО НУЖНЫЕ ДАННЫЕ =====
@@ -1159,12 +1159,21 @@ function initPage(currentPage) {
             break;
             
         case 'workers-stats.html':
-            setTimeout(() => {
-                if (typeof generateWorkersStats === 'function') {
-                    generateWorkersStats();
-                }
-            }, 500);
-            break;
+    // ===== НЕ ЗАГРУЖАЕМ СТАТИСТИКУ АВТОМАТИЧЕСКИ =====
+    console.log('📈 Страница статистики работников — ожидание нажатия "Показать"');
+    
+    // Проверяем, есть ли уже контейнер
+    const container = document.getElementById('workersStatsContainer');
+    if (container && !container.innerHTML.includes('account-simple')) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; color: #94a3b8;">
+                <div style="font-size: 4em; margin-bottom: 20px;">📈</div>
+                <h3 style="color: #64748b; margin-bottom: 10px;">Выберите период и нажмите "Показать"</h3>
+                <p style="color: #94a3b8;">Статистика работников загрузится только по вашему запросу</p>
+            </div>
+        `;
+    }
+    break;
             
         case 'workers.html':
             // Страница работников инициализируется своим скриптом
@@ -10193,7 +10202,299 @@ function initGameSearchForAddAccount() {
         }
     });
 }
+// ============================================================
+// СТАТИСТИКА РАБОТНИКОВ С ФИЛЬТРАЦИЕЙ ПО ДАТЕ
+// ============================================================
 
+// ============================================================
+// УСТАНОВКА ПЕРИОДА ДЛЯ СТАТИСТИКИ РАБОТНИКОВ
+// ============================================================
+function setWorkersPeriod(period) {
+    const startInput = document.getElementById('workersStartDate');
+    const endInput = document.getElementById('workersEndDate');
+    const today = new Date();
+    
+    let startDate = new Date();
+    let endDate = new Date();
+    
+    endDate.setHours(23, 59, 59, 999);
+    
+    switch(period) {
+        case 'today':
+            startDate = new Date();
+            startDate.setHours(0, 0, 0, 0);
+            break;
+        case 'week':
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 7);
+            startDate.setHours(0, 0, 0, 0);
+            break;
+        case 'month':
+            startDate = new Date();
+            startDate.setMonth(startDate.getMonth() - 1);
+            startDate.setHours(0, 0, 0, 0);
+            break;
+        case 'quarter':
+            startDate = new Date();
+            startDate.setMonth(startDate.getMonth() - 3);
+            startDate.setHours(0, 0, 0, 0);
+            break;
+        case 'year':
+            startDate = new Date();
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            startDate.setHours(0, 0, 0, 0);
+            break;
+        case 'all':
+            startInput.value = '';
+            endInput.value = '';
+            loadWorkersStatsByDate();
+            return;
+        default:
+            return;
+    }
+    
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+    
+    startInput.value = formatDate(startDate);
+    endInput.value = formatDate(endDate);
+    
+    loadWorkersStatsByDate();
+}
+
+// ============================================================
+// ЗАГРУЗКА СТАТИСТИКИ РАБОТНИКОВ ПО ДАТАМ
+// ============================================================
+async function loadWorkersStatsByDate() {
+    const startInput = document.getElementById('workersStartDate');
+    const endInput = document.getElementById('workersEndDate');
+    const container = document.getElementById('workersStatsContainer');
+    const loadingStatus = document.getElementById('workersLoadingStatus');
+    
+    const startDate = startInput ? startInput.value : '';
+    const endDate = endInput ? endInput.value : '';
+    
+    if (!startDate || !endDate) {
+        console.log('📈 Загружаем всю статистику (период не выбран)');
+        await loadAllWorkersStats();
+        return;
+    }
+    
+    if (startDate > endDate) {
+        showNotification('Дата "С" не может быть позже даты "По"', 'warning');
+        return;
+    }
+    
+    console.log(`📈 Загружаем статистику за период: ${startDate} - ${endDate}`);
+    
+    if (loadingStatus) loadingStatus.style.display = 'block';
+    if (container) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #64748b;">
+                <div style="font-size: 2em; margin-bottom: 15px;">⏳</div>
+                <div>Загрузка статистики за ${formatDateRangeLocal(startDate, endDate)}...</div>
+            </div>
+        `;
+    }
+    
+    try {
+        // ===== ЗАГРУЖАЕМ ТОЛЬКО ПРОДАЖИ =====
+        const db = firebaseSync ? firebaseSync.db : firebase.database();
+        const snapshot = await db.ref('sales').once('value');
+        
+        let periodSales = [];
+        
+        if (snapshot.exists()) {
+            const salesObj = snapshot.val();
+            const allSales = Object.values(salesObj || {});
+            
+            periodSales = allSales.filter(sale => {
+                const saleDate = sale.date || sale.datetime?.split(' ')[0] || '';
+                if (!saleDate) return false;
+                return saleDate >= startDate && saleDate <= endDate;
+            });
+            
+            periodSales.sort((a, b) => {
+                const dateA = a.datetime || a.date || '';
+                const dateB = b.datetime || b.date || '';
+                return dateB.localeCompare(dateA);
+            });
+            
+            console.log(`✅ Загружено ${periodSales.length} продаж за период`);
+        }
+        
+        // ===== ЗАГРУЖАЕМ АККАУНТЫ (только если есть продажи) =====
+        if (periodSales.length > 0) {
+            await loadAccountsForWorkersStats();
+        }
+        
+        window._workersSales = periodSales;
+        window._workersPeriod = { startDate, endDate };
+        
+        // Отображаем статистику
+        displayWorkersStatsPage(periodSales, startDate, endDate);
+        
+        if (periodSales.length > 0) {
+            showNotification(`✅ Загружено ${periodSales.length} продаж за период`, 'success');
+        } else {
+            showNotification(`ℹ️ За период не найдено продаж`, 'info');
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки статистики:', error);
+        if (container) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #ef4444;">
+                    <div style="font-size: 3em; margin-bottom: 15px;">❌</div>
+                    <h3 style="color: #dc2626;">Ошибка загрузки</h3>
+                    <p>${error.message}</p>
+                    <button onclick="loadWorkersStatsByDate()" class="btn btn-primary" style="margin-top: 15px;">
+                        🔄 Повторить
+                    </button>
+                </div>
+            `;
+        }
+        showNotification('❌ Ошибка загрузки статистики', 'error');
+    } finally {
+        if (loadingStatus) loadingStatus.style.display = 'none';
+    }
+}
+
+// ============================================================
+// ЗАГРУЗКА ВСЕЙ СТАТИСТИКИ РАБОТНИКОВ
+// ============================================================
+async function loadAllWorkersStats() {
+    const container = document.getElementById('workersStatsContainer');
+    const loadingStatus = document.getElementById('workersLoadingStatus');
+    
+    console.log('📈 Загружаем всю статистику работников...');
+    
+    if (loadingStatus) loadingStatus.style.display = 'block';
+    if (container) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #64748b;">
+                <div style="font-size: 2em; margin-bottom: 15px;">⏳</div>
+                <div>Загрузка всей статистики...</div>
+            </div>
+        `;
+    }
+    
+    try {
+        const db = firebaseSync ? firebaseSync.db : firebase.database();
+        const snapshot = await db.ref('sales').once('value');
+        
+        let allSales = [];
+        
+        if (snapshot.exists()) {
+            const salesObj = snapshot.val();
+            allSales = Object.values(salesObj || {});
+            allSales.sort((a, b) => {
+                const dateA = a.datetime || a.date || '';
+                const dateB = b.datetime || b.date || '';
+                return dateB.localeCompare(dateA);
+            });
+            console.log(`✅ Загружено ${allSales.length} продаж (все)`);
+        }
+        
+        // Загружаем аккаунты
+        await loadAccountsForWorkersStats();
+        
+        window._workersSales = allSales;
+        window._workersPeriod = { startDate: 'всё время', endDate: 'всё время' };
+        
+        displayWorkersStatsPage(allSales, 'всё время', 'всё время');
+        showNotification(`✅ Загружено ${allSales.length} продаж`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки:', error);
+        if (container) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #ef4444;">
+                    <div style="font-size: 3em; margin-bottom: 15px;">❌</div>
+                    <h3 style="color: #dc2626;">Ошибка загрузки</h3>
+                    <p>${error.message}</p>
+                </div>
+            `;
+        }
+    } finally {
+        if (loadingStatus) loadingStatus.style.display = 'none';
+    }
+}
+
+// ============================================================
+// ЗАГРУЗКА АККАУНТОВ ДЛЯ СТАТИСТИКИ (ТОЛЬКО ПРИ НЕОБХОДИМОСТИ)
+// ============================================================
+async function loadAccountsForWorkersStats() {
+    if (accounts.length > 0) {
+        console.log(`✅ Аккаунты уже загружены: ${accounts.length}`);
+        return accounts;
+    }
+    
+    console.log('📋 Загружаем аккаунты для статистики...');
+    
+    try {
+        const db = firebaseSync ? firebaseSync.db : firebase.database();
+        const snapshot = await db.ref('accounts').once('value');
+        
+        if (snapshot.exists()) {
+            const accountsObj = snapshot.val();
+            const accountsArray = Object.values(accountsObj || {});
+            accounts = accountsArray;
+            window.accounts = accountsArray;
+            localStorage.setItem('accounts', JSON.stringify(accountsArray));
+            console.log(`✅ Загружено ${accounts.length} аккаунтов`);
+            return accounts;
+        }
+        return [];
+    } catch (error) {
+        console.error('❌ Ошибка загрузки аккаунтов:', error);
+        return JSON.parse(localStorage.getItem('accounts')) || [];
+    }
+}
+
+// ============================================================
+// ФОРМАТИРОВАНИЕ ДАТ
+// ============================================================
+function formatDateRangeLocal(start, end) {
+    if (start === 'всё время' || end === 'всё время') return 'всё время';
+    if (!start || !end) return 'выбранный период';
+    
+    const format = (dateStr) => {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        }
+        return dateStr;
+    };
+    
+    if (start === end) return format(start);
+    return `${format(start)} - ${format(end)}`;
+}
+
+// ============================================================
+// ФУНКЦИЯ ДЛЯ СОВМЕСТИМОСТИ (НЕ ЗАГРУЖАЕТ АВТОМАТИЧЕСКИ)
+// ============================================================
+function generateWorkersStats() {
+    console.log('📈 generateWorkersStats() вызвана — НЕ загружаем автоматически');
+    console.log('⏳ Нажмите "Показать" для загрузки статистики');
+    
+    // Просто показываем сообщение
+    const container = document.getElementById('workersStatsContainer');
+    if (container) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; color: #94a3b8;">
+                <div style="font-size: 4em; margin-bottom: 20px;">📈</div>
+                <h3 style="color: #64748b; margin-bottom: 10px;">Выберите период и нажмите "Показать"</h3>
+                <p style="color: #94a3b8;">Статистика работников загрузится только по вашему запросу</p>
+            </div>
+        `;
+    }
+}
 // Выбор игры
 function selectGameForAccount(gameId, gameName) {
     const searchInput = document.getElementById('accountGameSearch');

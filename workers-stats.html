@@ -18,19 +18,12 @@
             </div>
             <button class="close-menu" onclick="toggleMobileMenu()">×</button>
         </div>
-        
-        <div class="mobile-menu-nav">
-            <!-- Пункты меню будут добавляться скриптом -->
-        </div>
-        
+        <div class="mobile-menu-nav"></div>
         <div class="mobile-menu-footer">
-            <button onclick="logout()" class="btn btn-danger btn-block">
-                <span>🚪</span> Выйти
-            </button>
+            <button onclick="logout()" class="btn btn-danger btn-block">🚪 Выйти</button>
         </div>
     </div>
 
-    <!-- Бургер-кнопка -->
     <div class="burger-container">
         <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
             <div class="burger-icon">
@@ -38,24 +31,63 @@
                 <span></span>
                 <span></span>
             </div>
-            <!-- Опционально: бейдж с уведомлениями -->
             <div class="burger-badge" id="menuBadge" style="display: none;">3</div>
-            <!-- Текст при наведении (только на ПК) -->
             <div class="burger-label">Меню</div>
         </button>
     </div>
 
-    <!-- Оверлей для закрытия меню -->
     <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
 
     <div class="container">
         <h1><span>📈</span><span>Статистика работников</span></h1>
-        
-        <!-- Сразу показываем статистику работников -->
-        <div id="workersStatsContainer">
-            <div style="text-align: center; padding: 40px; color: #64748b;">
-                <div style="font-size: 3em; margin-bottom: 15px;">👷</div>
-                <h3>Загружаем статистику работников...</h3>
+
+        <!-- ===== ФИЛЬТРЫ ===== -->
+        <div class="section filters-section">
+            <h2>📅 Период статистики</h2>
+            
+            <div class="filters-row" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: end;">
+                <!-- Быстрые кнопки -->
+                <div class="filter-group">
+                    <label>Быстрый выбор:</label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button onclick="setWorkersPeriod('today')" class="btn btn-small btn-secondary">Сегодня</button>
+                        <button onclick="setWorkersPeriod('week')" class="btn btn-small btn-secondary">Неделя</button>
+                        <button onclick="setWorkersPeriod('month')" class="btn btn-small btn-secondary">Месяц</button>
+                        <button onclick="setWorkersPeriod('quarter')" class="btn btn-small btn-secondary">Квартал</button>
+                        <button onclick="setWorkersPeriod('year')" class="btn btn-small btn-secondary">Год</button>
+                        <button onclick="setWorkersPeriod('all')" class="btn btn-small btn-primary">Всё время</button>
+                    </div>
+                </div>
+                
+                <!-- Свой период -->
+                <div class="filter-group" style="display: flex; gap: 10px; align-items: end;">
+                    <div>
+                        <label for="workersStartDate">С:</label>
+                        <input type="date" id="workersStartDate" class="input" style="width: 150px;">
+                    </div>
+                    <div>
+                        <label for="workersEndDate">По:</label>
+                        <input type="date" id="workersEndDate" class="input" style="width: 150px;">
+                    </div>
+                    <button onclick="loadWorkersStatsByDate()" class="btn btn-success" style="height: 40px;">
+                        📊 Показать
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Статус загрузки -->
+            <div id="workersLoadingStatus" style="display: none; margin-top: 15px; padding: 12px; background: #f8fafc; border-radius: 8px; color: #64748b; text-align: center;">
+                ⏳ Загрузка статистики за выбранный период...
+            </div>
+        </div>
+
+        <!-- ===== РЕЗУЛЬТАТЫ ===== -->
+        <div id="workersStatsContainer" class="section">
+            <div style="text-align: center; padding: 60px 20px; color: #94a3b8;">
+                <div style="font-size: 4em; margin-bottom: 20px;">📈</div>
+                <h3 style="color: #64748b; margin-bottom: 10px;">Выберите период и нажмите "Показать"</h3>
+                <p style="color: #94a3b8;">Статистика работников загрузится только по вашему запросу</p>
+                <p style="color: #94a3b8; font-size: 0.9em; margin-top: 10px;">⚡ Продажи загружаются только при нажатии кнопки</p>
             </div>
         </div>
     </div>
@@ -65,20 +97,33 @@
     <script src="firebase.js"></script>
     <script src="security.js"></script>
     <script src="script.js?v=20250115"></script>
+    <script src="autocomplete.js"></script>
+    <script src="totp.js"></script>
+    
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Ждем немного чтобы все загрузилось
-        setTimeout(function() {
-            if (typeof generateWorkersStats === 'function') {
-                console.log('📈 Автоматически загружаем статистику работников...');
-                generateWorkersStats();
-            } else {
-                console.error('❌ Функция generateWorkersStats не найдена!');
-            }
-        }, 800);
+        // Устанавливаем даты по умолчанию (последние 30 дней)
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+        
+        const formatDate = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+        
+        const startInput = document.getElementById('workersStartDate');
+        const endInput = document.getElementById('workersEndDate');
+        if (startInput) startInput.value = formatDate(startDate);
+        if (endInput) endInput.value = formatDate(endDate);
+        
+        console.log('📈 Страница статистики работников загружена');
+        console.log('⏳ Статистика НЕ загружена автоматически. Нажмите "Показать" для загрузки.');
+        
+        // ===== НЕ ЗАГРУЖАЕМ СТАТИСТИКУ АВТОМАТИЧЕСКИ! =====
     });
-</script>
-</body>
-</html>
+    </script>
 </body>
 </html>

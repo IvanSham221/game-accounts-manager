@@ -19,8 +19,8 @@ const currentPage = window.location.pathname.split('/').pop();
 const isLoginPage = currentPage === 'login.html' || currentPage === 'index.html';
 const isManagerPage = currentPage === 'manager.html';
 const isWorkersPage = currentPage === 'workers.html';
-const needsSales = ['reports.html', 'workers-stats.html'].includes(currentPage);
-const needsAllAccounts = ['accounts.html', 'free-accounts.html', 'add-account.html', 'reports.html', 'workers-stats.html'].includes(currentPage);
+const needsSales = ['reports.html'].includes(currentPage);
+const needsAllAccounts = ['accounts.html', 'free-accounts.html', 'add-account.html', 'reports.html'].includes(currentPage);
 
 console.log(`📄 Текущая страница: ${currentPage}`);
 console.log(`📊 Продажи нужны: ${needsSales ? 'ДА' : 'НЕТ'}`);
