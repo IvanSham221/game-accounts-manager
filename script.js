@@ -398,17 +398,9 @@ function updateNavigation() {
             <span>📋</span>
             <span class="nav-text">Список аккаунтов</span>
         </button>
-        <button onclick="security.updateSession(); location.href='prices.html'" class="btn ${location.pathname.includes('prices.html') ? 'btn-primary' : 'btn-secondary'}">
-            <span>💰</span>
-            <span class="nav-text">Ценники игр</span>
-        </button>
         <button onclick="security.updateSession(); location.href='free-accounts.html'" class="btn ${location.pathname.includes('free-accounts.html') ? 'btn-primary' : 'btn-secondary'}">
             <span>🆓</span>
             <span class="nav-text">Свободные аккаунты</span>
-        </button>
-        <button onclick="security.updateSession(); location.href='procurement.html'" class="btn ${location.pathname.includes('procurement.html') ? 'btn-primary' : 'btn-secondary'}">
-        <span>📦</span>
-        <span class="nav-text">Управление закупом</span>
         </button>
         <button onclick="security.updateSession(); location.href='games.html'" class="btn ${location.pathname.includes('games.html') ? 'btn-primary' : 'btn-secondary'}">
             <span>🎯</span>
@@ -559,15 +551,12 @@ function initMobileMenu() {
     const menuItems = [
         { icon: '🎮', text: 'Панель менеджера', page: 'manager.html', id: 'manager' },
         { icon: '➕', text: 'Добавить аккаунт', page: 'add-account.html', id: 'add-account' },
-        { icon: '💰', text: 'Ценники игр', page: 'prices.html', id: 'prices' },
-        { icon: '📦', text: 'Управление закупом', page: 'procurement.html', id: 'procurement' },
         { icon: '📊', text: 'Отчеты', page: 'reports.html', id: 'reports' },
         { icon: '📈', text: 'Статистика работников', page: 'workers-stats.html', id: 'workers-stats' },
         { icon: '📋', text: 'Список аккаунтов', page: 'accounts.html', id: 'accounts' },
-        { icon: '🆓', text: 'Свободные аккаунты', page: 'free-accounts.html', id: 'free-accounts' },
         { icon: '🎯', text: 'Управление играми', page: 'games.html', id: 'games' },
+        { icon: '🆓', text: 'Свободные аккаунты', page: 'free-accounts.html', id: 'free-accounts' },
         { icon: '👑', text: 'Работники', page: 'workers.html', id: 'workers', adminOnly: true },
-        { icon: '🔄', text: 'Синхронизация', onclick: 'syncData()', id: 'sync' }
     ];
 
     
@@ -3952,6 +3941,9 @@ function debugPositionSales(accountId, positionType, positionIndex) {
 // ============================================================
 // ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ПОИСКА
 // ============================================================
+// ============================================================
+// ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ПОИСКА
+// ============================================================
 function displaySearchResults(accountsList, gameName) {
     const resultsContainer = document.getElementById('searchResults');
     
@@ -4060,8 +4052,8 @@ function displaySearchResults(accountsList, gameName) {
     } else {
         // Показываем аккаунты
         html += filteredAccounts.map(account => {
-            const commentsCount = account.comments ? account.comments.length : 0;
             const isSold = isAccountFullySold(account);
+            const hasComment = account.comment && account.comment.text;
             
             return `
                 <div class="account-simple ${isSold ? 'fully-sold' : ''}" style="
@@ -4159,7 +4151,7 @@ function displaySearchResults(accountsList, gameName) {
                             </div>
                         </div>
                         
-                        <!-- ПРАВАЯ ЧАСТЬ: ДАТА ДЕАКТИВАЦИИ И КОММЕНТАРИИ -->
+                        <!-- ПРАВАЯ ЧАСТЬ: ДАТА ДЕАКТИВАЦИИ -->
                         <div style="display: flex; align-items: center; gap: 10px;">
                             ${account.deactivated ? `
                                 <div style="
@@ -4176,37 +4168,6 @@ function displaySearchResults(accountsList, gameName) {
                                     🛑 ${account.deactivationDate || ''}
                                 </div>
                             ` : ''}
-                            
-                            ${commentsCount > 0 ? `
-                                <button onclick="showAccountComments(${account.id})" 
-                                        style="
-                                            background: ${isSold ? '#fecaca' : '#4361ee'};
-                                            color: ${isSold ? '#dc2626' : 'white'};
-                                            border: ${isSold ? '1px solid #fecaca' : 'none'};
-                                            padding: 6px 12px;
-                                            border-radius: 6px;
-                                            font-size: 13px;
-                                            cursor: pointer;
-                                            display: flex;
-                                            align-items: center;
-                                            gap: 5px;
-                                        ">
-                                    💬 ${commentsCount}
-                                </button>
-                            ` : `
-                                <button onclick="showAccountComments(${account.id})" 
-                                        style="
-                                            background: #f8fafc;
-                                            color: #64748b;
-                                            border: 1px solid #e2e8f0;
-                                            padding: 6px 12px;
-                                            border-radius: 6px;
-                                            font-size: 13px;
-                                            cursor: pointer;
-                                        ">
-                                    💬
-                                </button>
-                            `}
                         </div>
                     </div>
                     
@@ -4250,6 +4211,100 @@ function displaySearchResults(accountsList, gameName) {
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- ===== КОММЕНТАРИЙ К АККАУНТУ ===== -->
+                    <div style="
+                        margin-top: 15px;
+                        padding-top: 15px;
+                        border-top: 1px solid #f1f5f9;
+                        display: flex;
+                        align-items: flex-start;
+                        gap: 12px;
+                        flex-wrap: wrap;
+                    ">
+                        <!-- Текущий комментарий -->
+                        <div style="flex: 1; min-width: 150px;">
+                            ${hasComment ? `
+                                <div style="
+                                    background: #f0fdf4;
+                                    padding: 10px 14px;
+                                    border-radius: 8px;
+                                    font-size: 13px;
+                                    color: #1e293b;
+                                    border-left: 3px solid #22c55e;
+                                    word-break: break-word;
+                                    display: flex;
+                                    justify-content: space-between;
+                                    align-items: flex-start;
+                                    gap: 10px;
+                                ">
+                                    <div style="flex: 1;">
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                            <span style="font-weight: 600; color: #2d3748; font-size: 12px;">
+                                                ${account.comment.author}
+                                            </span>
+                                            <span style="color: #94a3b8; font-size: 11px;">
+                                                ${account.comment.date || ''}
+                                            </span>
+                                        </div>
+                                        <div style="line-height: 1.4;">
+                                            ${escapeHtml(account.comment.text)}
+                                        </div>
+                                    </div>
+                                    <button onclick="deleteAccountComment(${account.id})" 
+                                            style="
+                                                background: none;
+                                                border: none;
+                                                color: #ef4444;
+                                                cursor: pointer;
+                                                font-size: 16px;
+                                                padding: 0 4px;
+                                                flex-shrink: 0;
+                                                margin-top: 2px;
+                                            "
+                                            onmouseover="this.style.color='#dc2626'"
+                                            onmouseout="this.style.color='#ef4444'"
+                                            title="Удалить комментарий">
+                                        ✕
+                                    </button>
+                                </div>
+                            ` : `
+                                <div style="
+                                    color: #94a3b8;
+                                    font-size: 13px;
+                                    font-style: italic;
+                                    padding: 6px 0;
+                                ">
+                                    💬 Нет комментария
+                                </div>
+                            `}
+                        </div>
+                        
+                        <!-- Кнопка добавления/редактирования комментария -->
+                        <button onclick="openCommentModal(${account.id})" 
+                                style="
+                                    background: ${hasComment ? '#f59e0b' : '#4361ee'};
+                                    color: white;
+                                    border: none;
+                                    padding: 6px 14px;
+                                    border-radius: 6px;
+                                    font-size: 12px;
+                                    cursor: pointer;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 5px;
+                                    white-space: nowrap;
+                                    flex-shrink: 0;
+                                    height: 32px;
+                                    transition: all 0.2s ease;
+                                "
+                                onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.02)'"
+                                onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'">
+                            ${hasComment ? '✏️ Изменить' : '➕ Добавить'}
+                        </button>
+                    </div>
+                    <!-- ===== КОНЕЦ КОММЕНТАРИЯ ===== -->
+                    
                 </div>
             `;
         }).join('');
@@ -8581,59 +8636,6 @@ function generateWorkersDetailedStatsHTML(workersStats) {
 // ============================================
 
 
-// Функция для добавления комментария к аккаунту
-// Обновите функцию addCommentToAccount() для лучшей синхронизации:
-function addCommentToAccount(accountId, commentText) {
-    const accountIndex = accounts.findIndex(acc => acc.id === accountId);
-    if (accountIndex === -1) {
-        showNotification('Аккаунт не найден', 'error');
-        return false;
-    }
-    
-    const currentUser = security.getCurrentUser();
-    if (!currentUser) {
-        showNotification('Пользователь не авторизован', 'error');
-        return false;
-    }
-    
-    const newComment = {
-        id: Date.now(),
-        text: commentText.trim(),
-        author: currentUser.name,
-        authorUsername: currentUser.username,
-        role: currentUser.role,
-        timestamp: new Date().toISOString(),
-        date: new Date().toLocaleDateString('ru-RU'),
-        time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-    };
-    
-    // Инициализируем массив комментариев если его нет
-    if (!accounts[accountIndex].comments) {
-        accounts[accountIndex].comments = [];
-    }
-    
-    // Добавляем комментарий в начало массива
-    accounts[accountIndex].comments.unshift(newComment);
-    
-    // Сохраняем изменения
-    saveToStorage('accounts', accounts).then(result => {
-        if (result.success) {
-            showNotification('Комментарий сохранен', 'success');
-        } else {
-            showNotification('Комментарий сохранен локально', 'warning');
-        }
-    }).catch(error => {
-        console.error('Ошибка сохранения комментария:', error);
-    });
-    
-    // Обновляем отображение если мы на странице менеджера
-    if (window.location.pathname.includes('manager.html')) {
-        refreshAccountCommentsDisplay(accountId);
-    }
-    
-    return true;
-}
-
 function deleteComment(accountId, commentId) {
     const accountIndex = accounts.findIndex(acc => acc.id === accountId);
     if (accountIndex === -1) return false;
@@ -8674,80 +8676,6 @@ function deleteComment(accountId, commentId) {
     return false;
 }
 
-function showAccountComments(accountId) {
-    const account = accounts.find(acc => acc.id === accountId);
-    if (!account) return;
-    
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.id = 'commentsModal';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
-            <span class="close" onclick="document.getElementById('commentsModal').remove()">&times;</span>
-            
-            <h3 style="margin-bottom: 15px;">
-                💬 Комментарии к ${account.psnLogin}
-            </h3>
-            
-            <div id="commentsList" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;">
-                ${(account.comments && account.comments.length > 0) ? 
-                    account.comments.map(c => `
-                        <div style="margin-bottom: 10px; padding: 10px; background: #f8fafc; border-radius: 8px;">
-                            <div style="font-weight: 600;">${c.author}</div>
-                            <div style="font-size: 12px; color: #64748b;">${c.date} ${c.time}</div>
-                            <div>${c.text}</div>
-                        </div>
-                    `).join('') 
-                    : '<div style="text-align: center; color: #94a3b8;">Нет комментариев</div>'
-                }
-            </div>
-            
-            <div>
-                <textarea id="newCommentText" 
-                          placeholder="Добавить комментарий..." 
-                          rows="3"
-                          style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;"></textarea>
-                <button onclick="submitComment(${account.id})" 
-                        style="width: 100%; padding: 10px; background: #4361ee; color: white; border: none; border-radius: 5px; margin-top: 10px;">
-                    Добавить
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    modal.style.display = 'block';
-}
-
-
-
-// Функция для отправки комментария
-function submitComment(accountId) {
-    const textarea = document.getElementById('newCommentText');
-    const commentText = textarea.value.trim();
-    
-    if (!commentText) {
-        showNotification('Введите текст комментария', 'warning');
-        return;
-    }
-    
-    if (addCommentToAccount(accountId, commentText)) {
-        textarea.value = '';
-        
-        // Обновляем список комментариев
-        const account = accounts.find(acc => acc.id === accountId);
-        if (account) {
-            document.getElementById('commentsList').innerHTML = renderCommentsList(account.comments || [], account.id);
-            // Прокручиваем вверх чтобы увидеть новый комментарий
-            const commentsList = document.getElementById('commentsList');
-            if (commentsList) {
-                commentsList.scrollTop = 0;
-            }
-        }
-        
-        showNotification('Комментарий добавлен', 'success');
-    }
-}
 
 function renderCommentsList(comments, accountId) {
     if (!comments || comments.length === 0) {
@@ -10495,6 +10423,203 @@ function generateWorkersStats() {
         `;
     }
 }
+
+// ============================================================
+// КОММЕНТАРИЙ К АККАУНТУ (ОДИН НА АККАУНТ)
+// ============================================================
+
+// Открыть модальное окно для добавления/редактирования комментария
+function openCommentModal(accountId) {
+    const account = accounts.find(acc => acc.id === accountId);
+    if (!account) {
+        showNotification('Аккаунт не найден', 'error');
+        return;
+    }
+    
+    const currentComment = account.comment ? account.comment.text : '';
+    const currentAuthor = account.comment ? account.comment.author : '';
+    
+    // Создаем модальное окно
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'commentModal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close" onclick="document.getElementById('commentModal').remove()">&times;</span>
+            
+            <h3 style="margin-bottom: 20px; color: #2d3748;">
+                ${currentComment ? '✏️ Редактировать комментарий' : '💬 Добавить комментарий'}
+                <span style="font-size: 0.8em; color: #64748b; display: block; margin-top: 5px;">
+                    ${account.psnLogin}
+                </span>
+            </h3>
+            
+            ${currentAuthor ? `
+                <div style="font-size: 0.85em; color: #64748b; margin-bottom: 10px;">
+                    Автор: ${currentAuthor}
+                </div>
+            ` : ''}
+            
+            <textarea id="commentTextInput" 
+                      rows="4"
+                      style="
+                          width: 100%;
+                          padding: 12px;
+                          border: 2px solid #e2e8f0;
+                          border-radius: 8px;
+                          font-size: 14px;
+                          resize: vertical;
+                          min-height: 80px;
+                          font-family: inherit;
+                      "
+                      placeholder="Введите комментарий к аккаунту...">${currentComment || ''}</textarea>
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button onclick="saveAccountComment(${account.id})" 
+                        class="btn btn-success" 
+                        style="flex: 1; padding: 10px;">
+                    💾 Сохранить
+                </button>
+                <button onclick="document.getElementById('commentModal').remove()" 
+                        class="btn btn-secondary" 
+                        style="flex: 1; padding: 10px;">
+                    Отмена
+                </button>
+            </div>
+            
+            ${currentComment ? `
+                <div style="margin-top: 15px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                    <button onclick="deleteAccountComment(${account.id}); document.getElementById('commentModal').remove();" 
+                            style="
+                                background: none;
+                                border: none;
+                                color: #ef4444;
+                                cursor: pointer;
+                                font-size: 13px;
+                            ">
+                        🗑️ Удалить комментарий
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Фокус на текстовое поле
+    setTimeout(() => {
+        const textarea = document.getElementById('commentTextInput');
+        if (textarea) {
+            textarea.focus();
+            textarea.select();
+        }
+    }, 100);
+    
+    // Закрытие по ESC
+    modal.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            modal.remove();
+        }
+    });
+}
+
+// Сохранить комментарий к аккаунту
+async function saveAccountComment(accountId) {
+    const textarea = document.getElementById('commentTextInput');
+    const commentText = textarea ? textarea.value.trim() : '';
+    
+    if (!commentText) {
+        showNotification('Введите текст комментария', 'warning');
+        return;
+    }
+    
+    const accountIndex = accounts.findIndex(acc => acc.id === accountId);
+    if (accountIndex === -1) {
+        showNotification('Аккаунт не найден', 'error');
+        return;
+    }
+    
+    const currentUser = security.getCurrentUser();
+    if (!currentUser) {
+        showNotification('Пользователь не авторизован', 'error');
+        return;
+    }
+    
+    // Сохраняем комментарий
+    accounts[accountIndex].comment = {
+        text: commentText,
+        author: currentUser.name,
+        authorUsername: currentUser.username,
+        timestamp: new Date().toISOString(),
+        date: new Date().toLocaleDateString('ru-RU'),
+        time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    // Сохраняем в Firebase
+    await saveToStorage('accounts', accounts);
+    
+    // Закрываем модальное окно
+    const modal = document.getElementById('commentModal');
+    if (modal) modal.remove();
+    
+    // Обновляем отображение
+    const searchInput = document.getElementById('managerGameSearch');
+    if (searchInput && searchInput.value.trim()) {
+        await searchByGame(true);
+    } else {
+        // Если нет поиска - просто перерисовываем результаты
+        const resultsContainer = document.getElementById('searchResults');
+        if (resultsContainer) {
+            // Перезапускаем текущий поиск
+            const loginInput = document.getElementById('managerLogin');
+            if (loginInput && loginInput.value.trim()) {
+                await searchByLogin();
+            }
+        }
+    }
+    
+    showNotification('✅ Комментарий сохранен', 'success');
+}
+
+// Удалить комментарий с аккаунта
+async function deleteAccountComment(accountId) {
+    if (!confirm('Удалить комментарий?')) return;
+    
+    const accountIndex = accounts.findIndex(acc => acc.id === accountId);
+    if (accountIndex === -1) {
+        showNotification('Аккаунт не найден', 'error');
+        return;
+    }
+    
+    // Удаляем комментарий
+    delete accounts[accountIndex].comment;
+    
+    // Сохраняем в Firebase
+    await saveToStorage('accounts', accounts);
+    
+    // Обновляем отображение
+    const searchInput = document.getElementById('managerGameSearch');
+    if (searchInput && searchInput.value.trim()) {
+        await searchByGame(true);
+    } else {
+        const loginInput = document.getElementById('managerLogin');
+        if (loginInput && loginInput.value.trim()) {
+            await searchByLogin();
+        }
+    }
+    
+    showNotification('🗑️ Комментарий удален', 'info');
+}
+
+// Вспомогательная функция для экранирования HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Выбор игры
 function selectGameForAccount(gameId, gameName) {
     const searchInput = document.getElementById('accountGameSearch');
