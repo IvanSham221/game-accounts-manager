@@ -6999,7 +6999,9 @@ function displayFilteredGames(filteredGames) {
     `).join('');
 }
 
-// ИСПОЛЬЗУЙТЕ ЭТУ ВЕРСИЮ:
+// ============================================================
+// УДАЛЕНИЕ ПРОДАЖИ (С ПРИНУДИТЕЛЬНОЙ СИНХРОНИЗАЦИЕЙ)
+// ============================================================
 async function deleteSale(saleId) {
     console.log(`🗑️ Пытаюсь удалить продажу: ${saleId}`);
     
@@ -7009,9 +7011,7 @@ async function deleteSale(saleId) {
         return;
     }
     
-    const currentUser = security.getCurrentUser();
     const sale = sales.find(s => s.id === saleId);
-
     if (!sale) {
         console.error(`❌ Продажа с ID ${saleId} не найдена`);
         showNotification('Продажа не найдена', 'error');
@@ -7025,17 +7025,9 @@ async function deleteSale(saleId) {
     try {
         console.log(`✅ Начинаю удаление продажи ${saleId}...`);
         
-        // 1. Удаляем из локального массива
-        const originalCount = sales.length;
-        sales = sales.filter(sale => sale.id !== saleId);
-        console.log(`✅ Удалено из памяти. Было: ${originalCount}, стало: ${sales.length}`);
-        
-        // 2. Сохраняем локально
-        localStorage.setItem('sales', JSON.stringify(sales));
-        console.log('✅ Сохранено в localStorage');
-        
-        // 3. Удаляем из Firebase (если подключен)
+        // ===== 1. УДАЛЯЕМ ИЗ FIREBASE =====
         let firebaseDeleted = false;
+        
         if (firebaseSync && firebaseSync.db) {
             try {
                 await firebaseSync.db.ref('sales/' + saleId).remove();
@@ -7043,25 +7035,81 @@ async function deleteSale(saleId) {
                 console.log(`✅ Продажа удалена из Firebase: ${saleId}`);
             } catch (firebaseError) {
                 console.error('❌ Ошибка удаления из Firebase:', firebaseError);
-                // Продолжаем работу, продажа уже удалена локально
+            }
+        } else if (firebase && firebase.database) {
+            try {
+                const db = firebase.database();
+                await db.ref('sales/' + saleId).remove();
+                firebaseDeleted = true;
+                console.log(`✅ Продажа удалена из Firebase: ${saleId}`);
+            } catch (error) {
+                console.error('❌ Ошибка удаления из Firebase:', error);
             }
         }
         
-        // 4. Закрываем модальное окно
+        // ===== 2. УДАЛЯЕМ ИЗ ЛОКАЛЬНОГО МАССИВА =====
+        const originalCount = sales.length;
+        sales = sales.filter(s => s.id !== saleId);
+        console.log(`✅ Удалено из памяти. Было: ${originalCount}, стало: ${sales.length}`);
+        
+        // ===== 3. СОХРАНЯЕМ ЛОКАЛЬНО =====
+        localStorage.setItem('sales', JSON.stringify(sales));
+        console.log('✅ Сохранено в localStorage');
+        
+        // ===== 4. ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ КЭШ =====
+        if (firebase && firebase.database) {
+            try {
+                const snapshot = await firebase.database().ref('sales').once('value');
+                if (snapshot.exists()) {
+                    const salesObj = snapshot.val();
+                    const freshSales = Object.values(salesObj || {});
+                    sales = freshSales;
+                    window.sales = freshSales;
+                    localStorage.setItem('sales', JSON.stringify(freshSales));
+                    console.log(`✅ Кэш обновлен: ${freshSales.length} продаж`);
+                }
+            } catch (e) {
+                console.warn('⚠️ Не удалось обновить кэш:', e);
+            }
+        }
+        
+        // ===== 5. ЗАКРЫВАЕМ МОДАЛЬНОЕ ОКНО =====
         closeSaleModal();
         
-        // 5. Обновляем отображение
-        refreshSearchResultsAfterSaleUpdate();
+        // ===== 6. ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ =====
+        const searchInput = document.getElementById('managerGameSearch');
+        if (searchInput && searchInput.value.trim()) {
+            await searchByGame(true);
+        }
         
-        // 6. Показываем уведомление
+        // ===== 7. ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА =====
+        setTimeout(async () => {
+            try {
+                const db = firebase.database();
+                const snapshot = await db.ref('sales').once('value');
+                if (snapshot.exists()) {
+                    const salesObj = snapshot.val();
+                    const freshSales = Object.values(salesObj || {});
+                    if (freshSales.length !== sales.length) {
+                        sales = freshSales;
+                        window.sales = freshSales;
+                        localStorage.setItem('sales', JSON.stringify(freshSales));
+                        if (searchInput && searchInput.value.trim()) {
+                            await searchByGame(true);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ Проверка синхронизации не удалась:', e);
+            }
+        }, 3000);
+        
+        // ===== 8. УВЕДОМЛЕНИЕ =====
         if (firebaseDeleted) {
             showNotification(`Продажа "${sale.accountLogin}" удалена из облака! 🗑️`, 'success');
         } else {
             showNotification(`Продажа "${sale.accountLogin}" удалена локально 🗑️`, 'info');
         }
-        
-        // 7. Логируем удаление
-        console.log(`🎉 Продажа успешно удалена: ${sale.accountLogin} за ${sale.price} ₽`);
         
     } catch (error) {
         console.error('❌ Критическая ошибка при удалении продажи:', error);
@@ -7919,45 +7967,23 @@ function getSalesListHTML(salesData) {
         `;
     }
 }
-// ИСПОЛЬЗУЙТЕ ЭТУ ВЕРСИЮ:
+
 async function deleteSaleFromReports(saleId) {
     console.log(`📊 Удаление продажи из отчетов: ${saleId}`);
     
-    // Проверяем ID
     if (!saleId) {
         console.error('❌ ID продажи не указан');
         showNotification('Ошибка: ID продажи не указан', 'error');
         return;
     }
     
-    // Находим продажу
     const sale = sales.find(s => s.id === saleId);
     if (!sale) {
-        console.error(`❌ Продажа ${saleId} не найдена в массиве sales`);
-        
-        // Пробуем найти в localStorage
-        const localSales = JSON.parse(localStorage.getItem('sales')) || [];
-        const localSale = localSales.find(s => s.id === saleId);
-        
-        if (!localSale) {
-            showNotification('Продажа не найдена в системе', 'error');
-            return;
-        }
-        
-        console.log('✅ Найдена в localStorage, обновляю память...');
-        sales = localSales;
-    }
-    
-    // Проверяем права пользователя
-    const currentUser = security.getCurrentUser();
-    if (!currentUser) {
-        showNotification('❌ Пользователь не авторизован', 'error');
+        console.error(`❌ Продажа ${saleId} не найдена`);
+        showNotification('Продажа не найдена', 'error');
         return;
     }
-
-    const canDelete = true;
     
-    // Подтверждение удаления
     if (!confirm(`Удалить продажу аккаунта "${sale.accountLogin}" за ${sale.price} ₽?\nДата: ${sale.date || 'не указана'}\nЭто действие нельзя отменить.`)) {
         return;
     }
@@ -7965,16 +7991,7 @@ async function deleteSaleFromReports(saleId) {
     try {
         console.log(`✅ Начинаю удаление продажи ${saleId}...`);
         
-        // 1. Удаляем из локального массива
-        const originalCount = sales.length;
-        sales = sales.filter(s => s.id !== saleId);
-        console.log(`✅ Удалено из памяти. Было: ${originalCount}, стало: ${sales.length}`);
-        
-        // 2. Сохраняем локально
-        localStorage.setItem('sales', JSON.stringify(sales));
-        console.log('✅ Сохранено в localStorage');
-        
-        // 3. Удаляем из Firebase (если подключен)
+        // ===== 1. УДАЛЯЕМ ИЗ FIREBASE =====
         let firebaseDeleted = false;
         let firebaseError = null;
         
@@ -7987,55 +8004,118 @@ async function deleteSaleFromReports(saleId) {
             } catch (error) {
                 firebaseError = error;
                 console.error('❌ Ошибка удаления из Firebase:', error);
-                // Продолжаем работу, продажа уже удалена локально
             }
         } else if (window.dataSync && window.dataSync.saveData) {
-            // Используем dataSync для синхронизации
             try {
+                // Удаляем из локального массива
+                sales = sales.filter(s => s.id !== saleId);
                 await window.dataSync.saveData('sales', sales);
                 firebaseDeleted = true;
                 console.log('✅ Продажи синхронизированы через dataSync');
             } catch (error) {
                 firebaseError = error;
-                console.error('❌ Ошибка синхронизации через dataSync:', error);
+                console.error('❌ Ошибка синхронизации:', error);
             }
         }
         
-        // 4. Плавное удаление из таблицы UI
+        // ===== 2. УДАЛЯЕМ ИЗ ЛОКАЛЬНОГО МАССИВА =====
+        const originalCount = sales.length;
+        sales = sales.filter(s => s.id !== saleId);
+        console.log(`✅ Удалено из памяти. Было: ${originalCount}, стало: ${sales.length}`);
+        
+        // ===== 3. ОБНОВЛЯЕМ LOCALSTORAGE =====
+        localStorage.setItem('sales', JSON.stringify(sales));
+        console.log('✅ Сохранено в localStorage');
+        
+        // ===== 4. ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ КЭШ =====
+        // Очищаем кэш Firebase
+        if (firebase && firebase.database) {
+            try {
+                // Принудительно перезагружаем данные из Firebase
+                const snapshot = await firebase.database().ref('sales').once('value');
+                if (snapshot.exists()) {
+                    const salesObj = snapshot.val();
+                    const freshSales = Object.values(salesObj || {});
+                    
+                    // Обновляем глобальный массив
+                    sales = freshSales;
+                    window.sales = freshSales;
+                    localStorage.setItem('sales', JSON.stringify(freshSales));
+                    console.log(`✅ Кэш обновлен из Firebase: ${freshSales.length} продаж`);
+                } else {
+                    sales = [];
+                    window.sales = [];
+                    localStorage.setItem('sales', JSON.stringify([]));
+                }
+            } catch (refreshError) {
+                console.warn('⚠️ Не удалось обновить кэш:', refreshError);
+            }
+        }
+        
+        // ===== 5. ОБНОВЛЯЕМ UI =====
+        // Обновляем результаты поиска
+        const searchInput = document.getElementById('managerGameSearch');
+        if (searchInput && searchInput.value.trim()) {
+            await searchByGame(true);
+        }
+        
+        // Обновляем отчеты если открыты
+        if (window.location.pathname.includes('reports.html')) {
+            setTimeout(() => {
+                if (typeof generateReport === 'function') {
+                    generateReport();
+                }
+            }, 300);
+        }
+        
+        // ===== 6. УДАЛЯЕМ СТРОКУ ИЗ ТАБЛИЦЫ =====
         const row = document.querySelector(`[data-sale-id="${saleId}"]`);
         if (row) {
-            // Добавляем класс для анимации
             row.classList.add('sale-row-removing');
-            
-            // Удаляем после анимации
             setTimeout(() => {
-                row.remove();
-                console.log('✅ Строка удалена из UI с анимацией');
+                if (row.parentNode) row.remove();
             }, 500);
         }
         
-        // 5. Обновляем статистику
-        updateReportStatsAfterDeletion(sale.price);
-        
-        // 6. Показываем уведомление
+        // ===== 7. ПОКАЗЫВАЕМ УВЕДОМЛЕНИЕ =====
         if (firebaseDeleted) {
             showNotification(`✅ Продажа "${sale.accountLogin}" удалена из системы!`, 'success');
         } else if (firebaseError) {
-            showNotification(`⚠️ Продажа удалена локально (ошибка синхронизации: ${firebaseError.message})`, 'warning');
+            showNotification(`⚠️ Продажа удалена локально (ошибка: ${firebaseError.message})`, 'warning');
         } else {
             showNotification(`✅ Продажа "${sale.accountLogin}" удалена локально`, 'info');
         }
         
-        // 7. Если таблица пустая, обновляем всю страницу
-        setTimeout(() => {
-            const tbody = document.querySelector('.stats-table tbody');
-            if (tbody && tbody.children.length === 0) {
-                console.log('📊 Таблица пустая, обновляю страницу...');
-                setTimeout(() => {
-                    generateReport();
-                }, 500);
+        // ===== 8. ОБНОВЛЯЕМ СТАТИСТИКУ =====
+        updateReportStatsAfterDeletion(sale.price);
+        
+        // ===== 9. ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА ЧЕРЕЗ 5 СЕКУНД =====
+        setTimeout(async () => {
+            console.log('🔄 Проверка синхронизации через 5 секунд...');
+            try {
+                const db = firebase.database();
+                const snapshot = await db.ref('sales').once('value');
+                if (snapshot.exists()) {
+                    const salesObj = snapshot.val();
+                    const freshSales = Object.values(salesObj || {});
+                    if (freshSales.length !== sales.length) {
+                        console.log(`🔄 Обновляем данные: ${sales.length} -> ${freshSales.length}`);
+                        sales = freshSales;
+                        window.sales = freshSales;
+                        localStorage.setItem('sales', JSON.stringify(freshSales));
+                        
+                        if (window.location.pathname.includes('reports.html')) {
+                            generateReport();
+                        }
+                        if (searchInput && searchInput.value.trim()) {
+                            await searchByGame(true);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ Проверка синхронизации не удалась:', e);
             }
-        }, 1000);
+        }, 5000);
         
     } catch (error) {
         console.error('❌ Критическая ошибка при удалении:', error);
