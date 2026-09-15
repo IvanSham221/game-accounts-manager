@@ -3391,6 +3391,9 @@ function loadGamesForManager() {
 // ============================================================
 // ПОИСК ПО ИГРЕ (ВСЕГДА ЗАГРУЖАЕМ СВЕЖИЕ ПРОДАЖИ)
 // ============================================================
+// ============================================================
+// ПОИСК ПО ИГРЕ (С УМНЫМ ПОИСКОМ ТОЧНОГО СОВПАДЕНИЯ)
+// ============================================================
 async function searchByGame(silent = false) {
     const searchInput = document.getElementById('managerGameSearch');
     const searchTerm = searchInput.value.trim();
@@ -3400,11 +3403,45 @@ async function searchByGame(silent = false) {
         return;
     }
     
-    // ===== ИЩЕМ ИГРУ =====
-    const foundGame = games.find(game => 
-        game.name.toLowerCase().includes(searchTerm.toLowerCase())
+    // ============================================================
+    // ★★★ УМНЫЙ ПОИСК ИГРЫ ★★★
+    // ============================================================
+    const searchLower = searchTerm.toLowerCase().trim();
+    
+    // 1. Сначала ищем ТОЧНОЕ совпадение
+    let foundGame = games.find(game => 
+        game.name.toLowerCase() === searchLower
     );
     
+    // 2. Если не нашли — ищем игры, которые НАЧИНАЮТСЯ с поиска
+    if (!foundGame) {
+        const startingMatches = games.filter(game => 
+            game.name.toLowerCase().startsWith(searchLower)
+        );
+        
+        if (startingMatches.length > 0) {
+            // Сортируем по длине названия (короткие — базовые версии — сначала)
+            startingMatches.sort((a, b) => a.name.length - b.name.length);
+            foundGame = startingMatches[0];
+            console.log(`🎯 Найдено по началу: "${foundGame.name}"`);
+        }
+    }
+    
+    // 3. Если всё ещё не нашли — ищем по вхождению
+    if (!foundGame) {
+        const containsMatches = games.filter(game => 
+            game.name.toLowerCase().includes(searchLower)
+        );
+        
+        if (containsMatches.length > 0) {
+            // Сортируем по длине названия
+            containsMatches.sort((a, b) => a.name.length - b.name.length);
+            foundGame = containsMatches[0];
+            console.log(`🎯 Найдено по вхождению: "${foundGame.name}"`);
+        }
+    }
+    
+    // 4. Если ничего не нашли
     if (!foundGame) {
         if (!silent) showNotification(`Игра "${searchTerm}" не найдена`, 'error');
         document.getElementById('searchResults').innerHTML = `
@@ -3413,6 +3450,11 @@ async function searchByGame(silent = false) {
         return;
     }
     
+    console.log(`✅ Найдена игра: "${foundGame.name}"`);
+    
+    // ============================================================
+    // ПОКАЗЫВАЕМ ЗАГРУЗКУ
+    // ============================================================
     const resultsContainer = document.getElementById('searchResults');
     resultsContainer.innerHTML = `
         <div style="text-align: center; padding: 40px; color: #64748b;">
@@ -3421,7 +3463,7 @@ async function searchByGame(silent = false) {
         </div>
     `;
     
-    // ===== ЗАГРУЖАЕМ АККАУНТЫ (если ещё не загружены) =====
+    // ===== ЗАГРУЖАЕМ АККАУНТЫ =====
     if (accounts.length === 0) {
         if (window.loadAccountsOnDemand) {
             await window.loadAccountsOnDemand();
@@ -3430,20 +3472,15 @@ async function searchByGame(silent = false) {
         }
     }
     
-    // ============================================================
-    // ★★★ ВСЕГДА ЗАГРУЖАЕМ СВЕЖИЕ ПРОДАЖИ ДЛЯ ЭТОЙ ИГРЫ ★★★
-    // ============================================================
+    // ===== ЗАГРУЖАЕМ ПРОДАЖИ =====
     console.log(`📥 Загружаем свежие продажи для "${foundGame.name}"...`);
     
     let gameSales = [];
     
     try {
-        // Загружаем продажи НАПРЯМУЮ из Firebase только для этой игры
         if (window.loadSalesOnDemand) {
-            // Используем метод, который загружает только по этой игре
             gameSales = await window.loadSalesOnDemand(foundGame.id);
         } else {
-            // Fallback: загружаем все и фильтруем
             const db = firebaseSync ? firebaseSync.db : firebase.database();
             const snapshot = await db.ref('sales').once('value');
             if (snapshot.exists()) {
@@ -3460,7 +3497,7 @@ async function searchByGame(silent = false) {
         gameSales = [];
     }
     
-    // ===== СОХРАНЯЕМ В ПАМЯТЬ ТОЛЬКО ПРОДАЖИ ЭТОЙ ИГРЫ =====
+    // ===== СОХРАНЯЕМ В ПАМЯТЬ =====
     window.sales = gameSales;
     sales = gameSales;
     
@@ -3486,6 +3523,147 @@ async function searchByGame(silent = false) {
     document.getElementById('statsSection').style.display = 'none';
     updateToggleButtonUI();
     displaySearchResults(gameAccounts, foundGame.name);
+    
+    // Показываем ТОЧНОЕ название игры в поле поиска
+    searchInput.value = foundGame.name;
+    
+    if (gameAccounts.length === 0 && !silent) {
+        showNotification(`По игре "${foundGame.name}" не найдено аккаунтов`, 'info');
+    }
+}// ============================================================
+// ПОИСК ПО ИГРЕ (С УМНЫМ ПОИСКОМ ТОЧНОГО СОВПАДЕНИЯ)
+// ============================================================
+async function searchByGame(silent = false) {
+    const searchInput = document.getElementById('managerGameSearch');
+    const searchTerm = searchInput.value.trim();
+    
+    if (!searchTerm) {
+        if (!silent) showNotification('Введите название игры для поиска', 'warning');
+        return;
+    }
+    
+    // ============================================================
+    // ★★★ УМНЫЙ ПОИСК ИГРЫ ★★★
+    // ============================================================
+    const searchLower = searchTerm.toLowerCase().trim();
+    
+    // 1. Сначала ищем ТОЧНОЕ совпадение
+    let foundGame = games.find(game => 
+        game.name.toLowerCase() === searchLower
+    );
+    
+    // 2. Если не нашли — ищем игры, которые НАЧИНАЮТСЯ с поиска
+    if (!foundGame) {
+        const startingMatches = games.filter(game => 
+            game.name.toLowerCase().startsWith(searchLower)
+        );
+        
+        if (startingMatches.length > 0) {
+            // Сортируем по длине названия (короткие — базовые версии — сначала)
+            startingMatches.sort((a, b) => a.name.length - b.name.length);
+            foundGame = startingMatches[0];
+            console.log(`🎯 Найдено по началу: "${foundGame.name}"`);
+        }
+    }
+    
+    // 3. Если всё ещё не нашли — ищем по вхождению
+    if (!foundGame) {
+        const containsMatches = games.filter(game => 
+            game.name.toLowerCase().includes(searchLower)
+        );
+        
+        if (containsMatches.length > 0) {
+            // Сортируем по длине названия
+            containsMatches.sort((a, b) => a.name.length - b.name.length);
+            foundGame = containsMatches[0];
+            console.log(`🎯 Найдено по вхождению: "${foundGame.name}"`);
+        }
+    }
+    
+    // 4. Если ничего не нашли
+    if (!foundGame) {
+        if (!silent) showNotification(`Игра "${searchTerm}" не найдена`, 'error');
+        document.getElementById('searchResults').innerHTML = `
+            <div class="empty"><h3>Игра "${searchTerm}" не найдена</h3></div>
+        `;
+        return;
+    }
+    
+    console.log(`✅ Найдена игра: "${foundGame.name}"`);
+    
+    // ============================================================
+    // ПОКАЗЫВАЕМ ЗАГРУЗКУ
+    // ============================================================
+    const resultsContainer = document.getElementById('searchResults');
+    resultsContainer.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #64748b;">
+            <div style="font-size: 2em; margin-bottom: 15px;">⏳</div>
+            <div>Загрузка аккаунтов и продаж для "${foundGame.name}"...</div>
+        </div>
+    `;
+    
+    // ===== ЗАГРУЖАЕМ АККАУНТЫ =====
+    if (accounts.length === 0) {
+        if (window.loadAccountsOnDemand) {
+            await window.loadAccountsOnDemand();
+        } else {
+            await loadAccountsFromFirebase();
+        }
+    }
+    
+    // ===== ЗАГРУЖАЕМ ПРОДАЖИ =====
+    console.log(`📥 Загружаем свежие продажи для "${foundGame.name}"...`);
+    
+    let gameSales = [];
+    
+    try {
+        if (window.loadSalesOnDemand) {
+            gameSales = await window.loadSalesOnDemand(foundGame.id);
+        } else {
+            const db = firebaseSync ? firebaseSync.db : firebase.database();
+            const snapshot = await db.ref('sales').once('value');
+            if (snapshot.exists()) {
+                const salesObj = snapshot.val();
+                const allSales = Object.values(salesObj || {});
+                
+                const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
+                const accountIds = gameAccounts.map(acc => acc.id);
+                gameSales = allSales.filter(sale => accountIds.includes(sale.accountId));
+            }
+        }
+    } catch (error) {
+        console.error('❌ Ошибка загрузки продаж:', error);
+        gameSales = [];
+    }
+    
+    // ===== СОХРАНЯЕМ В ПАМЯТЬ =====
+    window.sales = gameSales;
+    sales = gameSales;
+    
+    console.log(`✅ Загружено ${gameSales.length} продаж для "${foundGame.name}"`);
+    
+    // ===== ФИЛЬТРУЕМ АККАУНТЫ =====
+    const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
+    
+    console.log(`📊 Найдено: ${gameAccounts.length} аккаунтов, ${gameSales.length} продаж`);
+    
+    // ===== ОБНОВЛЯЕМ UI =====
+    const statsBtn = document.getElementById('showStatsBtn');
+    if (statsBtn) {
+        if (gameAccounts.length > 0) {
+            statsBtn.style.display = 'inline-block';
+            statsBtn.textContent = `📊 Статистика (${gameAccounts.length} акк.)`;
+            statsBtn.setAttribute('data-game-id', foundGame.id);
+        } else {
+            statsBtn.style.display = 'none';
+        }
+    }
+    
+    document.getElementById('statsSection').style.display = 'none';
+    updateToggleButtonUI();
+    displaySearchResults(gameAccounts, foundGame.name);
+    
+    // Показываем ТОЧНОЕ название игры в поле поиска
     searchInput.value = foundGame.name;
     
     if (gameAccounts.length === 0 && !silent) {
