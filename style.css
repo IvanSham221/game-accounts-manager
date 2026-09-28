@@ -5244,3 +5244,599 @@ body.dark-theme .autocomplete-item div {
         width: 100% !important;
     }
 }
+
+/* ============================================
+   КОРЗИНА МАССОВОЙ ПРОДАЖИ
+   ============================================ */
+
+/* Плавающая корзина */
+.mass-sale-cart {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 9999;
+    display: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.mass-sale-cart.visible {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.mass-sale-cart:hover {
+    transform: scale(1.05);
+}
+
+/* Счётчик над корзиной */
+.mass-sale-cart-counter {
+    background: #ef4444;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: -10px;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+    animation: pulse 2s infinite;
+    border: 2px solid white;
+}
+
+/* Основная кнопка корзины */
+.mass-sale-cart-btn {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #4361ee 0%, #3a56d4 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    box-shadow: 0 4px 16px rgba(67, 97, 238, 0.4);
+    transition: all 0.3s ease;
+}
+
+.mass-sale-cart-btn:hover {
+    box-shadow: 0 6px 20px rgba(67, 97, 238, 0.6);
+}
+
+/* Плюсик на позиции */
+.position-wrapper {
+    display: inline-flex;
+    align-items: stretch;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    position: relative;
+}
+
+.position-main-btn {
+    min-width: 40px;
+    height: 40px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px 0 0 6px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 0 6px;
+}
+
+.position-main-btn.sold {
+    background: #ef4444;
+    border-radius: 6px;
+}
+
+.position-main-btn.sold:hover {
+    opacity: 0.9;
+}
+
+.position-main-btn:hover:not(.sold) {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+
+/* Кнопка добавления в корзину (плюсик) */
+.position-add-btn {
+    width: 22px;
+    height: 40px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 0 6px 6px 0;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.position-add-btn:hover {
+    background: #059669;
+}
+
+.position-add-btn.in-cart {
+    background: #f59e0b;
+}
+
+.position-add-btn.in-cart:hover {
+    background: #d97706;
+}
+
+/* ============================================
+   МОДАЛКА КОРЗИНЫ
+   ============================================ */
+
+.mass-sale-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.mass-sale-modal.active {
+    display: flex;
+}
+
+.mass-sale-modal-content {
+    background: white;
+    border-radius: 16px;
+    max-width: 700px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 30px;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mass-sale-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.mass-sale-modal-title {
+    font-size: 1.5em;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.mass-sale-modal-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0 10px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.mass-sale-modal-close:hover {
+    color: #ef4444;
+}
+
+/* Список позиций в корзине */
+.mass-sale-list {
+    max-height: 250px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.mass-sale-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid #e2e8f0;
+    transition: background 0.2s;
+}
+
+.mass-sale-item:last-child {
+    border-bottom: none;
+}
+
+.mass-sale-item:hover {
+    background: #f1f5f9;
+}
+
+.mass-sale-item-info {
+    flex: 1;
+}
+
+.mass-sale-item-game {
+    font-weight: 600;
+    color: #2d3748;
+    font-size: 0.95em;
+    margin-bottom: 3px;
+}
+
+.mass-sale-item-login {
+    font-size: 0.8em;
+    color: #64748b;
+    font-family: 'Courier New', monospace;
+}
+
+.mass-sale-item-remove {
+    background: #fef2f2;
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s;
+    margin-left: 10px;
+    flex-shrink: 0;
+}
+
+.mass-sale-item-remove:hover {
+    background: #ef4444;
+    color: white;
+}
+
+/* Форма в модалке */
+.mass-sale-form {
+    display: grid;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.mass-sale-form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.mass-sale-form-label {
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 6px;
+    font-size: 0.9em;
+}
+
+.mass-sale-form-input {
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 15px;
+    transition: all 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.mass-sale-form-input:focus {
+    outline: none;
+    border-color: #4361ee;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+}
+
+.mass-sale-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* Информация о комиссии */
+.mass-sale-commission {
+    background: #fef3c7;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #fbbf24;
+    margin-bottom: 20px;
+    display: none;
+}
+
+.mass-sale-commission.visible {
+    display: block;
+}
+
+.mass-sale-commission-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.mass-sale-commission-row:last-child {
+    margin-bottom: 0;
+}
+
+.mass-sale-commission-label {
+    color: #92400e;
+    font-weight: 600;
+}
+
+.mass-sale-commission-value {
+    font-weight: 700;
+}
+
+.mass-sale-commission-value.red {
+    color: #dc2626;
+}
+
+.mass-sale-commission-value.green {
+    color: #16a34a;
+    font-size: 1.1em;
+}
+
+/* Кнопки */
+.mass-sale-buttons {
+    display: flex;
+    gap: 12px;
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.mass-sale-btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.mass-sale-btn-clear {
+    background: #f1f5f9;
+    color: #64748b;
+    flex: 1;
+}
+
+.mass-sale-btn-clear:hover {
+    background: #e2e8f0;
+}
+
+.mass-sale-btn-confirm {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    flex: 2;
+}
+
+.mass-sale-btn-confirm:hover {
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    transform: translateY(-1px);
+}
+
+.mass-sale-btn-confirm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Модалка с данными для клиента */
+.customer-data-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 10001;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.customer-data-modal.active {
+    display: flex;
+}
+
+.customer-data-content {
+    background: white;
+    border-radius: 16px;
+    max-width: 800px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 30px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.customer-data-block {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border-left: 4px solid #4361ee;
+}
+
+.customer-data-block-title {
+    font-size: 1.1em;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.customer-data-field {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    color: #374151;
+    margin-bottom: 5px;
+    word-break: break-all;
+}
+
+.customer-data-field strong {
+    color: #1e293b;
+}
+
+.customer-data-section-divider {
+    height: 2px;
+    background: linear-gradient(90deg, #4361ee 0%, transparent 100%);
+    margin: 20px 0;
+    border-radius: 2px;
+}
+
+/* Анимация пульсации для счётчика */
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+    .mass-sale-cart {
+        bottom: 20px;
+        right: 20px;
+    }
+    
+    .mass-sale-cart-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+    }
+    
+    .mass-sale-cart-counter {
+        width: 26px;
+        height: 26px;
+        font-size: 12px;
+    }
+    
+    .mass-sale-modal-content {
+        padding: 20px;
+    }
+    
+    .mass-sale-form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .mass-sale-buttons {
+        flex-direction: column;
+    }
+}
+
+/* Кнопки копирования в модалке данных клиента */
+.copy-block-btn {
+    font-family: inherit;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.copy-block-btn:active {
+    transform: scale(0.95);
+}
+
+/* Красивое отображение блоков с кнопками */
+.customer-data-block-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Анимация при копировании */
+@keyframes copySuccess {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); background: #10b981; color: white; }
+    100% { transform: scale(1); }
+}
+
+.copy-block-btn.copied {
+    animation: copySuccess 0.5s ease;
+}
+
+/* Поля цен для каждой позиции в корзине */
+.mass-sale-item-price {
+    font-family: inherit;
+    outline: none;
+}
+
+.mass-sale-item-price::-webkit-outer-spin-button,
+.mass-sale-item-price::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.mass-sale-item-price[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* Поле общей суммы */
+#massSaleTotalPrice {
+    font-family: inherit;
+}
+
+#massSaleTotalPrice::-webkit-outer-spin-button,
+#massSaleTotalPrice::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+#massSaleTotalPrice[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    .mass-sale-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .mass-sale-item-info {
+        min-width: auto !important;
+    }
+    
+    .mass-sale-item-price {
+        width: 100% !important;
+    }
+}

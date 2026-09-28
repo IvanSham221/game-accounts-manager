@@ -4843,145 +4843,6 @@ function toggleShowAllAccounts() {
     );
 }
 
-function generateSimplePositionButtons(account, positionType, positionName, positionLabel) {
-    const positionCount = account.positions[positionType] || 0;
-    if (positionCount === 0) return '';
-    
-    const buttons = [];
-    for (let i = 1; i <= positionCount; i++) {
-        const saleInfo = getPositionSaleInfo(account.id, positionType, i);
-        const isSold = !!saleInfo;
-        
-        // Форматируем дату продажи в формат ДД/ММ/ГГ
-        let saleDate = '';
-        let managerInfo = '';
-        let marketplaceBadge = '';
-        
-        if (saleInfo) {
-            // Дата
-            if (saleInfo.datetime) {
-                try {
-                    const dateObj = new Date(saleInfo.datetime);
-                    const day = String(dateObj.getDate()).padStart(2, '0');
-                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-                    const year = String(dateObj.getFullYear()).slice(-2);
-                    saleDate = `${day}/${month}/${year}`;
-                } catch (e) {
-                    console.warn('Ошибка форматирования даты:', saleInfo.datetime);
-                }
-            }
-            
-            // Информация о менеджере
-            if (saleInfo.soldByName) {
-                const managerIcon = saleInfo.managerRole === 'admin' ? '👑' : '👷';
-                managerInfo = `
-                    <div style="
-                        font-size: 9px;
-                        color: ${saleInfo.managerRole === 'admin' ? '#f72585' : '#4361ee'};
-                        font-weight: 700;
-                        margin-top: 2px;
-                    ">
-                        ${saleInfo.soldByName} ${managerIcon}
-                    </div>
-                `;
-            }
-            
-            // Площадка продажи
-            if (saleInfo.marketplace) {
-                const marketplaceColors = {
-                    'telegram': '#0088cc',
-                    'funpay': '#ff6b00',
-                    'avito': '#006cff'
-                };
-                
-                const marketplaceNames = {
-                    'telegram': 'TG',
-                    'funpay': 'FP',
-                    'avito': 'AV'
-                }; 
-                
-                const color = marketplaceColors[saleInfo.marketplace] || '#64748b';
-                const name = marketplaceNames[saleInfo.marketplace] || saleInfo.marketplace.substring(0, 2).toUpperCase();
-                
-                marketplaceBadge = `
-                    <div style="
-                        position: absolute;
-                        top: -8px;
-                        right: -8px;
-                        width: 18px;
-                        height: 18px;
-                        background: ${color};
-                        color: white;
-                        border-radius: 50%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 9px;
-                        font-weight: 700;
-                        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-                    ">
-                        ${name}
-                    </div>
-                `;
-            }
-        }
-        
-       buttons.push(`
-    <div style="
-        display: inline-block;
-        text-align: center;
-        margin-right: 8px;
-        margin-bottom: 8px;
-        position: relative;
-    ">
-        <button onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
-                style="
-                    width: 40px;
-                    height: 40px;
-                    background: ${isSold ? '#ef4444' : '#3b82f6'};
-                    color: white;
-                    border: none;
-                    border-radius: 6px;
-                    font-weight: 600;
-                    font-size: 14px;
-                    cursor: pointer;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    transition: all 0.2s ease;
-                    margin-bottom: 2px;
-                    position: relative;
-                "
-                onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.05)'"
-                onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'"
-                title="${isSold ? 
-                    `Продано: ${saleDate || 'без даты'}\nПлощадка: ${saleInfo.marketplace || 'не указана'}\nМенеджер: ${saleInfo.soldByName || 'неизвестно'}` : 
-                    'Свободно'}">
-            <div>${i}</div>
-            <div style="font-size: 9px;">${positionLabel}</div>
-            ${marketplaceBadge}
-        </button>
-        
-        ${isSold && saleDate ? `
-            <div style="
-                font-size: 8px;
-                color: #ef4444;
-                font-weight: 700;
-                white-space: nowrap;
-                letter-spacing: -0.2px;
-            ">
-                ${saleDate}
-            </div>
-            ${managerInfo}
-        ` : ''}
-    </div>
-`);
-    }
-    
-    return buttons.join('');
-}
-
 // В функции displayReportResults добавим статистику по площадкам:
 function getMarketplaceStats(salesData) {
     const marketplaceStats = {};
@@ -10878,6 +10739,8 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+
+
 // Выбор игры
 function selectGameForAccount(gameId, gameName) {
     const searchInput = document.getElementById('accountGameSearch');
@@ -10889,4 +10752,1316 @@ function selectGameForAccount(gameId, gameName) {
     if (dropdown) dropdown.style.display = 'none';
     
     console.log(`✅ Выбрана игра: ${gameName} (ID: ${gameId})`);
+}
+
+// ============================================================
+// МАССОВАЯ ПРОДАЖА (КОРЗИНА)
+// ============================================================
+
+// Массив выбранных позиций (корзина)
+let massSaleCart = [];
+
+// ============================================================
+// ДОБАВИТЬ/УБРАТЬ ПОЗИЦИЮ ИЗ КОРЗИНЫ
+// ============================================================
+function toggleCartPosition(accountId, positionType, positionIndex, positionName) {
+    // Проверяем, не продана ли позиция
+    const existingSale = getPositionSaleInfo(accountId, positionType, positionIndex);
+    if (existingSale) {
+        showNotification('Эта позиция уже продана', 'warning');
+        return;
+    }
+    
+    // Ищем в корзине
+    const cartIndex = massSaleCart.findIndex(p => 
+        p.accountId === accountId && 
+        p.positionType === positionType && 
+        p.positionIndex === positionIndex
+    );
+    
+    if (cartIndex !== -1) {
+        // Убираем из корзины
+        massSaleCart.splice(cartIndex, 1);
+        showNotification('Убрано из корзины', 'info', 1500);
+    } else {
+        // Добавляем в корзину
+        const account = accounts.find(acc => acc.id === accountId);
+        if (!account) {
+            showNotification('Аккаунт не найден', 'error');
+            return;
+        }
+        
+        massSaleCart.push({
+            accountId,
+            accountLogin: account.psnLogin,
+            gameName: account.gameName,
+            positionType,
+            positionIndex,
+            positionName,
+            price: 0 // Изначально 0, потом вводим
+        });
+        
+        showNotification(`Добавлено в корзину (${massSaleCart.length})`, 'success', 1500);
+    }
+    
+    // Обновляем UI
+    updateCartUI();
+    refreshSearchResults();
+}
+
+// ============================================================
+// ПРОВЕРИТЬ, В КОРЗИНЕ ЛИ ПОЗИЦИЯ
+// ============================================================
+function isInCart(accountId, positionType, positionIndex) {
+    return massSaleCart.some(p => 
+        p.accountId === accountId && 
+        p.positionType === positionType && 
+        p.positionIndex === positionIndex
+    );
+}
+
+// ============================================================
+// ОБНОВИТЬ UI КОРЗИНЫ
+// ============================================================
+function updateCartUI() {
+    // Создаём корзину если её нет
+    let cart = document.getElementById('massSaleCart');
+    
+    if (!cart) {
+        cart = document.createElement('div');
+        cart.id = 'massSaleCart';
+        cart.className = 'mass-sale-cart';
+        cart.innerHTML = `
+            <div class="mass-sale-cart-counter" id="cartCounter">0</div>
+            <div class="mass-sale-cart-btn" onclick="openMassSaleModal()">🛒</div>
+        `;
+        document.body.appendChild(cart);
+    }
+    
+    const counter = document.getElementById('cartCounter');
+    const cartBtn = cart;
+    
+    if (massSaleCart.length > 0) {
+        cart.classList.add('visible');
+        if (counter) counter.textContent = massSaleCart.length;
+    } else {
+        cart.classList.remove('visible');
+    }
+}
+
+// ============================================================
+// ОТКРЫТЬ МОДАЛКУ КОРЗИНЫ
+// ============================================================
+function openMassSaleModal() {
+    if (massSaleCart.length === 0) {
+        showNotification('Корзина пуста', 'info');
+        return;
+    }
+    
+    const moscowTime = getSimpleMoscowDateTime();
+    
+    // Формируем список позиций с полями для цен
+    let itemsHTML = '';
+    massSaleCart.forEach((item, index) => {
+        itemsHTML += `
+            <div class="mass-sale-item" style="flex-wrap: wrap; gap: 10px;">
+                <div class="mass-sale-item-info" style="flex: 1; min-width: 200px;">
+                    <div class="mass-sale-item-game">
+                        🎮 ${item.gameName} — ${item.positionName} #${item.positionIndex}
+                    </div>
+                    <div class="mass-sale-item-login">
+                        ${item.accountLogin}
+                    </div>
+                </div>
+                
+                <!-- Поле цены для каждой позиции -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label style="font-size: 0.85em; color: #64748b; white-space: nowrap;">
+                        Цена:
+                    </label>
+                    <input type="number" 
+                           class="mass-sale-item-price"
+                           data-index="${index}"
+                           value="${item.price || ''}"
+                           placeholder="0"
+                           min="0"
+                           step="1"
+                           oninput="onItemPriceChange(${index}, this.value)"
+                           style="
+                               width: 80px;
+                               padding: 6px 10px;
+                               border: 2px solid #e2e8f0;
+                               border-radius: 6px;
+                               font-size: 14px;
+                               font-weight: 600;
+                               text-align: center;
+                               transition: all 0.2s;
+                           "
+                           onfocus="this.style.borderColor='#4361ee'; this.style.boxShadow='0 0 0 3px rgba(67, 97, 238, 0.1)'"
+                           onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='none'">
+                    <span style="font-weight: 600; color: #64748b;">₽</span>
+                </div>
+                
+                <!-- Кнопка удаления -->
+                <button class="mass-sale-item-remove" onclick="removeFromCart(${index})" title="Убрать">
+                    ✕
+                </button>
+            </div>
+        `;
+    });
+    
+    // Создаём модалку
+    let modal = document.getElementById('massSaleModal');
+    
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'massSaleModal';
+        modal.className = 'mass-sale-modal';
+        document.body.appendChild(modal);
+    }
+    
+    modal.className = 'mass-sale-modal active';
+    modal.innerHTML = `
+        <div class="mass-sale-modal-content">
+            <div class="mass-sale-modal-header">
+                <div class="mass-sale-modal-title">
+                    🛒 Корзина (${massSaleCart.length} поз.)
+                </div>
+                <button class="mass-sale-modal-close" onclick="closeMassSaleModal()">×</button>
+            </div>
+            
+            <!-- Список позиций с ценами -->
+            <div class="mass-sale-list">
+                ${itemsHTML}
+            </div>
+            
+            <!-- Форма -->
+            <div class="mass-sale-form">
+                <div class="mass-sale-form-group">
+                    <label class="mass-sale-form-label">
+                        💰 Итого (₽):
+                    </label>
+                    <input type="number" 
+                           id="massSaleTotalPrice" 
+                           class="mass-sale-form-input" 
+                           placeholder="Введите общую сумму"
+                           style="font-size: 18px; font-weight: 600; text-align: center; background: #f0fdf4; border-color: #10b981;"
+                           oninput="onMassSaleTotalChange()">
+                    <div style="font-size: 0.8em; color: #64748b; margin-top: 5px; text-align: center;">
+                        ℹ️ Измените сумму — цены распределятся пропорционально
+                    </div>
+                </div>
+                
+                <div class="mass-sale-form-group">
+                    <label class="mass-sale-form-label">
+                        🏪 Площадка продажи:
+                    </label>
+                    <select id="massSaleMarketplace" 
+                            class="mass-sale-form-input"
+                            onchange="onMassSaleMarketplaceChange()">
+                        <option value="funpay" selected>Funpay (комиссия 3%)</option>
+                        <option value="telegram">Telegram (без комиссии)</option>
+                        <option value="avito">Avito (без комиссии)</option>
+                    </select>
+                </div>
+                
+                <div class="mass-sale-form-row">
+                    <div class="mass-sale-form-group">
+                        <label class="mass-sale-form-label">📅 Дата:</label>
+                        <input type="date" 
+                               id="massSaleDate" 
+                               class="mass-sale-form-input" 
+                               value="${moscowTime.date}">
+                    </div>
+                    <div class="mass-sale-form-group">
+                        <label class="mass-sale-form-label">⏰ Время:</label>
+                        <input type="time" 
+                               id="massSaleTime" 
+                               class="mass-sale-form-input" 
+                               value="${moscowTime.time}">
+                    </div>
+                </div>
+                
+                <div class="mass-sale-form-group">
+                    <label class="mass-sale-form-label">📝 Примечания:</label>
+                    <input type="text" 
+                           id="massSaleNotes" 
+                           class="mass-sale-form-input" 
+                           placeholder="Дополнительная информация (необязательно)">
+                </div>
+            </div>
+            
+            <!-- Комиссия -->
+            <div class="mass-sale-commission" id="massSaleCommission">
+                <div class="mass-sale-commission-row">
+                    <span class="mass-sale-commission-label">💰 Комиссия Funpay (3%):</span>
+                    <span class="mass-sale-commission-value red" id="massSaleCommissionAmount">0 ₽</span>
+                </div>
+                <div class="mass-sale-commission-row">
+                    <span class="mass-sale-commission-label">✅ К получению:</span>
+                    <span class="mass-sale-commission-value green" id="massSaleFinalAmount">0 ₽</span>
+                </div>
+            </div>
+            
+            <!-- Кнопки -->
+            <div class="mass-sale-buttons">
+                <button class="mass-sale-btn mass-sale-btn-clear" onclick="clearCart()">
+                    🗑️ Очистить
+                </button>
+                <button class="mass-sale-btn mass-sale-btn-confirm" 
+                        id="massSaleConfirmBtn"
+                        onclick="confirmMassSale()">
+                    ✅ Подтвердить продажу
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Обновляем общую сумму
+    updateTotalPrice();
+    
+    // Фокус на поле суммы
+    setTimeout(() => {
+        const priceInput = document.getElementById('massSaleTotalPrice');
+        if (priceInput) priceInput.focus();
+    }, 100);
+}
+
+// ============================================================
+// ИЗМЕНЕНИЕ ЦЕНЫ ОТДЕЛЬНОЙ ПОЗИЦИИ
+// ============================================================
+function onItemPriceChange(index, value) {
+    if (index < 0 || index >= massSaleCart.length) return;
+    
+    const price = parseFloat(value) || 0;
+    massSaleCart[index].price = price;
+    
+    // Обновляем общую сумму (без перераспределения)
+    updateTotalPriceOnly();
+    
+    // Обновляем комиссию
+    updateMassCommission();
+}
+
+function updateTotalPrice() {
+    const totalInput = document.getElementById('massSaleTotalPrice');
+    if (!totalInput) return;
+    
+    const total = massSaleCart.reduce((sum, item) => sum + (item.price || 0), 0);
+    totalInput.value = total;
+}
+
+// ============================================================
+// ОБНОВЛЕНИЕ ОБЩЕЙ СУММЫ (без перезаписи цен)
+// ============================================================
+function updateTotalPriceOnly() {
+    const totalInput = document.getElementById('massSaleTotalPrice');
+    if (!totalInput) return;
+    
+    const total = massSaleCart.reduce((sum, item) => sum + (item.price || 0), 0);
+    totalInput.value = total > 0 ? total : '';
+}
+
+// ============================================================
+// ЗАКРЫТЬ МОДАЛКУ
+// ============================================================
+function closeMassSaleModal() {
+    const modal = document.getElementById('massSaleModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+// ============================================================
+// УБРАТЬ ИЗ КОРЗИНЫ (по индексу)
+// ============================================================
+function removeFromCart(index) {
+    if (index < 0 || index >= massSaleCart.length) return;
+    
+    massSaleCart.splice(index, 1);
+    updateCartUI();
+    
+    if (massSaleCart.length === 0) {
+        closeMassSaleModal();
+        showNotification('Корзина пуста', 'info');
+    } else {
+        // Перерисовываем модалку
+        openMassSaleModal();
+    }
+    
+    refreshSearchResults();
+}
+
+// ============================================================
+// ОЧИСТИТЬ КОРЗИНУ
+// ============================================================
+function clearCart() {
+    if (!confirm('Очистить корзину?')) return;
+    
+    massSaleCart = [];
+    updateCartUI();
+    closeMassSaleModal();
+    refreshSearchResults();
+    showNotification('Корзина очищена', 'info');
+}
+
+// ============================================================
+// ИЗМЕНЕНИЕ ОБЩЕЙ СУММЫ (РАСПРЕДЕЛЕНИЕ ПРОПОРЦИОНАЛЬНО)
+// ============================================================
+function onMassSaleTotalChange() {
+    const totalInput = document.getElementById('massSaleTotalPrice');
+    const total = parseFloat(totalInput.value) || 0;
+    
+    if (total <= 0 || massSaleCart.length === 0) {
+        updateMassCommission();
+        return;
+    }
+    
+    console.log(`💰 Новая сумма: ${total}, позиций: ${massSaleCart.length}`);
+    
+    // Проверяем, есть ли у позиций цены
+    const hasAnyPrice = massSaleCart.some(item => item.price > 0);
+    
+    if (!hasAnyPrice) {
+        // Если у всех позиций цена 0 — распределяем поровну
+        const pricePerItem = Math.round(total / massSaleCart.length);
+        massSaleCart.forEach(item => {
+            item.price = pricePerItem;
+        });
+    } else {
+        // Пропорциональное распределение
+        const currentTotal = massSaleCart.reduce((sum, item) => sum + (item.price || 0), 0);
+        
+        if (currentTotal > 0) {
+            const ratio = total / currentTotal;
+            console.log(`📊 Коэффициент: ${ratio.toFixed(4)}`);
+            
+            massSaleCart.forEach(item => {
+                item.price = Math.round(item.price * ratio);
+            });
+        }
+    }
+    
+    // Корректируем последнюю позицию для точной суммы
+    const newTotal = massSaleCart.reduce((sum, item) => sum + (item.price || 0), 0);
+    const diff = total - newTotal;
+    if (diff !== 0 && massSaleCart.length > 0) {
+        massSaleCart[massSaleCart.length - 1].price += diff;
+    }
+    
+    // ===== ОБНОВЛЯЕМ ВСЕ ПОЛЯ ЦЕН НАПРЯМУЮ =====
+    updateAllPriceInputsDirect();
+    
+    // Обновляем комиссию
+    updateMassCommission();
+}
+
+// ============================================================
+// ПРЯМОЕ ОБНОВЛЕНИЕ ВСЕХ ПОЛЕЙ ЦЕН
+// ============================================================
+function updateAllPriceInputsDirect() {
+    console.log('🔄 Прямое обновление полей цен...');
+    
+    // Находим модалку
+    const modal = document.getElementById('massSaleModal');
+    if (!modal) {
+        console.log('❌ Модалка не найдена');
+        return;
+    }
+    
+    // Находим ВСЕ input'ы внутри модалки
+    const allInputs = modal.querySelectorAll('input[type="number"]');
+    console.log(`📋 Найдено input'ов: ${allInputs.length}`);
+    
+    // Счётчик обновлённых
+    let updated = 0;
+    
+    allInputs.forEach((input, position) => {
+        // Пропускаем поле "Итого"
+        if (input.id === 'massSaleTotalPrice') {
+            console.log(`⏭️ Пропускаем поле "Итого"`);
+            return;
+        }
+        
+        // Получаем index
+        const dataIndex = input.getAttribute('data-index');
+        const index = dataIndex !== null ? parseInt(dataIndex) : position;
+        
+        console.log(`  Input #${position}: data-index=${dataIndex}, index=${index}`);
+        
+        if (!isNaN(index) && index >= 0 && index < massSaleCart.length) {
+            const newPrice = massSaleCart[index].price || 0;
+            input.value = newPrice;
+            updated++;
+            console.log(`  ✅ Позиция ${index}: ${newPrice} ₽`);
+        }
+    });
+    
+    console.log(`✅ Обновлено полей: ${updated}`);
+}
+
+
+function updateAllPriceInputs() {
+    console.log('🔄 Обновляем поля цен...');
+    
+    // Находим все input'ы в списке корзины
+    const priceInputs = document.querySelectorAll('#massSaleModal input[type="number"]');
+    
+    console.log(`  Найдено input'ов: ${priceInputs.length}`);
+    
+    priceInputs.forEach(input => {
+        // Пропускаем поле "Итого"
+        if (input.id === 'massSaleTotalPrice') return;
+        
+        // Получаем index из data-index
+        const index = parseInt(input.dataset.index);
+        
+        console.log(`  Input data-index=${input.dataset.index}, index=${index}, price=${massSaleCart[index]?.price}`);
+        
+        if (!isNaN(index) && index >= 0 && index < massSaleCart.length) {
+            const newPrice = massSaleCart[index].price || 0;
+            input.value = newPrice;
+            console.log(`  ✅ Позиция ${index}: ${newPrice} ₽`);
+        }
+    });
+}
+
+function updateItemPricesUI() {
+    const priceInputs = document.querySelectorAll('.mass-sale-item-price');
+    
+    priceInputs.forEach(input => {
+        const index = parseInt(input.dataset.index);
+        if (index >= 0 && index < massSaleCart.length) {
+            input.value = massSaleCart[index].price || '';
+        }
+    });
+}
+
+
+// ============================================================
+// ИЗМЕНЕНИЕ ПЛОЩАДКИ
+// ============================================================
+function onMassSaleMarketplaceChange() {
+    updateMassCommission();
+}
+
+function onMassSaleMarketplaceChange() {
+    updateMassCommission();
+}
+
+// ============================================================
+// ОБНОВИТЬ РАСЧЁТ КОМИССИИ
+// ============================================================
+function updateMassCommission() {
+    const marketplaceSelect = document.getElementById('massSaleMarketplace');
+    const commissionBlock = document.getElementById('massSaleCommission');
+    
+    if (!marketplaceSelect) return;
+    
+    const marketplace = marketplaceSelect.value;
+    const total = massSaleCart.reduce((sum, item) => sum + (item.price || 0), 0);
+    
+    if (marketplace === 'funpay' && total > 0) {
+        // Считаем комиссию по каждой позиции отдельно
+        let totalCommission = 0;
+        let totalFinal = 0;
+        
+        massSaleCart.forEach(item => {
+            const commissionData = calculateFPCommission(item.price || 0);
+            totalCommission += commissionData.commission;
+            totalFinal += commissionData.final;
+        });
+        
+        if (commissionBlock) commissionBlock.classList.add('visible');
+        
+        const commissionEl = document.getElementById('massSaleCommissionAmount');
+        const finalEl = document.getElementById('massSaleFinalAmount');
+        
+        if (commissionEl) commissionEl.textContent = `-${totalCommission.toLocaleString('ru-RU')} ₽`;
+        if (finalEl) finalEl.textContent = `${totalFinal.toLocaleString('ru-RU')} ₽`;
+    } else {
+        if (commissionBlock) commissionBlock.classList.remove('visible');
+    }
+}
+
+// ============================================================
+// ПОДТВЕРДИТЬ МАССОВУЮ ПРОДАЖУ
+// ============================================================
+async function confirmMassSale() {
+    const totalInput = document.getElementById('massSaleTotalPrice');
+    const marketplaceSelect = document.getElementById('massSaleMarketplace');
+    const dateInput = document.getElementById('massSaleDate');
+    const timeInput = document.getElementById('massSaleTime');
+    const notesInput = document.getElementById('massSaleNotes');
+    
+    const total = parseFloat(totalInput.value);
+    const marketplace = marketplaceSelect.value;
+    const saleDate = dateInput.value;
+    const saleTime = timeInput.value;
+    const notes = notesInput.value;
+    
+    if (!total || total <= 0) {
+        showNotification('Введите сумму продажи', 'warning');
+        return;
+    }
+    
+    if (massSaleCart.length === 0) {
+        showNotification('Корзина пуста', 'warning');
+        return;
+    }
+    
+    // Блокируем кнопку
+    const confirmBtn = document.getElementById('massSaleConfirmBtn');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '⏳ Сохранение...';
+    }
+    
+    // Время
+    let saleDateTime, timestamp;
+    if (saleDate && saleTime) {
+        const [year, month, day] = saleDate.split('-').map(Number);
+        const [hours, minutes] = saleTime.split(':').map(Number);
+        const moscowDate = new Date(Date.UTC(year, month - 1, day, hours - 3, minutes));
+        timestamp = moscowDate.getTime();
+        saleDateTime = `${saleDate} ${saleTime}`;
+    } else {
+        const moscowTime = getSimpleMoscowDateTime();
+        saleDateTime = moscowTime.datetime;
+        timestamp = moscowTime.timestamp;
+    }
+    
+    const currentUser = security.getCurrentUser();
+    
+    // Создаём продажи
+    const newSales = [];
+    const soldPositions = []; // Для отображения данных клиента
+    
+    for (const item of massSaleCart) {
+        const account = accounts.find(acc => acc.id === item.accountId);
+        if (!account) continue;
+        
+        const price = item.price || 0;
+        let finalPrice = price;
+        let commissionData = null;
+        
+        if (marketplace === 'funpay') {
+            commissionData = calculateFPCommission(price);
+            finalPrice = commissionData.final;
+        }
+        
+        // Получаем код PSN (первый из списка)
+        let psnCode = 'По запросу';
+        if (account.psnCodes) {
+            const codes = account.psnCodes.split(',').map(c => c.trim()).filter(c => c);
+            if (codes.length > 0) {
+                psnCode = codes[0];
+                // Удаляем использованный код
+                const accountIndex = accounts.findIndex(acc => acc.id === item.accountId);
+                if (accountIndex !== -1) {
+                    accounts[accountIndex].psnCodes = codes.slice(1).join(', ');
+                }
+            }
+        }
+        
+        const positionId = `${item.accountId}_${item.positionType}_${item.positionIndex}_${timestamp}_${Math.random().toString(36).substr(2, 5)}`;
+        
+        const newSale = {
+            id: positionId,
+            accountId: item.accountId,
+            accountLogin: account.psnLogin,
+            gameName: account.gameName,
+            positionType: item.positionType,
+            positionName: item.positionName,
+            price: finalPrice,
+            originalPrice: marketplace === 'funpay' ? price : null,
+            commission: marketplace === 'funpay' ? commissionData?.commission || 0 : 0,
+            commissionPercent: marketplace === 'funpay' ? 3 : 0,
+            date: saleDate,
+            time: saleTime,
+            datetime: saleDateTime,
+            notes: notes,
+            timestamp: timestamp,
+            createdTimestamp: timestamp,
+            sold: true,
+            positionIndex: item.positionIndex,
+            soldBy: currentUser ? currentUser.username : 'unknown',
+            soldByName: currentUser ? currentUser.name : 'Неизвестно',
+            managerRole: currentUser ? currentUser.role : 'unknown',
+            marketplace: marketplace,
+            commissionApplied: marketplace === 'funpay',
+            timezone: 'Europe/Moscow',
+            timezoneOffset: '+03:00',
+            isMassSale: true
+        };
+        
+        newSales.push(newSale);
+        
+        // Данные для клиента
+        soldPositions.push({
+            gameName: account.gameName,
+            positionType: item.positionType,
+            positionName: item.positionName,
+            psnLogin: account.psnLogin,
+            psnPassword: account.psnPassword,
+            psnCode: psnCode
+        });
+    }
+    
+    console.log(`💾 Создано ${newSales.length} продаж`);
+    
+    try {
+        // Добавляем в локальный массив
+        sales.push(...newSales);
+        window.sales = sales;
+        
+        // Сохраняем в localStorage
+        try {
+            localStorage.setItem('sales', JSON.stringify(sales));
+        } catch (e) {
+            const cached = sales.slice(-500);
+            localStorage.setItem('sales', JSON.stringify(cached));
+        }
+        
+        // Сохраняем в Firebase
+        let savedCount = 0;
+        if (window.dataSync && window.dataSync.saveSale) {
+            for (const sale of newSales) {
+                try {
+                    await window.dataSync.saveSale(sale);
+                    savedCount++;
+                } catch (e) {
+                    console.error('Ошибка сохранения:', e);
+                }
+            }
+        } else if (firebase && firebase.database) {
+            const db = firebase.database();
+            for (const sale of newSales) {
+                try {
+                    await db.ref('sales/' + sale.id).set(sale);
+                    savedCount++;
+                } catch (e) {
+                    console.error('Ошибка сохранения:', e);
+                }
+            }
+        }
+        
+        // Сохраняем обновлённые аккаунты (коды PSN)
+        await saveToStorage('accounts', accounts);
+        
+        console.log(`✅ Сохранено ${savedCount} из ${newSales.length} продаж`);
+        
+        // Закрываем модалку корзины
+        closeMassSaleModal();
+        
+        // Очищаем корзину
+        massSaleCart = [];
+        updateCartUI();
+        
+        // Обновляем результаты
+        refreshSearchResults();
+        
+        // Показываем данные клиента
+        setTimeout(() => {
+            showCustomerDataModal(soldPositions, marketplace);
+        }, 500);
+        
+        showNotification(`✅ Продано ${newSales.length} позиций!`, 'success', 3000);
+        
+    } catch (error) {
+        console.error('❌ Ошибка массовой продажи:', error);
+        showNotification('❌ Ошибка при сохранении продаж', 'error');
+        
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = '✅ Подтвердить продажу';
+        }
+    }
+}
+
+// ============================================================
+// МОДАЛКА С ДАННЫМИ ДЛЯ КЛИЕНТА (С ГРУППИРОВКОЙ + КОПИРОВАНИЕ)
+// ============================================================
+function showCustomerDataModal(soldPositions, marketplace) {
+    // Группируем по позициям (positionType)
+    const grouped = {};
+    
+    soldPositions.forEach(pos => {
+        const key = pos.positionType;
+        if (!grouped[key]) {
+            grouped[key] = {
+                positionType: key,
+                positionName: pos.positionName,
+                items: [],
+                isP2: key.includes('p2'),
+                isPS5: key.includes('ps5')
+            };
+        }
+        grouped[key].items.push(pos);
+    });
+    
+    // Сортируем группы: сначала П2, потом П3
+    const sortedGroups = Object.values(grouped).sort((a, b) => {
+        if (a.isP2 && !b.isP2) return -1;
+        if (!a.isP2 && b.isP2) return 1;
+        return 0;
+    });
+    
+    // Формируем HTML и текст для копирования
+    let html = '';
+    let copyAllText = '';
+    
+    // Сохраняем данные каждой группы для копирования
+    window._customerDataGroups = [];
+    
+    sortedGroups.forEach((group, groupIndex) => {
+        // ===== БЛОК ДАННЫХ (все игры в одной группе) =====
+        let groupDataText = '';
+        let groupDataHtml = '';
+        
+        group.items.forEach((item, itemIndex) => {
+            // Текст для копирования ЭТОЙ игры
+            const itemText = `Игра: ${item.gameName}
+Логин PSN: ${item.psnLogin}
+Пароль PSN: ${item.psnPassword || 'Не указан'}
+Код аутентификации PSN: ${item.psnCode}`;
+            
+            // Сохраняем для кнопки копирования игры
+            const itemId = `game-${groupIndex}-${itemIndex}`;
+            window._customerDataGroups.push({
+                id: itemId,
+                type: 'game',
+                text: itemText
+            });
+            
+            groupDataText += itemText + '\n\n';
+            
+            // HTML для отображения
+            groupDataHtml += `
+                <div style="
+                    background: white;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin-bottom: 12px;
+                    border: 1px solid #e2e8f0;
+                    position: relative;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 700; color: #2d3748; margin-bottom: 8px; font-size: 1em;">
+                                Игра: ${item.gameName}
+                            </div>
+                            <div style="font-family: 'Courier New', monospace; font-size: 0.9em; color: #374151; line-height: 1.6;">
+                                <div><strong>Логин PSN:</strong> ${item.psnLogin}</div>
+                                <div><strong>Пароль PSN:</strong> ${item.psnPassword || 'Не указан'}</div>
+                                <div><strong>Код аутентификации PSN:</strong> ${item.psnCode}</div>
+                            </div>
+                        </div>
+                        <button onclick="copyCustomerBlock('${itemId}')" 
+                                class="copy-block-btn"
+                                title="Скопировать данные этой игры"
+                                style="
+                                    background: #eff6ff;
+                                    color: #2563eb;
+                                    border: 1px solid #bfdbfe;
+                                    padding: 6px 10px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 14px;
+                                    flex-shrink: 0;
+                                    transition: all 0.2s;
+                                "
+                                onmouseover="this.style.background='#2563eb'; this.style.color='white'"
+                                onmouseout="this.style.background='#eff6ff'; this.style.color='#2563eb'">
+                            📋
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        // Добавляем блок данных в общий текст
+        copyAllText += groupDataText;
+        
+        // Добавляем HTML блока данных
+        html += `
+            <div class="customer-data-block" style="border-left-color: #4361ee; background: #f8fafc;">
+                <div class="customer-data-block-title" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>🎮 ${group.positionName}</span>
+                    <button onclick="copyCustomerBlock('data-${groupIndex}')" 
+                            class="copy-block-btn"
+                            title="Скопировать все данные этой группы"
+                            style="
+                                background: #eff6ff;
+                                color: #2563eb;
+                                border: 1px solid #bfdbfe;
+                                padding: 4px 10px;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                transition: all 0.2s;
+                            "
+                            onmouseover="this.style.background='#2563eb'; this.style.color='white'"
+                            onmouseout="this.style.background='#eff6ff'; this.style.color='#2563eb'">
+                        📋 Все
+                    </button>
+                </div>
+                ${groupDataHtml}
+            </div>
+        `;
+        
+        // Сохраняем данные группы для копирования
+        window._customerDataGroups.push({
+            id: `data-${groupIndex}`,
+            type: 'group-data',
+            text: groupDataText.trim()
+        });
+        
+        // ===== ИНСТРУКЦИЯ =====
+        const instructionKey = group.isP2 ? 
+            ('p2_' + (group.isPS5 ? 'ps5' : 'ps4')) : 
+            ('p3_' + (group.isPS5 ? 'ps5' : 'ps4'));
+        
+        const instruction = POSITION_INSTRUCTIONS[instructionKey] || '';
+        const instructionTitle = `📖 ИНСТРУКЦИЯ ${group.positionName}`;
+        
+        // Текст для копирования
+        const instructionText = `${instructionTitle}
+${instruction}`;
+        
+        copyAllText += instructionText + '\n\n';
+        
+        // Сохраняем для копирования
+        window._customerDataGroups.push({
+            id: `instruction-${groupIndex}`,
+            type: 'instruction',
+            text: instructionText
+        });
+        
+        // HTML
+        html += `
+            <div class="customer-data-block" style="border-left-color: #10b981; background: #f0fdf4;">
+                <div class="customer-data-block-title" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>${instructionTitle}</span>
+                    <button onclick="copyCustomerBlock('instruction-${groupIndex}')" 
+                            class="copy-block-btn"
+                            title="Скопировать инструкцию"
+                            style="
+                                background: #d1fae5;
+                                color: #059669;
+                                border: 1px solid #a7f3d0;
+                                padding: 4px 10px;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                transition: all 0.2s;
+                            "
+                            onmouseover="this.style.background='#059669'; this.style.color='white'"
+                            onmouseout="this.style.background='#d1fae5'; this.style.color='#059669'">
+                        📋
+                    </button>
+                </div>
+                <div style="font-size: 0.85em; color: #4b5563; white-space: pre-wrap; line-height: 1.5;">
+                    ${instruction}
+                </div>
+            </div>
+        `;
+        
+        // ===== ПРАВИЛА (только если НЕ Telegram) =====
+        if (marketplace !== 'telegram') {
+            const rules = group.isP2 ? RULES_P2 : RULES_P3;
+            const rulesTitle = `📜 ПРАВИЛА ${group.isP2 ? 'П2' : 'П3'}`;
+            
+            // Текст для копирования
+            const rulesText = `${rulesTitle}
+${rules}`;
+            
+            copyAllText += rulesText + '\n\n';
+            
+            // Сохраняем для копирования
+            window._customerDataGroups.push({
+                id: `rules-${groupIndex}`,
+                type: 'rules',
+                text: rulesText
+            });
+            
+            // HTML
+            html += `
+                <div class="customer-data-block" style="border-left-color: #f59e0b; background: #fffbeb;">
+                    <div class="customer-data-block-title" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>${rulesTitle}</span>
+                        <button onclick="copyCustomerBlock('rules-${groupIndex}')" 
+                                class="copy-block-btn"
+                                title="Скопировать правила"
+                                style="
+                                    background: #fef3c7;
+                                    color: #d97706;
+                                    border: 1px solid #fde68a;
+                                    padding: 4px 10px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    transition: all 0.2s;
+                                "
+                                onmouseover="this.style.background='#d97706'; this.style.color='white'"
+                                onmouseout="this.style.background='#fef3c7'; this.style.color='#d97706'">
+                            📋
+                        </button>
+                    </div>
+                    <div style="font-size: 0.85em; color: #4b5563; white-space: pre-wrap; line-height: 1.5;">
+                        ${rules}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Разделитель между группами
+        if (groupIndex < sortedGroups.length - 1) {
+            copyAllText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            html += `<div style="height: 30px;"></div>`;
+        }
+    });
+    
+    // ===== ОТЗЫВ (если Telegram) =====
+    if (marketplace === 'telegram') {
+        const review = `🙏 Мы будем благодарны за ваш отзыв — он очень помогает нам развиваться!
+🎮 Приятной игры!
+
+📝 Отзывы: https://t.me/pshubshoptg/29
+📌 Актуальные цены на игры: @pshubshoptg`;
+        
+        copyAllText += `\n\n${review}`;
+        
+        html += `
+            <div class="customer-data-block" style="border-left-color: #10b981; background: #d1fae5;">
+                <div class="customer-data-block-title" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>⭐ ОТЗЫВ</span>
+                    <button onclick="copyCustomerBlock('review')" 
+                            class="copy-block-btn"
+                            title="Скопировать отзыв"
+                            style="
+                                background: #d1fae5;
+                                color: #059669;
+                                border: 1px solid #a7f3d0;
+                                padding: 4px 10px;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                transition: all 0.2s;
+                            "
+                            onmouseover="this.style.background='#059669'; this.style.color='white'"
+                            onmouseout="this.style.background='#d1fae5'; this.style.color='#059669'">
+                        📋
+                    </button>
+                </div>
+                <div style="font-size: 0.85em; color: #4b5563; white-space: pre-wrap; line-height: 1.5;">
+                    ${review}
+                </div>
+            </div>
+        `;
+        
+        // Сохраняем отзыв для копирования
+        window._customerDataGroups.push({
+            id: 'review',
+            type: 'review',
+            text: review
+        });
+    }
+    
+    // Создаём модалку
+    let modal = document.getElementById('customerDataModal');
+    
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'customerDataModal';
+        modal.className = 'customer-data-modal';
+        document.body.appendChild(modal);
+    }
+    
+    modal.className = 'customer-data-modal active';
+    modal.innerHTML = `
+        <div class="customer-data-content">
+            <div class="mass-sale-modal-header">
+                <div class="mass-sale-modal-title">
+                    ✅ Продажа оформлена!
+                </div>
+                <button class="mass-sale-modal-close" onclick="closeCustomerDataModal()">×</button>
+            </div>
+            
+            <div style="text-align: center; margin-bottom: 20px; display: flex; gap: 10px;">
+                <button class="mass-sale-btn mass-sale-btn-confirm" 
+                        onclick="copyCustomerDataFromModal()"
+                        style="flex: 1; padding: 12px;">
+                    📋 Скопировать всё
+                </button>
+            </div>
+            
+            <div style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">
+                ${html}
+            </div>
+            
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center;">
+                <button class="mass-sale-btn mass-sale-btn-clear" 
+                        onclick="closeCustomerDataModal()"
+                        style="width: 100%;">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // СОХРАНЯЕМ текст для копирования в глобальную переменную
+    window._customerDataText = copyAllText.trim();
+    console.log('📋 Текст для копирования сохранён');
+    console.log('📊 Блоков для копирования:', window._customerDataGroups.length);
+}
+
+// ============================================================
+// КОПИРОВАНИЕ ОТДЕЛЬНОГО БЛОКА
+// ============================================================
+function copyCustomerBlock(blockId) {
+    if (!window._customerDataGroups) {
+        showNotification('Нет данных для копирования', 'warning');
+        return;
+    }
+    
+    const block = window._customerDataGroups.find(b => b.id === blockId);
+    
+    if (!block) {
+        showNotification('Блок не найден', 'error');
+        return;
+    }
+    
+    navigator.clipboard.writeText(block.text).then(() => {
+        // Показываем уведомление в зависимости от типа
+        let message = '✅ Скопировано!';
+        
+        if (block.type === 'game') {
+            message = '✅ Данные игры скопированы!';
+        } else if (block.type === 'group-data') {
+            message = '✅ Все данные группы скопированы!';
+        } else if (block.type === 'instruction') {
+            message = '✅ Инструкция скопирована!';
+        } else if (block.type === 'rules') {
+            message = '✅ Правила скопированы!';
+        } else if (block.type === 'review') {
+            message = '✅ Отзыв скопирован!';
+        }
+        
+        showNotification(message, 'success', 2000);
+    }).catch(err => {
+        // Fallback для старых браузеров
+        const textArea = document.createElement('textarea');
+        textArea.value = block.text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showNotification('✅ Скопировано!', 'success', 2000);
+    });
+}
+
+// ============================================================
+// СКОПИРОВАТЬ ВСЕ ДАННЫЕ ИЗ МОДАЛКИ
+// ============================================================
+function copyCustomerDataFromModal() {
+    const textToCopy = window._customerDataText;
+    
+    if (!textToCopy) {
+        showNotification('Нет данных для копирования', 'warning');
+        return;
+    }
+    
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        showNotification('✅ Все данные скопированы!', 'success');
+    }).catch(err => {
+        // Fallback для старых браузеров
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showNotification('✅ Данные скопированы!', 'success');
+    });
+}
+
+// ============================================================
+// ЗАКРЫТЬ МОДАЛКУ С ДАННЫМИ КЛИЕНТА
+// ============================================================
+function closeCustomerDataModal() {
+    const modal = document.getElementById('customerDataModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+    
+    // Очищаем глобальные переменные
+    window._customerDataText = null;
+    window._customerDataGroups = null;
+}
+
+// ============================================================
+// СКОПИРОВАТЬ ВСЕ ДАННЫЕ КЛИЕНТА
+// ============================================================
+function copyAllCustomerData() {
+    const modal = document.getElementById('customerDataModal');
+    if (!modal) return;
+    
+    // Находим все блоки данных
+    const blocks = modal.querySelectorAll('.customer-data-block');
+    let allText = '';
+    
+    blocks.forEach(block => {
+        allText += block.innerText + '\n\n';
+    });
+    
+    navigator.clipboard.writeText(allText.trim()).then(() => {
+        showNotification('✅ Все данные скопированы!', 'success');
+    }).catch(err => {
+        // Fallback
+        const textArea = document.createElement('textarea');
+        textArea.value = allText.trim();
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showNotification('✅ Данные скопированы!', 'success');
+    });
+}
+
+// ============================================================
+// ПРАВИЛА П2 И П3 (для модалки с данными клиента)
+// ============================================================
+const RULES_P2 = `❗️ Чтобы гарантия на игру сохранялась — при любых ошибках пишем только в чат, где была куплена игра.
+Правила пользования игрой (П2):
+— Данные пользователя не менять: пароль, аутентификатор, номер телефона.
+— Играем только на той консоли, для которой была приобретена игра.
+— Одна игра — один пользователь: не покупаем игры или подписки на выданном пользователе.
+— Используем только одну личную консоль: добавлять игру на другие устройства запрещено.
+— Включать активацию для PS4 или общий доступ для PS5 нельзя, вы играете только с выданных данных с включенным интернетом.`;
+
+const RULES_P3 = `❗️ Чтобы гарантия на игру сохранялась — при любых ошибках пишем только в чат, где была куплена игра.
+Правила пользования выданной игрой с Активацией / Общим доступом (П3):
+— Данные пользователя не менять: пароль, аутентификатор, номер телефона.
+— Одна игра — один пользователь: не покупаем игры или подписки на выданные данные.
+— Позиция с Активацией / Общим доступом — играем только с вашего личного пользователя. На выданном пользователе заходим только для настройки.
+— Пользователя нельзя добавлять на несколько консолей. Используем только одну личную консоль.
+— Если на игре появился "замочек", зайдите на пользователя с игрой и:
+• на PS4 — активируйте как основную систему,
+• на PS5 — включите общий доступ к консоли.
+— Играем только на той консоли, для которой была приобретена игра. Купить игру для PS4 и играть на PS5 — это потеря гарантии.
+— При несоблюдении правил гарантии мы имеем право отобрать пользователя без возврата денег.`;
+
+// ============================================================
+// ОБНОВЛЁННАЯ ФУНКЦИЯ ГЕНЕРАЦИИ КНОПОК ПОЗИЦИЙ
+// ============================================================
+function generateSimplePositionButtons(account, positionType, positionName, positionLabel) {
+    const positionCount = account.positions[positionType] || 0;
+    if (positionCount === 0) return '';
+    
+    const buttons = [];
+    
+    for (let i = 1; i <= positionCount; i++) {
+        const saleInfo = getPositionSaleInfo(account.id, positionType, i);
+        const isSold = !!saleInfo;
+        const inCart = isInCart(account.id, positionType, i);
+        
+        // Форматируем дату продажи
+        let saleDate = '';
+        let managerInfo = '';
+        let marketplaceBadge = '';
+        
+        if (saleInfo) {
+            if (saleInfo.datetime) {
+                try {
+                    const dateObj = new Date(saleInfo.datetime);
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const year = String(dateObj.getFullYear()).slice(-2);
+                    saleDate = `${day}/${month}/${year}`;
+                } catch (e) {}
+            }
+            
+            if (saleInfo.soldByName) {
+                const managerIcon = saleInfo.managerRole === 'admin' ? '👑' : '👷';
+                managerInfo = `
+                    <div style="font-size: 9px; color: ${saleInfo.managerRole === 'admin' ? '#f72585' : '#4361ee'}; font-weight: 700; margin-top: 2px;">
+                        ${saleInfo.soldByName} ${managerIcon}
+                    </div>
+                `;
+            }
+            
+            if (saleInfo.marketplace) {
+                const marketplaceColors = { 'telegram': '#0088cc', 'funpay': '#ff6b00', 'avito': '#006cff' };
+                const marketplaceNames = { 'telegram': 'TG', 'funpay': 'FP', 'avito': 'AV' };
+                const color = marketplaceColors[saleInfo.marketplace] || '#64748b';
+                const name = marketplaceNames[saleInfo.marketplace] || saleInfo.marketplace.substring(0, 2).toUpperCase();
+                marketplaceBadge = `
+                    <div style="position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; background: ${color}; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
+                        ${name}
+                    </div>
+                `;
+            }
+        }
+        
+        if (isSold) {
+            // Проданная позиция — просто кнопка, без плюсика
+            buttons.push(`
+                <div class="position-wrapper" style="margin-right: 8px; margin-bottom: 8px;">
+                    <button class="position-main-btn sold"
+                            onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
+                            title="Продано: ${saleDate || 'без даты'}\nПлощадка: ${saleInfo?.marketplace || 'не указана'}\nМенеджер: ${saleInfo?.soldByName || 'неизвестно'}"
+                            style="width: 40px; position: relative;">
+                        <div>${i}</div>
+                        <div style="font-size: 9px;">${positionLabel}</div>
+                        ${marketplaceBadge}
+                    </button>
+                    ${saleDate ? `
+                        <div style="position: absolute; bottom: -14px; left: 0; right: 0; font-size: 8px; color: #ef4444; font-weight: 700; white-space: nowrap; text-align: center;">
+                            ${saleDate}
+                        </div>
+                    ` : ''}
+                </div>
+            `);
+        } else {
+            // Свободная позиция — с плюсиком
+            buttons.push(`
+                <div class="position-wrapper" style="margin-bottom: 8px;">
+                    <button class="position-main-btn"
+                            onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
+                            title="Свободно">
+                        <div>${i}</div>
+                        <div style="font-size: 9px;">${positionLabel}</div>
+                    </button>
+                    <button class="position-add-btn ${inCart ? 'in-cart' : ''}"
+                            onclick="event.stopPropagation(); toggleCartPosition(${account.id}, '${positionType}', ${i}, '${positionName}')"
+                            title="${inCart ? 'Убрать из корзины' : 'Добавить в корзину'}">
+                        ${inCart ? '✓' : '➕'}
+                    </button>
+                </div>
+            `);
+        }
+    }
+    
+    return buttons.join('');
+}
+
+// ============================================================
+// ОБНОВЛЕНИЕ РЕЗУЛЬТАТОВ ПОИСКА (для перерисовки плюсиков)
+// ============================================================
+function refreshSearchResults() {
+    const searchInput = document.getElementById('managerGameSearch');
+    if (searchInput && searchInput.value.trim()) {
+        const searchTerm = searchInput.value.trim();
+        const foundGame = games.find(game => 
+            game.name.toLowerCase() === searchTerm.toLowerCase()
+        ) || games.find(game => 
+            game.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        
+        if (foundGame) {
+            const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
+            displaySearchResults(gameAccounts, foundGame.name);
+        }
+    }
 }
