@@ -63,6 +63,7 @@ const POSITION_INSTRUCTIONS = {
     'p2_ps4': `🔐 Инструкция по активации П2 PS4:
 
 1️⃣ Добавьте нового пользователя На консоли выберите значок «плюс» — Добавить пользователя
+⚠️НЕ ВХОДИТЕ КАК ГОСТЬ!
 2️⃣ Нажмите «ВХОД В РУЧНУЮ»
 3️⃣ Примите лицензионное соглашение → нажмите «ПОДТВЕРДИТЬ»
 4️⃣ Выберите вход вручную и введите выданные данные
@@ -80,6 +81,7 @@ const POSITION_INSTRUCTIONS = {
 
 1️⃣ Добавьте нового пользователя
 На консоли выберите значок «плюс» — Добавить пользователя
+⚠️НЕ ВХОДИТЕ КАК ГОСТЬ!
 2️⃣ Нажмите «ВХОД В РУЧНУЮ»
 3️⃣ Лицензионное соглашение – «Принять»
 4️⃣ Введите логин и пароль, которые мы вам предоставим
@@ -99,6 +101,7 @@ const POSITION_INSTRUCTIONS = {
     'p2_ps5': `🔐 Инструкция по активации П2 PS5:
 
 1️⃣ Добавьте нового пользователя На консоли выберите значок «плюс» — Добавить пользователя
+⚠️НЕ ВХОДИТЕ КАК ГОСТЬ!
 2️⃣ Нажмите «ВХОД В РУЧНУЮ»
 3️⃣ Примите лицензионное соглашение → нажмите «ПОДТВЕРДИТЬ»
 4️⃣ Выберите вход вручную и введите выданные данные
@@ -116,6 +119,7 @@ const POSITION_INSTRUCTIONS = {
 
 1️⃣ Добавьте нового пользователя
 На консоли выберите значок «плюс» — Добавить пользователя
+⚠️НЕ ВХОДИТЕ КАК ГОСТЬ!
 2️⃣ Нажмите «ВХОД В РУЧНУЮ»
 3️⃣ Лицензионное соглашение – «Принять»
 4️⃣ Введите логин и пароль, которые мы вам предоставим
@@ -136,6 +140,7 @@ const POSITION_INSTRUCTIONS_EN = {
     'p2_ps4': `🔐 Activation instructions for P2 PS4:
 
 1️⃣ Add a new user: On the console, select the "plus" icon → Add user
+⚠️DO NOT LOG IN AS A GUEST!
 2️⃣ Click "MANUAL LOGIN"
 3️⃣ Accept the license agreement → click "CONFIRM"
 4️⃣ Select manual login and enter the provided data
@@ -153,6 +158,7 @@ const POSITION_INSTRUCTIONS_EN = {
 
 1️⃣ Add a new user
 On the console, select the "plus" icon — Add user
+⚠️DO NOT LOG IN AS A GUEST!
 2️⃣ Click "MANUAL LOGIN"
 3️⃣ License agreement – "Accept"
 4️⃣ Enter the login and password we provide you
@@ -172,6 +178,7 @@ On the console, select the "plus" icon — Add user
     'p2_ps5': `🔐 Activation instructions for P2 PS5:
 
 1️⃣ Add a new user: On the console, select the "plus" icon — Add user
+⚠️DO NOT LOG IN AS A GUEST!
 2️⃣ Click "MANUAL LOGIN"
 3️⃣ Accept the license agreement → click "CONFIRM"
 4️⃣ Select manual login and enter the provided data
@@ -189,6 +196,7 @@ On the console, select the "plus" icon — Add user
 
 1️⃣ Add a new user
 On the console, select the "plus" icon — Add user
+⚠️DO NOT LOG IN AS A GUEST!
 2️⃣ Click "MANUAL LOGIN"
 3️⃣ License agreement – "Accept"
 4️⃣ Enter the login and password we provide you
