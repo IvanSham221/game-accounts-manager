@@ -19,8 +19,9 @@ const currentPage = window.location.pathname.split('/').pop();
 const isLoginPage = currentPage === 'login.html' || currentPage === 'index.html';
 const isManagerPage = currentPage === 'manager.html';
 const isWorkersPage = currentPage === 'workers.html';
-const needsSales = ['reports.html'].includes(currentPage);
-const needsAllAccounts = ['accounts.html', 'free-accounts.html', 'add-account.html', 'reports.html'].includes(currentPage);
+const isChatsPage = currentPage === 'chats.html';
+const needsSales = ['reports.html', 'sales.html'].includes(currentPage);
+const needsAllAccounts = ['accounts.html', 'free-accounts.html', 'add-account.html', 'reports.html', 'sales.html'].includes(currentPage);
 
 console.log(`📄 Текущая страница: ${currentPage}`);
 console.log(`📊 Продажи нужны: ${needsSales ? 'ДА' : 'НЕТ'}`);
@@ -47,7 +48,11 @@ try {
 function safeSaveSales(salesArray) {
     try {
         if (!salesArray || salesArray.length === 0) {
-            localStorage.setItem('sales', JSON.stringify([]));
+            const existing = localStorage.getItem('sales');
+            if (existing && existing !== '[]' && existing !== 'null') {
+                console.warn('🛑 Пустой список продаж не записан поверх кеша');
+                return false;
+            }
             return true;
         }
         
@@ -69,6 +74,18 @@ function safeSaveSales(salesArray) {
         }
         return false;
     }
+}
+
+function writeCacheSoon(key, value) {
+    const run = () => {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+            console.warn('Кеш не записан:', key, e);
+        }
+    };
+    if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 1500 });
+    else setTimeout(run, 50);
 }
 
 // ============================================================
@@ -93,14 +110,31 @@ class FirebaseSync {
     // ИНИЦИАЛИЗАЦИЯ СЛУШАТЕЛЕЙ
     // ============================================================
     initAllSync() {
+        if (isLoginPage || isChatsPage) {
+            console.log('⏭️ Слушатели базы не запускаются на этой странице');
+            return;
+        }
         // ---- ИГРЫ (всегда) ----
+        let resolveGames;
+        this.gamesPromise = new Promise((resolve) => { resolveGames = resolve; });
         this.db.ref('games').on('value', (snapshot) => {
-            if (snapshot.exists()) {
-                const gamesObj = snapshot.val();
-                const gamesArray = Object.values(gamesObj || {});
-                localStorage.setItem('games', JSON.stringify(gamesArray));
-                console.log('🔄 Игры синхронизированы:', gamesArray.length);
+            const gamesArray = snapshot.exists() ? Object.values(snapshot.val() || {}) : [];
+            if (!gamesArray.length && typeof games !== 'undefined' && games.length) {
+                console.warn('🛑 Пустой снимок игр проигнорирован');
+                if (resolveGames) {
+                    resolveGames(games);
+                    resolveGames = null;
+                }
+                return;
             }
+            if (typeof games !== 'undefined') games = gamesArray;
+            window.games = gamesArray;
+            writeCacheSoon('games', gamesArray);
+            if (resolveGames) {
+                resolveGames(gamesArray);
+                resolveGames = null;
+            }
+            console.log('🔄 Игры синхронизированы:', gamesArray.length);
         });
 
         // ============================================================
@@ -110,52 +144,28 @@ class FirebaseSync {
             console.log('📋 ЗАПУСКАЕМ слушатель аккаунтов (нужно для этой страницы)');
             
             // ---- ОСНОВНОЙ СЛУШАТЕЛЬ АККАУНТОВ ----
+            let resolveAccounts;
+            this.accountsPromise = new Promise((resolve) => { resolveAccounts = resolve; });
             this.db.ref('accounts').on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    const accountsObj = snapshot.val();
-                    const accountsArray = Object.values(accountsObj || {});
-                    localStorage.setItem('accounts', JSON.stringify(accountsArray));
-                    if (typeof window.accounts !== 'undefined') window.accounts = accountsArray;
-                    if (typeof accounts !== 'undefined') accounts = accountsArray;
-                    console.log('🔄 Аккаунты синхронизированы:', accountsArray.length);
+                const accountsArray = snapshot.exists() ? Object.values(snapshot.val() || {}) : [];
+                const hadAccounts = (typeof accounts !== 'undefined' && accounts.length) || (window.accounts && window.accounts.length);
+                if (!accountsArray.length && hadAccounts) {
+                    console.warn('🛑 Пустой снимок аккаунтов проигнорирован');
+                    if (resolveAccounts) {
+                        resolveAccounts(typeof accounts !== 'undefined' ? accounts : window.accounts);
+                        resolveAccounts = null;
+                    }
+                    return;
                 }
+                if (typeof window.accounts !== 'undefined') window.accounts = accountsArray;
+                if (typeof accounts !== 'undefined') accounts = accountsArray;
+                writeCacheSoon('accounts', accountsArray);
+                if (resolveAccounts) {
+                    resolveAccounts(accountsArray);
+                    resolveAccounts = null;
+                }
+                console.log('🔄 Аккаунты синхронизированы:', accountsArray.length);
             }, this);
-            
-            // ---- НОВЫЕ АККАУНТЫ ----
-            this.db.ref('accounts').on('child_added', (snapshot) => {
-                const newAccount = snapshot.val();
-                console.log(`🆕 Новый аккаунт в Firebase: ${newAccount.psnLogin}`);
-                
-                const localAccounts = JSON.parse(localStorage.getItem('accounts')) || [];
-                if (!localAccounts.some(acc => acc.id == snapshot.key)) {
-                    localAccounts.push(newAccount);
-                    localStorage.setItem('accounts', JSON.stringify(localAccounts));
-                    if (typeof window.accounts !== 'undefined') window.accounts = localAccounts;
-                    if (typeof accounts !== 'undefined') accounts = localAccounts;
-                }
-            });
-
-            // ---- ИЗМЕНЕНИЯ АККАУНТОВ ----
-            this.db.ref('accounts').on('child_changed', (snapshot) => {
-                const updatedAccount = snapshot.val();
-                const localAccounts = JSON.parse(localStorage.getItem('accounts')) || [];
-                const index = localAccounts.findIndex(acc => acc.id == snapshot.key);
-                if (index !== -1) {
-                    localAccounts[index] = updatedAccount;
-                    localStorage.setItem('accounts', JSON.stringify(localAccounts));
-                    if (typeof window.accounts !== 'undefined') window.accounts = localAccounts;
-                    if (typeof accounts !== 'undefined') accounts = localAccounts;
-                }
-            });
-
-            // ---- УДАЛЕНИЕ АККАУНТОВ ----
-            this.db.ref('accounts').on('child_removed', (snapshot) => {
-                const localAccounts = JSON.parse(localStorage.getItem('accounts')) || [];
-                const filtered = localAccounts.filter(acc => acc.id != snapshot.key);
-                localStorage.setItem('accounts', JSON.stringify(filtered));
-                if (typeof window.accounts !== 'undefined') window.accounts = filtered;
-                if (typeof accounts !== 'undefined') accounts = filtered;
-            });
             
         } else {
             console.log('⏭️ ПРОПУСКАЕМ слушатель аккаунтов (не нужно для этой страницы)');
@@ -169,27 +179,28 @@ class FirebaseSync {
                 const self = this;
                 
                 // Метод для загрузки аккаунтов по запросу
-                window.loadAccountsOnDemand = async function() {
+                window.loadAccountsOnDemand = function() {
+                    if (self._accountsPromise) return self._accountsPromise;
                     console.log('📥 Загружаем аккаунты...');
-                    try {
-                        const snapshot = await self.db.ref('accounts').once('value');
-                        if (snapshot.exists()) {
-                            const accountsObj = snapshot.val();
-                            const accountsArray = Object.values(accountsObj || {});
-                            localStorage.setItem('accounts', JSON.stringify(accountsArray));
+                    self._accountsPromise = (async () => {
+                        try {
+                            const snapshot = await self.db.ref('accounts').once('value');
+                            const accountsArray = snapshot.exists() ? Object.values(snapshot.val() || {}) : [];
+                            writeCacheSoon('accounts', accountsArray);
                             if (typeof window.accounts !== 'undefined') window.accounts = accountsArray;
                             if (typeof accounts !== 'undefined') accounts = accountsArray;
                             console.log(`✅ Загружено ${accountsArray.length} аккаунтов`);
                             return accountsArray;
+                        } catch (error) {
+                            self._accountsPromise = null;
+                            console.error('❌ Ошибка загрузки аккаунтов:', error);
+                            const cached = JSON.parse(localStorage.getItem('accounts') || '[]');
+                            if (typeof window.accounts !== 'undefined') window.accounts = cached;
+                            if (typeof accounts !== 'undefined') accounts = cached;
+                            return cached;
                         }
-                        return [];
-                    } catch (error) {
-                        console.error('❌ Ошибка загрузки аккаунтов:', error);
-                        const cached = JSON.parse(localStorage.getItem('accounts')) || [];
-                        if (typeof window.accounts !== 'undefined') window.accounts = cached;
-                        if (typeof accounts !== 'undefined') accounts = cached;
-                        return cached;
-                    }
+                    })();
+                    return self._accountsPromise;
                 };
             }
         }
@@ -201,68 +212,41 @@ class FirebaseSync {
             console.log('📊 ЗАПУСКАЕМ слушатель продаж (нужно для этой страницы)');
             
             // ---- ОСНОВНОЙ СЛУШАТЕЛЬ ----
+            let resolveSales;
+            this.salesPromise = new Promise((resolve) => { resolveSales = resolve; });
             this.db.ref('sales').on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    try {
-                        const salesObj = snapshot.val();
-                        const salesArray = Object.values(salesObj || {});
-                        
-                        if (typeof window.sales !== 'undefined') window.sales = salesArray;
-                        if (typeof sales !== 'undefined') sales = salesArray;
-                        
-                        safeSaveSales(salesArray);
-                        console.log(`🔄 Продажи синхронизированы: ${salesArray.length}`);
-                        
-                        clearTimeout(this.salesUpdateTimeout);
-                        this.salesUpdateTimeout = setTimeout(() => {
-                            const page = window.location.pathname.split('/').pop();
-                            if (page === 'reports.html' && typeof generateReport === 'function') {
-                                generateReport();
-                            }
-                            if (page === 'workers-stats.html' && typeof generateWorkersStats === 'function') {
-                                generateWorkersStats();
-                            }
-                        }, 500);
-                    } catch (error) {
-                        console.error('❌ Ошибка синхронизации продаж:', error);
+                try {
+                    const salesArray = snapshot.exists() ? Object.values(snapshot.val() || {}) : [];
+                    const hadSales = (this._allSales && this._allSales.length) || (typeof sales !== 'undefined' && sales.length);
+                    if (!salesArray.length && hadSales) {
+                        console.warn('🛑 Пустой снимок продаж проигнорирован');
+                        if (resolveSales) {
+                            resolveSales(this._allSales || (typeof sales !== 'undefined' ? sales : []));
+                            resolveSales = null;
+                        }
+                        return;
+                    }
+                    this._allSales = salesArray;
+                    if (typeof window.sales !== 'undefined') window.sales = salesArray;
+                    if (typeof sales !== 'undefined') sales = salesArray;
+                    writeCacheSoon('sales', salesArray.length > 500 ? salesArray.slice(-500) : salesArray);
+                    console.log(`🔄 Продажи синхронизированы: ${salesArray.length}`);
+                    if (resolveSales) {
+                        resolveSales(salesArray);
+                        resolveSales = null;
+                    } else {
+                        const page = window.location.pathname.split('/').pop();
+                        if (page === 'reports.html' && typeof generateReport === 'function') generateReport();
+                        if (page === 'sales.html' && typeof renderSalesPage === 'function') renderSalesPage();
+                    }
+                } catch (error) {
+                    console.error('❌ Ошибка синхронизации продаж:', error);
+                    if (resolveSales) {
+                        resolveSales([]);
+                        resolveSales = null;
                     }
                 }
             }, this);
-            
-            // ---- НОВЫЕ ПРОДАЖИ ----
-            this.db.ref('sales').on('child_added', (snapshot) => {
-                const newSale = snapshot.val();
-                console.log(`🆕 Новая продажа: ${newSale.accountLogin || 'Свободная'} за ${newSale.price} ₽`);
-                const localSales = JSON.parse(localStorage.getItem('sales')) || [];
-                if (!localSales.find(s => s.id === snapshot.key)) {
-                    localSales.push(newSale);
-                    safeSaveSales(localSales);
-                    if (typeof window.sales !== 'undefined') window.sales = localSales;
-                    if (typeof sales !== 'undefined') sales = localSales;
-                }
-            });
-
-            // ---- ИЗМЕНЕНИЯ ПРОДАЖ ----
-            this.db.ref('sales').on('child_changed', (snapshot) => {
-                const updatedSale = snapshot.val();
-                const localSales = JSON.parse(localStorage.getItem('sales')) || [];
-                const index = localSales.findIndex(s => s.id === snapshot.key);
-                if (index !== -1) {
-                    localSales[index] = updatedSale;
-                    safeSaveSales(localSales);
-                    if (typeof window.sales !== 'undefined') window.sales = localSales;
-                    if (typeof sales !== 'undefined') sales = localSales;
-                }
-            });
-
-            // ---- УДАЛЕНИЕ ПРОДАЖ ----
-            this.db.ref('sales').on('child_removed', (snapshot) => {
-                const localSales = JSON.parse(localStorage.getItem('sales')) || [];
-                const filtered = localSales.filter(s => s.id !== snapshot.key);
-                safeSaveSales(filtered);
-                if (typeof window.sales !== 'undefined') window.sales = filtered;
-                if (typeof sales !== 'undefined') sales = filtered;
-            });
             
         } else {
             console.log('⏭️ ПРОПУСКАЕМ слушатель продаж (не нужно для этой страницы)');
@@ -278,26 +262,17 @@ class FirebaseSync {
                 // Метод для загрузки продаж по запросу
                 window.loadSalesOnDemand = async function(gameId) {
                     console.log(`📥 Загружаем продажи для игры ${gameId}...`);
-                    
                     try {
-                        const db = self ? self.db : firebase.database();
-                        const snapshot = await db.ref('sales').once('value');
-                        
-                        if (snapshot.exists()) {
-                            const salesObj = snapshot.val();
-                            const allSales = Object.values(salesObj || {});
-                            
-                            const gameAccounts = accounts.filter(acc => acc.gameId === gameId);
-                            const accountIds = gameAccounts.map(acc => acc.id);
-                            const gameSales = allSales.filter(sale => accountIds.includes(sale.accountId));
-                            
-                            window.sales = gameSales;
-                            sales = gameSales;
-                            
-                            console.log(`✅ Загружено ${gameSales.length} продаж для игры`);
-                            return gameSales;
-                        }
-                        return [];
+                        const allSales = await self.ensureAllSales();
+                        const sourceAccounts = (window.accounts && window.accounts.length) ? window.accounts : accounts;
+                        const accountIds = new Set(
+                            sourceAccounts.filter(acc => String(acc.gameId) === String(gameId)).map(acc => String(acc.id))
+                        );
+                        const gameSales = allSales.filter(sale => accountIds.has(String(sale.accountId)));
+                        window.sales = gameSales;
+                        sales = gameSales;
+                        console.log(`✅ Загружено ${gameSales.length} продаж для игры`);
+                        return gameSales;
                     } catch (error) {
                         console.error('❌ Ошибка загрузки продаж:', error);
                         return [];
@@ -306,24 +281,24 @@ class FirebaseSync {
             }
         }
 
-        // ---- ЦЕННИКИ (всегда) ----
-        this.db.ref('gamePrices').on('value', (snapshot) => {
-            if (snapshot.exists()) {
-                try {
-                    const pricesObj = snapshot.val();
-                    const pricesArray = Object.values(pricesObj || {});
-                    localStorage.setItem('gamePrices', JSON.stringify(pricesArray));
-                    console.log('🔄 Ценники синхронизированы:', pricesArray.length);
-                } catch (error) {
-                    console.error('❌ Ошибка синхронизации ценников:', error);
-                }
-            }
-        });
     }
 
     // ============================================================
     // ПОЛНАЯ СИНХРОНИЗАЦИЯ
     // ============================================================
+    async ensureAllSales() {
+        if (this._allSales) return this._allSales;
+        if (this._allSalesPromise) return this._allSalesPromise;
+        this._allSalesPromise = this.db.ref('sales').once('value').then((snapshot) => {
+            this._allSales = snapshot.exists() ? Object.values(snapshot.val() || {}) : [];
+            return this._allSales;
+        }).catch((error) => {
+            this._allSalesPromise = null;
+            throw error;
+        });
+        return this._allSalesPromise;
+    }
+
     async forceFullSync() {
         try {
             console.log('🔄 Начинаем полную синхронизацию...');
@@ -367,15 +342,6 @@ class FirebaseSync {
                 console.log('⏭️ Пропускаем загрузку продаж (будут загружены при поиске)');
             }
 
-            // Ценники
-            const pricesSnap = await this.db.ref('gamePrices').once('value');
-            if (pricesSnap.exists()) {
-                const pricesObj = pricesSnap.val();
-                const pricesArray = Object.values(pricesObj || {});
-                localStorage.setItem('gamePrices', JSON.stringify(pricesArray));
-                console.log('✅ Ценники синхронизированы:', pricesArray.length);
-            }
-            
             console.log('✅ Полная синхронизация завершена');
             return { success: true };
             
@@ -399,6 +365,11 @@ class FirebaseSync {
         try {
             if (dataType === 'sales') {
                 return await this.saveSalesSafely(data);
+            }
+
+            if (Array.isArray(data)) {
+                const blocked = await this.blockPartialOverwrite(dataType, data);
+                if (blocked) return blocked;
             }
             
             const dataObj = {};
@@ -428,10 +399,26 @@ class FirebaseSync {
     // ============================================================
     // БЕЗОПАСНОЕ СОХРАНЕНИЕ ПРОДАЖ
     // ============================================================
+    async blockPartialOverwrite(dataType, data) {
+        const remoteSnap = await this.db.ref(dataType).once('value');
+        const remoteCount = remoteSnap.exists() ? remoteSnap.numChildren() : 0;
+        const localCount = Array.isArray(data) ? data.filter(Boolean).length : 0;
+        if (remoteCount > 0 && localCount + 2 < remoteCount) {
+            console.error(`🛑 ${dataType}: в браузере ${localCount}, в базе ${remoteCount}. Перезапись отменена.`);
+            if (typeof showNotification === 'function') {
+                showNotification('Сохранение отменено: на странице не все записи. Обновите страницу — база не стёрта.', 'error', 6000);
+            }
+            return { success: false, blocked: true, remote: remoteCount, local: localCount };
+        }
+        return null;
+    }
+
     async saveSalesSafely(salesArray) {
         console.log('🛡️ Безопасное сохранение продаж...');
         
         try {
+            const blocked = await this.blockPartialOverwrite('sales', salesArray || []);
+            if (blocked) return blocked;
             const now = Date.now();
             if (now - this.lastSalesUpdate < 2000) {
                 console.log('⏳ Слишком частая запись, добавляем в очередь');
@@ -498,6 +485,11 @@ class FirebaseSync {
         
         try {
             await this.db.ref('sales/' + sale.id).set(sale);
+            if (this._allSales) {
+                const cachedIndex = this._allSales.findIndex(item => String(item.id) === String(sale.id));
+                if (cachedIndex === -1) this._allSales.push(sale);
+                else this._allSales[cachedIndex] = sale;
+            }
             console.log(`✅ Продажа ${sale.id} сохранена в Firebase`);
             
             const localSales = JSON.parse(localStorage.getItem('sales')) || [];
@@ -635,18 +627,6 @@ window.dataSync = {
         return data ? JSON.parse(data) : [];
     },
 
-    savePrices: async (prices) => {
-        if (firebaseSync) return await firebaseSync.saveDataToFirebase('gamePrices', prices);
-        localStorage.setItem('gamePrices', JSON.stringify(prices));
-        return { success: true, local: true };
-    },
-    
-    loadPrices: async () => {
-        if (firebaseSync) return await firebaseSync.loadDataFromFirebase('gamePrices');
-        const data = localStorage.getItem('gamePrices');
-        return data ? JSON.parse(data) : [];
-    },
-    
     saveWorkers: async (workers) => window.dataSync.saveData('workers', workers),
     loadWorkers: async () => window.dataSync.loadData('workers'),
     forceSyncWorkers: async () => window.dataSync.loadData('workers'),

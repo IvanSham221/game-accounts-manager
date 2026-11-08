@@ -25,6 +25,104 @@ function isValidPSStoreUrl(url, region = 'TR') {
     }
     return false;
 }
+
+function sameId(a, b) {
+    if (a === undefined || a === null || b === undefined || b === null || b === '') return false;
+    return String(a) === String(b);
+}
+
+function accountPositionCount(account) {
+    const positions = account && account.positions;
+    if (!positions) return 0;
+    return ['p2_ps4', 'p3_ps4', 'p2_ps5', 'p3_ps5']
+        .reduce((sum, key) => sum + (Number(positions[key]) || 0), 0);
+}
+
+function salePositionCost(sale, accountList) {
+    if (!sale || sale.isTransplanted) return 0;
+    if (sale.isFreeSale) return Number(sale.purchaseAmount) || 0;
+
+    const list = accountList || accounts;
+    const account = list.find(item => sameId(item.id, sale.accountId));
+    if (!account) return 0;
+
+    const totalPositions = accountPositionCount(account);
+    if (totalPositions <= 0) return 0;
+    return (Number(account.purchaseAmount) || 0) / totalPositions;
+}
+
+function attachSaleEconomics(sale) {
+    const cost = salePositionCost(sale);
+    sale.cost = Math.round(cost * 100) / 100;
+    sale.profit = Math.round(((Number(sale.price) || 0) - cost) * 100) / 100;
+    return sale;
+}
+
+function recordedSaleCost(sale) {
+    if (sale && typeof sale.cost === 'number' && !Number.isNaN(sale.cost)) return sale.cost;
+    return salePositionCost(sale);
+}
+
+function warehouseCost(accountList, salesList) {
+    let stock = 0;
+    (accountList || []).forEach(account => {
+        const purchase = Number(account.purchaseAmount) || 0;
+        const positions = accountPositionCount(account);
+        const sold = (salesList || []).filter(sale =>
+            sameId(sale.accountId, account.id) && !sale.isTransplanted && !sale.isFreeSale
+        ).length;
+
+        if (positions <= 0) {
+            if (sold === 0) stock += purchase;
+            return;
+        }
+
+        const unsold = Math.max(0, positions - sold);
+        stock += (purchase / positions) * unsold;
+    });
+    return stock;
+}
+
+function applyMarketplacePrice(enteredPrice, marketplace) {
+    const price = Number(enteredPrice) || 0;
+    if (marketplace === 'funpay') {
+        const commissionData = calculateFPCommission(price);
+        return {
+            price: commissionData.final,
+            originalPrice: commissionData.original,
+            commission: commissionData.commission,
+            commissionPercent: 3,
+            commissionApplied: true
+        };
+    }
+    return {
+        price: price,
+        originalPrice: null,
+        commission: 0,
+        commissionPercent: 0,
+        commissionApplied: false
+    };
+}
+
+async function persistSale(sale) {
+    const index = sales.findIndex(item => sameId(item.id, sale.id));
+    if (index === -1) sales.push(sale);
+    else sales[index] = sale;
+    window.sales = sales;
+
+    if (window.dataSync && window.dataSync.saveSale) {
+        return await window.dataSync.saveSale(sale);
+    }
+
+    if (typeof firebase !== 'undefined' && firebase.database) {
+        await firebase.database().ref('sales/' + sale.id).set(sale);
+        if (typeof safeSaveSales === 'function') safeSaveSales(sales);
+        return { success: true, synced: true };
+    }
+
+    if (typeof safeSaveSales === 'function') safeSaveSales(sales);
+    return { success: true, local: true };
+}
 function checkAuth() {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     if (!currentUser) {
@@ -294,17 +392,9 @@ function updateMenuBadge() {
     const badge = document.getElementById('menuBadge');
     if (!badge) return;
     
-    // Считаем "горячие" уведомления (например, новые скидки)
     let notificationCount = 0;
     
-    // 1. Проверяем большие скидки (например, > 60%)
-    const discounts = JSON.parse(localStorage.getItem('discountsResults')) || [];
-    const bigDiscounts = discounts.filter(d => 
-        (d.discounts?.TR?.discount >= 70) || (d.discounts?.UA?.discount >= 70)
-    );
-    notificationCount += bigDiscounts.length;
-    
-    // 2. Проверяем новые продажи (за последние 24 часа)
+    // Продажи за последние 24 часа
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const recentSales = sales.filter(sale => 
@@ -418,13 +508,13 @@ function updateNavigation() {
             <span>📊</span>
             <span class="nav-text">Отчеты</span>
         </button>
+        <button onclick="security.updateSession(); location.href='sales.html'" class="btn ${location.pathname.includes('sales.html') ? 'btn-primary' : 'btn-secondary'}">
+            <span>💰</span>
+            <span class="nav-text">Все продажи</span>
+        </button>
         <button onclick="security.updateSession(); location.href='workers-stats.html'" class="btn ${location.pathname.includes('workers-stats.html') ? 'btn-primary' : 'btn-secondary'}">
         <span>📈</span>
         <span class="nav-text">Статистика работников</span>
-    </button>
-    <button onclick="security.updateSession(); location.href='discounts.html'" class="btn ${location.pathname.includes('discounts.html') ? 'btn-primary' : 'btn-secondary'}">
-        <span>🔥</span>
-        <span class="nav-text">Акции PS Store</span>
     </button>
     `;
     
@@ -558,8 +648,10 @@ function initMobileMenu() {
     // Пункты меню
     const menuItems = [
         { icon: '🎮', text: 'Панель менеджера', page: 'manager.html', id: 'manager' },
+        { icon: '💬', text: 'Чаты', page: 'chats.html', id: 'chats' },
         { icon: '➕', text: 'Добавить аккаунт', page: 'add-account.html', id: 'add-account' },
         { icon: '📊', text: 'Отчеты', page: 'reports.html', id: 'reports' },
+        { icon: '💰', text: 'Все продажи', page: 'sales.html', id: 'sales' },
         { icon: '📈', text: 'Статистика работников', page: 'workers-stats.html', id: 'workers-stats' },
         { icon: '📋', text: 'Список аккаунтов', page: 'accounts.html', id: 'accounts' },
         { icon: '🎯', text: 'Управление играми', page: 'games.html', id: 'games' },
@@ -612,13 +704,7 @@ function initMobileMenu() {
     setTimeout(updateMenuBadge, 2000);
 }
 
-function notifyNewDiscount() {
-    showNotification('Новая большая скидка! 🔥', 'warning');
-    shakeBurgerButton();
-    updateMenuBadge();
-}
-
-    // Обновление состояния бургер-кнопки
+// Обновление состояния бургер-кнопки
 function updateBurgerButton() {
     const burgerBtn = document.querySelector('.burger-btn');
     if (burgerBtn) {
@@ -751,45 +837,36 @@ document.addEventListener('DOMContentLoaded', function() {
         updateNavigation();
     }
     
-    // Загрузка данных
-    if (typeof loadAllDataWithSync === 'function') {
-        loadAllDataWithSync().then(() => {
-            console.log('✅ Все данные загружены');
-            
-            // Инициализация страниц
-            const currentPage = window.location.pathname.split('/').pop();
-            
-            if (currentPage === 'add-account.html' && typeof loadGamesForSelect === 'function') {
-                loadGamesForSelect();
-            } else if (currentPage === 'accounts.html' && typeof loadGamesForFilter === 'function') {
-                loadGamesForFilter();
-                displayAccounts();
-            } else if (currentPage === 'games.html' && typeof displayGames === 'function') {
-                displayGames();
-            } else if (currentPage === 'manager.html' && typeof loadGamesForManager === 'function') {
-                loadGamesForManager();
-            } else if (currentPage === 'free-accounts.html' && typeof displayFreeAccounts === 'function') {
-                displayFreeAccounts();
-            } else if (currentPage === 'reports.html') {
-                const endDate = new Date();
-                const startDate = new Date();
-                startDate.setDate(startDate.getDate() - 30);
-                const startInput = document.getElementById('startDate');
-                const endInput = document.getElementById('endDate');
-                if (startInput && endInput) {
-                    startInput.value = startDate.toISOString().split('T')[0];
-                    endInput.value = endDate.toISOString().split('T')[0];
-                }
-            }
+    const currentPage = window.location.pathname.split('/').pop() || '';
+    const pageNeedsGames = ['add-account.html', 'accounts.html', 'games.html', 'manager.html', 'free-accounts.html', 'reports.html', 'workers-stats.html'].includes(currentPage);
+    const pageNeedsAccounts = ['accounts.html', 'free-accounts.html', 'add-account.html', 'reports.html', 'sales.html'].includes(currentPage);
+    const pageNeedsSales = currentPage === 'reports.html' || currentPage === 'sales.html';
+    const pageNeedsWorkers = currentPage === 'workers.html' || currentPage === 'workers-stats.html';
 
-            setTimeout(() => {
-                if (typeof addQuickSearchField === 'function') {
-                    addQuickSearchField();
-                }
-            }, 500);
-            
-        });
+    if (pageNeedsGames && !games.length) games = readLocalList('games');
+    if ((pageNeedsAccounts || currentPage === 'manager.html') && !accounts.length) accounts = readLocalList('accounts');
+    if (pageNeedsSales && !sales.length) sales = readLocalList('sales');
+    renderCurrentPage(currentPage);
+
+    const refresh = [];
+    if (pageNeedsGames) refresh.push(loadGamesFromFirebase());
+    if (pageNeedsAccounts) refresh.push(loadAccountsFromFirebase());
+    if (pageNeedsSales) refresh.push(loadSalesFromFirebase());
+    if (pageNeedsWorkers) refresh.push(loadWorkersFromFirebase());
+    if (currentPage === 'manager.html' && window.loadAccountsOnDemand) {
+        loadAccountsOnDemand().then((list) => {
+            if (Array.isArray(list)) {
+                accounts = list;
+                window.accounts = list;
+            }
+            const input = document.getElementById('managerGameSearch');
+            const dropdown = document.getElementById('unifiedSearchDropdown');
+            if (input && dropdown && dropdown.style.display !== 'none' && input.value.trim() && window.autoComplete) {
+                window.autoComplete.searchGames(input.value, dropdown);
+            }
+        }).catch(() => {});
     }
+    Promise.all(refresh).then(() => renderCurrentPage(currentPage));
 
      // Скрываем кнопку статистики при загрузке
     const statsBtn = document.getElementById('showStatsBtn');
@@ -840,7 +917,7 @@ function initApp() {
     console.log(`📄 Текущая страница: ${currentPage}`);
     
     // ===== ОПРЕДЕЛЯЕМ, КАКИЕ ДАННЫЕ НУЖНЫ =====
-    const needsGames = ['add-account.html', 'accounts.html', 'games.html', 'manager.html', 'prices.html', 'free-accounts.html', 'reports.html', 'workers-stats.html'];
+    const needsGames = ['add-account.html', 'accounts.html', 'games.html', 'manager.html', 'free-accounts.html', 'reports.html', 'workers-stats.html'];
     const needsAccounts = ['accounts.html', 'free-accounts.html', 'manager.html', 'reports.html'];
     const needsSales = ['reports.html']; // ← manager.html УБРАЛИ!
     const needsWorkers = ['workers.html', 'workers-stats.html'];
@@ -919,15 +996,51 @@ function initApp() {
 // ============================================================
 
 // Загрузка только игр
-async function loadGamesFromFirebase() {
-    console.log('🎮 Загружаем игры...');
-    
-    if (games.length > 0) {
-        console.log(`✅ Игры уже загружены: ${games.length}`);
-        return games;
-    }
-    
+function readLocalList(key) {
     try {
+        const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function renderCurrentPage(currentPage) {
+    if (currentPage === 'add-account.html' && typeof loadGamesForSelect === 'function') {
+        loadGamesForSelect();
+    } else if (currentPage === 'accounts.html') {
+        if (typeof loadGamesForFilter === 'function') loadGamesForFilter();
+        if (typeof displayAccounts === 'function') displayAccounts();
+    } else if (currentPage === 'games.html' && typeof displayGames === 'function') {
+        displayGames();
+    } else if (currentPage === 'manager.html' && typeof loadGamesForManager === 'function') {
+        loadGamesForManager();
+    } else if (currentPage === 'free-accounts.html' && typeof displayFreeAccounts === 'function') {
+        displayFreeAccounts();
+    } else if (currentPage === 'reports.html' && sales.length && typeof generateReport === 'function') {
+        generateReport();
+    } else if (currentPage === 'sales.html' && sales.length && typeof renderSalesPage === 'function') {
+        renderSalesPage();
+    }
+}
+
+let gamesRequest = null;
+let accountsRequest = null;
+let salesRequest = null;
+
+async function loadGamesFromFirebase() {
+    if (gamesRequest) return gamesRequest;
+    console.log('🎮 Загружаем игры...');
+    gamesRequest = (async () => {
+    if (!games.length) games = readLocalList('games');
+    try {
+        if (window.firebaseSync && firebaseSync.gamesPromise) {
+            const data = await firebaseSync.gamesPromise;
+            games = data;
+            window.games = data;
+            console.log(`✅ Загружено ${games.length} игр`);
+            return games;
+        }
         if (window.dataSync && window.dataSync.loadData) {
             const data = await window.dataSync.loadData('games');
             if (data && data.length > 0) {
@@ -955,20 +1068,34 @@ async function loadGamesFromFirebase() {
         
     } catch (error) {
         console.error('❌ Ошибка загрузки игр:', error);
-        games = JSON.parse(localStorage.getItem('games')) || [];
+        games = readLocalList('games');
         return games;
     }
+    })();
+    return gamesRequest;
 }
 
 async function loadAccountsFromFirebase() {
+    if (accountsRequest) return accountsRequest;
     console.log('📋 Загружаем аккаунты...');
-    
-    if (accounts.length > 0) {
-        console.log(`✅ Аккаунты уже загружены: ${accounts.length}`);
-        return accounts;
-    }
-    
+    accountsRequest = (async () => {
+    if (!accounts.length) accounts = readLocalList('accounts');
     try {
+        if (window.firebaseSync && firebaseSync.accountsPromise) {
+            const data = await firebaseSync.accountsPromise;
+            accounts = data;
+            window.accounts = data;
+            console.log(`✅ Загружено ${accounts.length} аккаунтов`);
+            return accounts;
+        }
+        if (window.loadAccountsOnDemand) {
+            const data = await loadAccountsOnDemand();
+            if (Array.isArray(data)) {
+                accounts = data;
+                window.accounts = data;
+            }
+            return accounts;
+        }
         if (window.dataSync && window.dataSync.loadData) {
             const data = await window.dataSync.loadData('accounts');
             if (data && data.length > 0) {
@@ -990,26 +1117,38 @@ async function loadAccountsFromFirebase() {
             }
         }
         
-        accounts = JSON.parse(localStorage.getItem('accounts')) || [];
+        accounts = readLocalList('accounts');
         console.log(`📂 Загружено из кеша: ${accounts.length} аккаунтов`);
         return accounts;
         
     } catch (error) {
         console.error('❌ Ошибка загрузки аккаунтов:', error);
-        accounts = JSON.parse(localStorage.getItem('accounts')) || [];
+        accounts = readLocalList('accounts');
         return accounts;
     }
+    })();
+    return accountsRequest;
 }
 
 async function loadSalesFromFirebase() {
+    if (salesRequest) return salesRequest;
     console.log('💰 Загружаем продажи...');
-    
-    if (sales.length > 0) {
-        console.log(`✅ Продажи уже загружены: ${sales.length}`);
-        return sales;
-    }
-    
+    salesRequest = (async () => {
     try {
+        if (window.firebaseSync && firebaseSync.salesPromise) {
+            const data = await firebaseSync.salesPromise;
+            sales = data;
+            window.sales = data;
+            console.log(`✅ Загружено ${sales.length} продаж`);
+            return sales;
+        }
+        if (window.firebaseSync && firebaseSync.ensureAllSales) {
+            const data = await firebaseSync.ensureAllSales();
+            sales = data;
+            window.sales = data;
+            console.log(`✅ Загружено ${sales.length} продаж`);
+            return sales;
+        }
         if (window.dataSync && window.dataSync.loadData) {
             const data = await window.dataSync.loadData('sales');
             if (data && data.length > 0) {
@@ -1041,17 +1180,19 @@ async function loadSalesFromFirebase() {
             }
         }
         
-        sales = JSON.parse(localStorage.getItem('sales')) || [];
+        sales = readLocalList('sales');
         window.sales = sales;
         console.log(`📂 Загружено из кеша: ${sales.length} продаж`);
         return sales;
         
     } catch (error) {
         console.error('❌ Ошибка загрузки продаж:', error);
-        sales = JSON.parse(localStorage.getItem('sales')) || [];
+        sales = readLocalList('sales');
         window.sales = sales;
         return sales;
     }
+    })();
+    return salesRequest;
 }
 
 async function loadWorkersFromFirebase() {
@@ -1229,8 +1370,21 @@ function loadFromLocalStorage() {
 async function saveToStorage(dataType, data) {
     console.log(`💾 Сохранение ${dataType}...`);
     
-    // Сохраняем в локальное хранилище для быстрого доступа
-    localStorage.setItem(dataType, JSON.stringify(data));
+    if (dataType === 'sales') {
+        sales = data;
+        window.sales = data;
+        if (typeof safeSaveSales === 'function') {
+            safeSaveSales(data);
+        } else {
+            try {
+                localStorage.setItem('sales', JSON.stringify(data.slice(-500)));
+            } catch (e) {
+                console.warn('⚠️ Не удалось обновить кеш продаж:', e);
+            }
+        }
+    } else {
+        localStorage.setItem(dataType, JSON.stringify(data));
+    }
     
     // Обновляем глобальные переменные
     switch(dataType) {
@@ -1652,7 +1806,7 @@ function displayGames() {
     
     list.innerHTML = sortedGames.map(game => {
         // Определяем, есть ли связанные аккаунты
-        const accountsWithThisGame = accounts.filter(acc => acc.gameId === game.id);
+        const accountsWithThisGame = accounts.filter(acc => sameId(acc.gameId, game.id));
         const hasAccounts = accountsWithThisGame.length > 0;
         
         // Определяем статус игры
@@ -2264,15 +2418,10 @@ async function addAccount() {
         // ===== СОХРАНЯЕМ В FIREBASE =====
         console.log('💾 Сохраняем аккаунт в Firebase...');
         
-        if (window.dataSync && window.dataSync.saveData) {
+        if (firebase && firebase.database) {
+            await firebase.database().ref('accounts/' + newAccount.id).set(newAccount);
+        } else if (window.dataSync && window.dataSync.saveData) {
             await window.dataSync.saveData('accounts', accounts);
-        } else if (firebase && firebase.database) {
-            const db = firebase.database();
-            const accountsObj = {};
-            accounts.forEach(acc => {
-                accountsObj[acc.id] = acc;
-            });
-            await db.ref('accounts').set(accountsObj);
         }
         
         // ===== ОБНОВЛЯЕМ ЛОКАЛЬНОЕ ХРАНИЛИЩЕ =====
@@ -3150,12 +3299,7 @@ async function deleteAccountFromModal(accountId) {
         // Сохраняем в Firebase
         if (typeof firebase !== 'undefined' && firebase.database) {
             try {
-                const db = firebase.database();
-                const accountsObj = {};
-                accounts.forEach(acc => {
-                    accountsObj[acc.id] = acc;
-                });
-                await db.ref('accounts').set(accountsObj);
+                await firebase.database().ref('accounts/' + account.id).remove();
                 console.log('✅ Аккаунт удален из Firebase');
             } catch (error) {
                 console.error('❌ Ошибка Firebase:', error);
@@ -3277,12 +3421,7 @@ async function deleteAccount(accountId) {
         // Сохраняем в Firebase (обновляем весь список)
         if (typeof firebase !== 'undefined' && firebase.database) {
             try {
-                const db = firebase.database();
-                const accountsObj = {};
-                accounts.forEach(acc => {
-                    accountsObj[acc.id] = acc;
-                });
-                await db.ref('accounts').set(accountsObj);
+                await firebase.database().ref('accounts/' + account.id).remove();
                 console.log('✅ Аккаунт удален из Firebase');
             } catch (error) {
                 console.error('❌ Ошибка Firebase:', error);
@@ -3472,12 +3611,12 @@ async function searchByGame(silent = false) {
     `;
     
     // ===== ЗАГРУЖАЕМ АККАУНТЫ =====
-    if (accounts.length === 0) {
-        if (window.loadAccountsOnDemand) {
-            await window.loadAccountsOnDemand();
-        } else {
-            await loadAccountsFromFirebase();
-        }
+    const loadedAccounts = window.loadAccountsOnDemand
+        ? await window.loadAccountsOnDemand()
+        : await loadAccountsFromFirebase();
+    if (Array.isArray(loadedAccounts)) {
+        accounts = loadedAccounts;
+        window.accounts = loadedAccounts;
     }
     
     // ===== ЗАГРУЖАЕМ ПРОДАЖИ =====
@@ -3495,7 +3634,7 @@ async function searchByGame(silent = false) {
                 const salesObj = snapshot.val();
                 const allSales = Object.values(salesObj || {});
                 
-                const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
+                const gameAccounts = accounts.filter(acc => sameId(acc.gameId, foundGame.id));
                 const accountIds = gameAccounts.map(acc => acc.id);
                 gameSales = allSales.filter(sale => accountIds.includes(sale.accountId));
             }
@@ -3512,7 +3651,7 @@ async function searchByGame(silent = false) {
     console.log(`✅ Загружено ${gameSales.length} продаж для "${foundGame.name}"`);
     
     // ===== ФИЛЬТРУЕМ АККАУНТЫ =====
-    const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
+    const gameAccounts = accounts.filter(acc => sameId(acc.gameId, foundGame.id));
     
     console.log(`📊 Найдено: ${gameAccounts.length} аккаунтов, ${gameSales.length} продаж`);
     
@@ -3611,12 +3750,12 @@ async function searchByGame(silent = false) {
     `;
     
     // ===== ЗАГРУЖАЕМ АККАУНТЫ =====
-    if (accounts.length === 0) {
-        if (window.loadAccountsOnDemand) {
-            await window.loadAccountsOnDemand();
-        } else {
-            await loadAccountsFromFirebase();
-        }
+    const loadedAccounts = window.loadAccountsOnDemand
+        ? await window.loadAccountsOnDemand()
+        : await loadAccountsFromFirebase();
+    if (Array.isArray(loadedAccounts)) {
+        accounts = loadedAccounts;
+        window.accounts = loadedAccounts;
     }
     
     // ===== ЗАГРУЖАЕМ ПРОДАЖИ =====
@@ -3634,7 +3773,7 @@ async function searchByGame(silent = false) {
                 const salesObj = snapshot.val();
                 const allSales = Object.values(salesObj || {});
                 
-                const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
+                const gameAccounts = accounts.filter(acc => sameId(acc.gameId, foundGame.id));
                 const accountIds = gameAccounts.map(acc => acc.id);
                 gameSales = allSales.filter(sale => accountIds.includes(sale.accountId));
             }
@@ -3651,7 +3790,7 @@ async function searchByGame(silent = false) {
     console.log(`✅ Загружено ${gameSales.length} продаж для "${foundGame.name}"`);
     
     // ===== ФИЛЬТРУЕМ АККАУНТЫ =====
-    const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
+    const gameAccounts = accounts.filter(acc => sameId(acc.gameId, foundGame.id));
     
     console.log(`📊 Найдено: ${gameAccounts.length} аккаунтов, ${gameSales.length} продаж`);
     
@@ -3702,7 +3841,7 @@ function showGameStats() {
         return;
     }
     
-    const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
+    const gameAccounts = accounts.filter(acc => sameId(acc.gameId, foundGame.id));
     
     if (gameAccounts.length === 0) {
         showNotification('Нет аккаунтов для этой игры', 'info');
@@ -4000,12 +4139,12 @@ async function searchByLogin() {
     `;
     
     // ===== ЗАГРУЖАЕМ АККАУНТЫ =====
-    if (accounts.length === 0) {
-        if (window.loadAccountsOnDemand) {
-            await window.loadAccountsOnDemand();
-        } else {
-            await loadAccountsFromFirebase();
-        }
+    const loadedAccounts = window.loadAccountsOnDemand
+        ? await window.loadAccountsOnDemand()
+        : await loadAccountsFromFirebase();
+    if (Array.isArray(loadedAccounts)) {
+        accounts = loadedAccounts;
+        window.accounts = loadedAccounts;
     }
     
     const foundAccounts = accounts.filter(acc => 
@@ -4092,10 +4231,10 @@ function clearSearchFields() {
 function getPositionSaleInfo(accountId, positionType, positionIndex) {
     // Ищем продажу с правильными параметрами, которая НЕ пересажена
     return sales.find(sale => {
-        return sale.accountId === accountId && 
+        return sameId(sale.accountId, accountId) &&
                sale.positionType === positionType &&
-               sale.positionIndex === positionIndex &&
-               !sale.isTransplanted; // Важно! Игнорируем пересаженные
+               Number(sale.positionIndex) === Number(positionIndex) &&
+               !sale.isTransplanted;
     });
 }
 
@@ -4130,8 +4269,12 @@ function debugPositionSales(accountId, positionType, positionIndex) {
 // ============================================================
 // ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ПОИСКА
 // ============================================================
-function displaySearchResults(accountsList, gameName) {
+function displaySearchResults(accountsList, gameName, options = {}) {
     const resultsContainer = document.getElementById('searchResults');
+    const animateCards = options.animate !== false;
+    if (resultsContainer) {
+        resultsContainer.classList.toggle('no-card-anim', !animateCards);
+    }
     
     if (!accountsList || accountsList.length === 0) {
         resultsContainer.innerHTML = `
@@ -4240,257 +4383,77 @@ function displaySearchResults(accountsList, gameName) {
         html += filteredAccounts.map(account => {
             const isSold = isAccountFullySold(account);
             const hasComment = account.comment && account.comment.text;
-            
-            return `
-                <div class="account-simple ${isSold ? 'fully-sold' : ''}" style="
-                    background: ${isSold ? '#fef2f2' : 'white'};
-                    border-radius: 12px;
-                    border: 1px solid ${isSold ? '#fecaca' : '#e2e8f0'};
-                    margin-bottom: 15px;
-                    padding: 20px;
-                    width: 100%;
-                    position: relative;
-                    ${isSold ? 'opacity: 0.9;' : ''}
-                    transition: all 0.3s ease;
-                "
-                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
-                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.05)'">
-                    
-                    ${isSold ? `
-                        <div style="
-                            position: absolute;
-                            top: -10px;
-                            right: -10px;
-                            background: #dc2626;
-                            color: white;
-                            padding: 4px 12px;
-                            border-radius: 20px;
-                            font-size: 12px;
-                            font-weight: 700;
-                            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
-                            z-index: 1;
-                        ">
-                            ПРОДАНО
-                        </div>
-                    ` : ''}
+            const game = games.find(g => sameId(g.id, account.gameId));
+            const coverHtml = (game && game.imageUrl)
+                ? `<img class="account-simple-cover" src="${game.imageUrl}" alt=""
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">
+                   <div class="account-simple-cover-fallback" style="display:none">🎮</div>`
+                : `<div class="account-simple-cover-fallback">🎮</div>`;
 
-                    <!-- ВЕРХ: ЛОГИН КЛИКАБЕЛЬНЫЙ И КАРТИНКА -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <!-- КАРТИНКА ИГРЫ -->
-                            ${(() => {
-                                const game = games.find(g => g.id === account.gameId);
-                                if (game && game.imageUrl) {
-                                    return `
-                                        <div style="position: relative; width: 50px; height: 50px;">
-                                            <img src="${game.imageUrl}" 
-                                                style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover; border: 2px solid ${isSold ? '#fecaca' : '#e2e8f0'};"
-                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                                                onload="this.style.display='block'; this.nextElementSibling.style.display='none';">
-                                            <div style="
-                                                width: 50px; height: 50px;
-                                                background: linear-gradient(135deg, #4361ee 0%, #3a56d4 100%);
-                                                border-radius: 8px;
-                                                display: none;
-                                                align-items: center;
-                                                justify-content: center;
-                                                color: white;
-                                                font-size: 20px;
-                                                position: absolute;
-                                                top: 0;
-                                                left: 0;
-                                            ">🎮</div>
-                                        </div>
-                                    `;
-                                } else {
-                                    return `
-                                        <div style="
-                                            width: 50px; height: 50px;
-                                            background: linear-gradient(135deg, #4361ee 0%, #3a56d4 100%);
-                                            border-radius: 8px;
-                                            display: flex;
-                                            align-items: center;
-                                            justify-content: center;
-                                            color: white;
-                                            font-size: 20px;
-                                        ">🎮</div>
-                                    `;
-                                }
-                            })()}
-                            <!-- КОНЕЦ КАРТИНКИ -->
-                            
-                            <div style="
-                                font-size: 1.3em;
-                                font-weight: 700;
-                                color: ${isSold ? '#dc2626' : '#2d3748'};
-                                ${isSold ? 'text-decoration: line-through;' : ''};
-                                cursor: pointer;
-                                transition: all 0.2s ease;
-                            "
-                            onclick="openAccountEditModal(${account.id})"
-                            onmouseover="this.style.color='#4361ee';"
-                            onmouseout="this.style.color='${isSold ? '#dc2626' : '#2d3748'}';">
-                                ${account.psnLogin}
-                                <span style="font-size: 0.8em; color: #64748b; margin-left: 10px;">
-                                    ${account.gameName || 'Свободный'}
-                                </span>
-                            </div>
-                        </div>
-                        
-                        <!-- ПРАВАЯ ЧАСТЬ: ДАТА ДЕАКТИВАЦИИ -->
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            ${account.deactivated ? `
-                                <div style="
-                                    background: #dc2626;
-                                    color: white;
-                                    padding: 6px 12px;
-                                    border-radius: 20px;
-                                    font-size: 12px;
-                                    font-weight: 600;
-                                    display: flex;
-                                    align-items: center;
-                                    gap: 5px;
-                                ">
-                                    🛑 ${account.deactivationDate || ''}
+            return `
+                <div class="account-simple ${isSold ? 'fully-sold' : ''}">
+                    ${isSold ? `<div class="account-simple-badge">ПРОДАНО</div>` : ''}
+
+                    <div class="account-simple-head">
+                        <div class="account-simple-identity">
+                            ${coverHtml}
+                            <div>
+                                <div class="account-simple-login" onclick="openAccountEditModal(${account.id})">
+                                    ${account.psnLogin}
                                 </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                    
-                    <!-- ПОСАДКИ: PS4 слева, PS5 справа -->
-                    <div style="
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 20px;
-                    ">
-                        <!-- ЛЕВАЯ ПОЛОВИНА: PS4 -->
-                        <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                            <div style="font-weight: 700; color: #2d3748; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-                                <span>🎮</span>
-                                <span>PS4</span>
+                                <span class="account-simple-game">${account.gameName || 'Свободный'}</span>
                             </div>
-                            
-                            <!-- ВСЕ ПОСАДКИ PS4 В ОДНОЙ СТРОКЕ -->
-                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        </div>
+                        ${account.deactivated ? `
+                            <div class="account-simple-badge" style="position:static; background:linear-gradient(135deg,#ef4444,#b91c1c);">
+                                🛑 ${account.deactivationDate || ''}
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="mgr-platforms">
+                        <div class="mgr-platform">
+                            <div class="mgr-platform-title"><span>🎮</span><span>PS4</span></div>
+                            <div class="mgr-platform-slots">
                                 ${generateSimplePositionButtons(account, 'p2_ps4', 'П2 PS4', 'П2')}
-                                
-                                ${account.positions.p2_ps4 > 0 ? '<div style="margin-right: 15px;"></div>' : ''}
-                                
+                                ${account.positions.p2_ps4 > 0 && account.positions.p3_ps4 > 0 ? '<div class="mgr-platform-gap"></div>' : ''}
                                 ${generateSimplePositionButtons(account, 'p3_ps4', 'П3 PS4', 'П3')}
                             </div>
                         </div>
-                        
-                        <!-- ПРАВАЯ ПОЛОВИНА: PS5 -->
-                        <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                            <div style="font-weight: 700; color: #2d3748; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-                                <span>🎮</span>
-                                <span>PS5</span>
-                            </div>
-                            
-                            <!-- ВСЕ ПОСАДКИ PS5 В ОДНОЙ СТРОКЕ -->
-                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        <div class="mgr-platform">
+                            <div class="mgr-platform-title"><span>🎮</span><span>PS5</span></div>
+                            <div class="mgr-platform-slots">
                                 ${generateSimplePositionButtons(account, 'p2_ps5', 'П2 PS5', 'П2')}
-                                
-                                ${account.positions.p2_ps5 > 0 ? '<div style="margin-right: 15px;"></div>' : ''}
-                                
+                                ${account.positions.p2_ps5 > 0 && account.positions.p3_ps5 > 0 ? '<div class="mgr-platform-gap"></div>' : ''}
                                 ${generateSimplePositionButtons(account, 'p3_ps5', 'П3 PS5', 'П3')}
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- ===== КОММЕНТАРИЙ К АККАУНТУ ===== -->
-                    <div style="
-                        margin-top: 15px;
-                        padding-top: 15px;
-                        border-top: 1px solid #f1f5f9;
-                        display: flex;
-                        align-items: flex-start;
-                        gap: 12px;
-                        flex-wrap: wrap;
-                    ">
-                        <!-- Текущий комментарий -->
-                        <div style="flex: 1; min-width: 150px;">
+
+                    <div class="account-simple-foot">
+                        <div style="flex:1; min-width:150px;">
                             ${hasComment ? `
-                                <div style="
-                                    background: #f0fdf4;
-                                    padding: 10px 14px;
-                                    border-radius: 8px;
-                                    font-size: 13px;
-                                    color: #1e293b;
-                                    border-left: 3px solid #22c55e;
-                                    word-break: break-word;
-                                    display: flex;
-                                    justify-content: space-between;
-                                    align-items: flex-start;
-                                    gap: 10px;
-                                ">
-                                    <div style="flex: 1;">
-                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                            <span style="font-weight: 600; color: #2d3748; font-size: 12px;">
-                                                ${account.comment.author}
-                                            </span>
-                                            <span style="color: #94a3b8; font-size: 11px;">
-                                                ${account.comment.date || ''}
-                                            </span>
+                                <div class="account-comment-chip">
+                                    <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+                                        <div>
+                                            <div style="display:flex; gap:8px; align-items:center; margin-bottom:4px;">
+                                                <strong style="font-size:12px;">${account.comment.author}</strong>
+                                                <span style="color:var(--gray); font-size:11px;">${account.comment.date || ''}</span>
+                                            </div>
+                                            <div style="line-height:1.4;">${escapeHtml(account.comment.text)}</div>
                                         </div>
-                                        <div style="line-height: 1.4;">
-                                            ${escapeHtml(account.comment.text)}
-                                        </div>
+                                        <button onclick="deleteAccountComment(${account.id})"
+                                                style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px;padding:0 4px;"
+                                                title="Удалить комментарий">✕</button>
                                     </div>
-                                    <button onclick="deleteAccountComment(${account.id})" 
-                                            style="
-                                                background: none;
-                                                border: none;
-                                                color: #ef4444;
-                                                cursor: pointer;
-                                                font-size: 16px;
-                                                padding: 0 4px;
-                                                flex-shrink: 0;
-                                                margin-top: 2px;
-                                            "
-                                            onmouseover="this.style.color='#dc2626'"
-                                            onmouseout="this.style.color='#ef4444'"
-                                            title="Удалить комментарий">
-                                        ✕
-                                    </button>
                                 </div>
-                            ` : `
-                                <div style="
-                                    color: #94a3b8;
-                                    font-size: 13px;
-                                    font-style: italic;
-                                    padding: 6px 0;
-                                ">
-                                    💬 Нет комментария
-                                </div>
-                            `}
+                            ` : `<div class="account-comment-empty">Нет комментария</div>`}
                         </div>
-                        
-                        <!-- Кнопка добавления/редактирования комментария -->
-                        <button onclick="openCommentModal(${account.id})" 
-                                style="
-                                    background: ${hasComment ? '#f59e0b' : '#4361ee'};
-                                    color: white;
-                                    border: none;
-                                    padding: 6px 14px;
-                                    border-radius: 6px;
-                                    font-size: 12px;
-                                    cursor: pointer;
-                                    display: flex;
-                                    align-items: center;
-                                    gap: 5px;
-                                    white-space: nowrap;
-                                    flex-shrink: 0;
-                                    height: 32px;
-                                    transition: all 0.2s ease;
-                                "
-                                onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.02)'"
-                                onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'">
-                            ${hasComment ? '✏️ Изменить' : '➕ Добавить'}
+                        <button class="account-comment-btn ${hasComment ? 'is-edit' : ''}"
+                                onclick="openCommentModal(${account.id})">
+                            ${hasComment ? 'Изменить' : '+ Добавить'}
                         </button>
                     </div>
-                    <!-- ===== КОНЕЦ КОММЕНТАРИЯ ===== -->
-                    
                 </div>
             `;
         }).join('');
@@ -4682,6 +4645,7 @@ async function refreshDataFromFirebase(dataType) {
 
 // Запускаем слушатель при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.pathname.includes('chats.html')) return;
     setTimeout(() => {
         setupFirebaseUpdateListener();
     }, 2000);
@@ -4689,14 +4653,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Модифицируем функцию saveAccountChanges для работы с Firebase
 async function saveAccountChanges() {
-    const accountId = parseInt(document.getElementById('editAccountId').value);
-    const accountIndex = accounts.findIndex(acc => acc.id === accountId);
+    const accountIdRaw = document.getElementById('editAccountId').value;
+    const accountIndex = accounts.findIndex(acc => sameId(acc.id, accountIdRaw));
     
     if (accountIndex === -1) return;
     
+    const accountId = accounts[accountIndex].id;
     const gameSelect = document.getElementById('editGame');
-    const gameId = parseInt(gameSelect.value);
-    const game = games.find(g => g.id === gameId);
+    const gameId = Number.isNaN(parseInt(gameSelect.value, 10)) ? gameSelect.value : parseInt(gameSelect.value, 10);
+    const game = games.find(g => sameId(g.id, gameSelect.value));
     
     if (!game && gameId !== 0) {
         showNotification('Выберите игру или "Свободный"', 'warning');
@@ -5062,7 +5027,7 @@ function handlePositionClick(accountId, positionType, positionName, positionInde
 }
 
 function openSaleModal(accountId, positionType, positionName, positionIndex) {
-    const account = accounts.find(acc => acc.id === accountId);
+    const account = accounts.find(acc => sameId(acc.id, accountId));
     if (!account) return;
     
     window.currentSaleAccount = accountId;
@@ -5281,7 +5246,7 @@ async function confirmSaleAndShowData() {
         timestamp = moscowTime.timestamp;
     }
 
-    const accountIndex = accounts.findIndex(acc => acc.id === window.currentSaleAccount);
+    const accountIndex = accounts.findIndex(acc => sameId(acc.id, window.currentSaleAccount));
     if (accountIndex === -1) {
         showNotification('Аккаунт не найден', 'error');
         return;
@@ -5320,6 +5285,7 @@ async function confirmSaleAndShowData() {
         timezone: 'Europe/Moscow',
         timezoneOffset: '+03:00'
     };
+    attachSaleEconomics(newSale);
 
     console.log('💾 Создана новая продажа:', newSale);
 
@@ -5652,15 +5618,8 @@ function validateAndFixSalesData() {
     
     // 4. Сохраняем если есть изменения
     if (validSales.length !== originalLength) {
-        console.log(`🔄 Исправлены данные: было ${originalLength}, стало ${validSales.length}`);
-        sales = validSales;
-        localStorage.setItem('sales', JSON.stringify(sales));
-        
-        // Показываем уведомление если много ошибок
         const lostCount = originalLength - validSales.length;
-        if (lostCount > 0) {
-            showNotification(`Обнаружено ${lostCount} повреждённых записей продаж`, 'warning');
-        }
+        console.warn(`🛑 Проверка продаж: ${lostCount} записей выглядят неполными, из базы их не удаляем`);
     }
     
     return validSales.length;
@@ -5668,6 +5627,7 @@ function validateAndFixSalesData() {
 
 // Вызывай при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.pathname.includes('chats.html')) return;
     setTimeout(() => {
         validateAndFixSalesData();
     }, 2000);
@@ -6168,7 +6128,7 @@ function showSaleDetails(sale) {
         saleTime = moscowTime.time;
     }
     
-    const displayPrice = sale.price;
+    const displayPrice = sale.marketplace === 'funpay' && sale.originalPrice ? sale.originalPrice : sale.price;
     const originalMarketplace = sale.marketplace || 'telegram';
     
     modalContent.innerHTML = `
@@ -6217,7 +6177,7 @@ function showSaleDetails(sale) {
         
         <div class="sale-form">
             <div>
-                <label for="editSalePrice">Цена продажи (₽):</label>
+                <label for="editSalePrice">Цена для клиента (₽):</label>
                 <input type="number" id="editSalePrice" class="sale-input" value="${displayPrice}" required>
             </div>
             
@@ -6245,11 +6205,11 @@ function showSaleDetails(sale) {
                     <span id="editCommissionAmount" style="font-weight: 700; color: #dc2626;">0 ₽</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <strong style="color: #92400e;">✅ Оригинальная цена (до комиссии):</strong>
+                    <strong style="color: #92400e;">✅ К зачислению:</strong>
                     <span id="editOriginalAmount" style="font-weight: 700; color: #16a34a; font-size: 1.1em;">${sale.originalPrice || sale.price} ₽</span>
                 </div>
                 <div style="margin-top: 8px; font-size: 0.85em; color: #92400e;">
-                    <small>При редактировании комиссия не пересчитывается автоматически</small>
+                    <small>Комиссия 3% считается заново при сохранении</small>
                 </div>
             </div>
             
@@ -6333,7 +6293,7 @@ function updateEditCommission() {
         document.getElementById('editCommissionAmount').textContent = 
             `-${commissionData.commission} ₽`;
         document.getElementById('editOriginalAmount').textContent = 
-            `${commissionData.original} ₽`;
+            `${commissionData.final} ₽`;
         
         // Подсвечиваем поле цены
         priceInput.style.borderColor = '#fbbf24';
@@ -6697,7 +6657,7 @@ function displayWorkersStats(periodSales) {
         
         managersStats[managerUsername].revenue += sale.price;
         managersStats[managerUsername].sales += 1;
-        managersStats[managerUsername].profit += (sale.profit || 0);
+        managersStats[managerUsername].profit += (Number(sale.price) || 0) - recordedSaleCost(sale);
     });
     
     // Рассчитываем средний чек
@@ -6771,41 +6731,23 @@ async function updateSaleDetails(saleId) {
         return;
     }
     
-    let finalPrice = parseFloat(salePrice);
-    
-    // ВАЖНО: ПРИ РЕДАКТИРОВАНИИ НЕ ПЕРЕСЧИТЫВАЕМ КОМИССИЮ!
-    // Только если админ меняет площадку
-    let newMarketplace = originalMarketplace;
-    let originalPrice = finalPrice;
-    let commission = 0;
+    const enteredPrice = parseFloat(salePrice);
+    if (!enteredPrice || enteredPrice <= 0) {
+        showNotification('Введите корректную цену продажи', 'warning');
+        return;
+    }
     
     const currentUser = security.getCurrentUser();
     const isAdmin = currentUser && currentUser.role === 'admin';
-    
-    // Если админ меняет площадку
+    let newMarketplace = originalMarketplace;
     if (isAdmin && marketplaceSelect) {
         newMarketplace = marketplaceSelect.value;
-        
-        // Если меняем НА Funpay - рассчитываем комиссию
-        if (newMarketplace === 'funpay' && originalMarketplace !== 'funpay') {
-            const commissionData = calculateFPCommission(finalPrice);
-            commission = commissionData.commission;
-            // Оставляем цену как есть (она уже введена как финальная)
-        }
-        // Если меняем С Funpay на другую площадку - убираем комиссию
-        else if (newMarketplace !== 'funpay' && originalMarketplace === 'funpay') {
-            // Находим оригинальную цену
-            const saleIndex = sales.findIndex(s => s.id === saleId);
-            if (saleIndex !== -1 && sales[saleIndex].originalPrice) {
-                originalPrice = sales[saleIndex].originalPrice;
-                commission = 0;
-            }
-        }
     }
     
+    const money = applyMarketplacePrice(enteredPrice, newMarketplace);
     const saleDateTime = saleDate && saleTime ? `${saleDate} ${saleTime}` : '';
     
-    const saleIndex = sales.findIndex(s => s.id === saleId);
+    const saleIndex = sales.findIndex(s => sameId(s.id, saleId));
     if (saleIndex === -1) return;
     
     const originalSale = sales[saleIndex];
@@ -6836,12 +6778,12 @@ async function updateSaleDetails(saleId) {
     }
     
     // Обновляем продажу
-    sales[saleIndex] = {
+    sales[saleIndex] = attachSaleEconomics({
         ...originalSale,
-        price: finalPrice,
-        originalPrice: newMarketplace === 'funpay' ? originalPrice : null,
-        commission: newMarketplace === 'funpay' ? commission : 0,
-        commissionPercent: newMarketplace === 'funpay' ? 3 : 0,
+        price: money.price,
+        originalPrice: money.originalPrice,
+        commission: money.commission,
+        commissionPercent: money.commissionPercent,
         marketplace: newMarketplace,
         date: saleDate,
         time: saleTime,
@@ -6850,15 +6792,14 @@ async function updateSaleDetails(saleId) {
         soldBy: newManager,
         soldByName: newManagerName,
         managerRole: newManagerRole,
-        commissionApplied: newMarketplace === 'funpay',
+        commissionApplied: money.commissionApplied,
         lastModifiedBy: currentUser ? currentUser.username : 'unknown',
         lastModifiedByName: currentUser ? currentUser.name : 'Неизвестно',
         lastModifiedAt: new Date().toISOString()
-    };
+    });
     
-    // Сохраняем с синхронизацией
     try {
-        await saveToStorage('sales', sales);
+        await persistSale(sales[saleIndex]);
         
         closeSaleModal();
         
@@ -7287,27 +7228,12 @@ function displayReportResults(salesData, startDate, endDate) {
         return;
     }
     
-    // СУММА ЗАКУПА ВСЕХ АККАУНТОВ В СИСТЕМЕ
-    let totalPurchaseAmount = 0;
-    accounts.forEach(account => {
-        totalPurchaseAmount += account.purchaseAmount || 0;
-    });
-    
-    // ===== ДОБАВЛЯЕМ СУММУ ЗАКУПА ИЗ СВОБОДНЫХ ПРОДАЖ =====
-    salesData.forEach(sale => {
-        if (sale.isFreeSale && sale.purchaseAmount) {
-            totalPurchaseAmount += sale.purchaseAmount;
-        }
-    });
-    // ===== КОНЕЦ ДОБАВЛЕНИЯ =====
-    
-    // Общая выручка из продаж
-    const totalRevenue = salesData.reduce((sum, sale) => sum + sale.price, 0);
+    const totalRevenue = salesData.reduce((sum, sale) => sum + (Number(sale.price) || 0), 0);
+    const soldCost = salesData.reduce((sum, sale) => sum + recordedSaleCost(sale), 0);
+    const netProfit = totalRevenue - soldCost;
+    const stockCost = warehouseCost(accounts, sales);
     const totalSales = salesData.length;
     const avgSale = totalSales > 0 ? totalRevenue / totalSales : 0;
-    
-    // Чистая прибыль
-    const netProfit = totalRevenue - totalPurchaseAmount;
     
     // Статистика по играм
     const gamesStats = {};
@@ -7373,14 +7299,14 @@ function displayReportResults(salesData, startDate, endDate) {
                     <div class="stat-label">Общая выручка</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${formatNumber(totalPurchaseAmount)} ₽</div>
-                    <div class="stat-label">Сумма закупа</div>
+                    <div class="stat-value">${formatNumber(soldCost)} ₽</div>
+                    <div class="stat-label">Себестоимость продаж</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" style="color: ${netProfit >= 0 ? '#4ade80' : '#f87171'}">
                         ${formatNumber(netProfit)} ₽
                     </div>
-                    <div class="stat-label">Чистая прибыль</div>
+                    <div class="stat-label">Прибыль с продаж</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${totalSales}</div>
@@ -7391,10 +7317,13 @@ function displayReportResults(salesData, startDate, endDate) {
                     <div class="stat-label">Средний чек</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${totalPurchaseAmount > 0 ? (totalRevenue / totalPurchaseAmount).toFixed(2) + 'x' : '0x'}</div>
-                    <div class="stat-label">Окупаемость</div>
+                    <div class="stat-value">${formatNumber(stockCost)} ₽</div>
+                    <div class="stat-label">На складе</div>
                 </div>
             </div>
+            <p style="text-align: center; color: rgba(255,255,255,0.85); margin-top: 16px;">
+                Прибыль — это выручка минус доля закупа проданных позиций. Непроданные позиции лежат в «На складе» и в убыток не входят.
+            </p>
         </div>
         
         <!-- НОВОЕ: Статистика по площадкам -->
@@ -7466,25 +7395,56 @@ function displayReportResults(salesData, startDate, endDate) {
             <h3 style="margin-bottom: 25px;">🎮 Статистика по играм</h3>
             ${getGamesStatsHTML(salesData, sortedGames)}
         </div>
-        <!-- Подробный список продаж -->
-        <div class="section">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0;">💰 Все продажи (${totalSales})</h3>
-                <button class="btn btn-primary btn-small" onclick="generateReport()">
-                    🔄 Обновить список
-                </button>
-            </div>
-            
-            <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                <div style="display: flex; align-items: center; gap: 10px; font-size: 0.9em; color: #64748b;">
-                    <span>🗑️</span>
-                    <span>Кликните на иконку корзины чтобы удалить продажу (только свои или если вы админ)</span>
-                </div>
-            </div>
-            
-            ${getSalesListHTML(salesData)}
+        <div class="section" style="text-align: center;">
+            <a href="sales.html" class="btn btn-primary">💰 Открыть все продажи (${totalSales})</a>
         </div>
     `;
+}
+
+function onSalesFilterInput() {
+    window.reportRowsShown = 80;
+    renderSalesPage();
+}
+
+function renderSalesPage() {
+    const root = document.getElementById('salesList');
+    if (!root) return;
+    if (!sales.length) {
+        root.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #64748b;">
+                <h3>Продаж пока нет</h3>
+            </div>
+        `;
+        return;
+    }
+
+    const query = (document.getElementById('salesSearch')?.value || '').trim().toLowerCase();
+    const market = document.getElementById('salesMarket')?.value || '';
+    const filtered = sales.filter(sale => {
+        if (market && (sale.marketplace || '') !== market) return false;
+        if (!query) return true;
+        const blob = [sale.gameName, sale.accountLogin, sale.soldByName, sale.soldBy, sale.positionName, sale.notes]
+            .join(' ')
+            .toLowerCase();
+        return blob.includes(query);
+    });
+    const revenue = filtered.reduce((sum, sale) => sum + (Number(sale.price) || 0), 0);
+
+    root.innerHTML = `
+        <div class="section">
+            <div style="display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+                <strong>Показано ${filtered.length} из ${sales.length}</strong>
+                <strong>Выручка: ${formatNumber(revenue)} ₽</strong>
+            </div>
+            ${getSalesListHTML(filtered)}
+        </div>
+    `;
+}
+
+function showMoreReportSales() {
+    window.reportRowsShown = (window.reportRowsShown || 80) + 80;
+    if (document.getElementById('salesList')) renderSalesPage();
+    else if (typeof generateReport === 'function') generateReport();
 }
 
 function formatNumber(num) {
@@ -7566,22 +7526,14 @@ function getGamesStatsHTML(salesData, sortedGames) {
         return '<div class="empty">Нет данных по играм</div>';
     }
     
-    // Рассчитываем закуп по каждой игре (ВСЕХ аккаунтов этой игры)
-    const gamePurchases = {};
-    
-    // Считаем ВСЕ аккаунты каждой игры
-    accounts.forEach(account => {
-        if (account.gameName && account.gameName !== 'Свободный') {
-            if (!gamePurchases[account.gameName]) {
-                gamePurchases[account.gameName] = 0;
-            }
-            gamePurchases[account.gameName] += (account.purchaseAmount || 0);
-        }
-    });
-    
     return sortedGames.map(([gameName, stats]) => {
-        const gamePurchaseAmount = gamePurchases[gameName] || 0;
+        const gameSales = salesData.filter(sale => sale.gameName === gameName);
+        const gamePurchaseAmount = gameSales.reduce((sum, sale) => sum + recordedSaleCost(sale), 0);
         const gameProfit = stats.revenue - gamePurchaseAmount;
+        const gameStock = warehouseCost(
+            accounts.filter(account => account.gameName === gameName),
+            sales
+        );
         
         // Найдем сколько всего аккаунтов у этой игры
         const gameAccounts = accounts.filter(acc => acc.gameName === gameName);
@@ -7643,7 +7595,7 @@ function getGamesStatsHTML(salesData, sortedGames) {
                         border-radius: 8px;
                         border: 1px solid #e2e8f0;
                     ">
-                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Закуп (всех акк.)</div>
+                        <div style="color: #64748b; font-size: 0.9em; margin-bottom: 5px;">Себестоимость продаж</div>
                         <div style="font-weight: 700; font-size: 1.2em; color: #ef4444;">
                             ${gamePurchaseAmount.toFixed(0)} ₽
                         </div>
@@ -7696,7 +7648,7 @@ function getGamesStatsHTML(salesData, sortedGames) {
                             ${totalGameAccounts} всего
                         </div>
                         <div style="color: #64748b; font-size: 0.8em;">
-                            ${soldAccounts} продано
+                            ${soldAccounts} с продажами · на складе ${formatNumber(gameStock)} ₽
                         </div>
                     </div>
                 </div>
@@ -7744,6 +7696,11 @@ function getSalesListHTML(salesData) {
                 return 0;
             }
         });
+        const visibleSales = sortedSales.slice(0, window.reportRowsShown || 80);
+        const accountById = new Map();
+        (typeof accounts !== 'undefined' ? accounts : []).forEach(acc => {
+            if (acc && acc.id !== undefined) accountById.set(String(acc.id), acc);
+        });
         
         // Безопасное получение данных пользователя
         let currentUser = null;
@@ -7779,10 +7736,9 @@ function getSalesListHTML(salesData) {
         // Создаем HTML таблицы
         let tableRows = '';
         
-        sortedSales.forEach(sale => {
+        visibleSales.forEach(sale => {
             try {
-                // Безопасное получение данных аккаунта
-                const account = accountsArray.find(acc => acc && acc.id === sale.accountId);
+                const account = accountById.get(String(sale.accountId));
                 const purchaseAmount = account ? (account.purchaseAmount || 0) : (sale.purchaseAmount || 0);
                 
                 // Проверяем права на удаление
@@ -7971,8 +7927,9 @@ function getSalesListHTML(salesData) {
                 ">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                         <div>
-                            <strong>Всего продаж:</strong> ${salesData.length}
+                            <strong>Всего продаж:</strong> ${salesData.length}${sortedSales.length > visibleSales.length ? `, в списке ${visibleSales.length}` : ''}
                         </div>
+                        ${sortedSales.length > visibleSales.length ? `<button class="btn btn-secondary btn-small" onclick="showMoreReportSales()">Показать ещё</button>` : ''}
                         <div>
                             <strong>Выручка:</strong> ${totalRevenue.toLocaleString('ru-RU')} ₽
                         </div>
@@ -8113,6 +8070,9 @@ async function deleteSaleFromReports(saleId) {
                     generateReport();
                 }
             }, 300);
+        }
+        if (window.location.pathname.includes('sales.html') && typeof renderSalesPage === 'function') {
+            renderSalesPage();
         }
         
         // ===== 6. УДАЛЯЕМ СТРОКУ ИЗ ТАБЛИЦЫ =====
@@ -8472,17 +8432,9 @@ function calculateWorkersStatistics(workers, periodSales) {
         const salesCount = workerSales.length;
         const avgCheck = salesCount > 0 ? revenue / salesCount : 0;
         
-        // Рассчитываем прибыль для этих продаж
-        let profit = 0;
-        workerSales.forEach(sale => {
-            const account = accounts.find(acc => acc.id === sale.accountId);
-            if (account) {
-                const totalPositions = account.positions.p2_ps4 + account.positions.p3_ps4 + 
-                                      account.positions.p2_ps5 + account.positions.p3_ps5;
-                const costPerPosition = totalPositions > 0 ? (account.purchaseAmount || 0) / totalPositions : 0;
-                profit += sale.price - costPerPosition;
-            }
-        });
+        const profit = workerSales.reduce((sum, sale) => {
+            return sum + (Number(sale.price) || 0) - recordedSaleCost(sale);
+        }, 0);
         
         const profitMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
         
@@ -9595,19 +9547,17 @@ function updateToggleButtonUI() {
     const textSpan = document.getElementById('toggleBtnText');
 
     if (showAllAccounts) {
-        // Режим "Показать все"
         toggleBtn.classList.remove('btn-secondary');
         toggleBtn.classList.add('btn-primary');
         if (iconSpan) iconSpan.textContent = '👁️‍🗨️';
         if (textSpan) textSpan.textContent = `Скрыть проданные (${hiddenCount})`;
-        toggleBtn.title = 'Нажмите, чтобы скрыть полностью проданные аккаунты';
+        toggleBtn.removeAttribute('title');
     } else {
-        // Режим "Скрыть проданные"
         toggleBtn.classList.remove('btn-primary');
         toggleBtn.classList.add('btn-secondary');
         if (iconSpan) iconSpan.textContent = '👁️';
         if (textSpan) textSpan.textContent = `Показать все (+${hiddenCount})`;
-        toggleBtn.title = 'Нажмите, чтобы показать все аккаунты, включая проданные';
+        toggleBtn.removeAttribute('title');
     }
 }
 
@@ -10138,6 +10088,7 @@ async function confirmFreeSale() {
         timezone: 'Europe/Moscow',
         timezoneOffset: '+03:00'
     };
+    attachSaleEconomics(newSale);
     
     try {
         sales.push(newSale);
@@ -10234,7 +10185,7 @@ function initGameSearchForAddAccount() {
                 <div style="flex: 1;">
                     <div style="font-weight: 600; color: #1e293b;">${game.name}</div>
                     <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
-                        ${accounts.filter(acc => acc.gameId === game.id).length} аккаунтов
+                        ${accounts.filter(acc => sameId(acc.gameId, game.id)).length} аккаунтов
                     </div>
                 </div>
             </div>
@@ -10358,16 +10309,8 @@ async function loadWorkersStatsByDate() {
     
     try {
         // ===== ЗАГРУЖАЕМ ТОЛЬКО ПРОДАЖИ =====
-        const db = firebaseSync ? firebaseSync.db : firebase.database();
-        const snapshot = await db.ref('sales').once('value');
-        
-        let periodSales = [];
-        
-        if (snapshot.exists()) {
-            const salesObj = snapshot.val();
-            const allSales = Object.values(salesObj || {});
-            
-            periodSales = allSales.filter(sale => {
+        const allSales = await fetchAllSalesOnce();
+        let periodSales = allSales.filter(sale => {
                 const saleDate = sale.date || sale.datetime?.split(' ')[0] || '';
                 if (!saleDate) return false;
                 return saleDate >= startDate && saleDate <= endDate;
@@ -10380,7 +10323,6 @@ async function loadWorkersStatsByDate() {
             });
             
             console.log(`✅ Загружено ${periodSales.length} продаж за период`);
-        }
         
         // ===== ЗАГРУЖАЕМ АККАУНТЫ (только если есть продажи) =====
         if (periodSales.length > 0) {
@@ -10439,21 +10381,13 @@ async function loadAllWorkersStats() {
     }
     
     try {
-        const db = firebaseSync ? firebaseSync.db : firebase.database();
-        const snapshot = await db.ref('sales').once('value');
-        
-        let allSales = [];
-        
-        if (snapshot.exists()) {
-            const salesObj = snapshot.val();
-            allSales = Object.values(salesObj || {});
-            allSales.sort((a, b) => {
+        const allSales = await fetchAllSalesOnce();
+        allSales.sort((a, b) => {
                 const dateA = a.datetime || a.date || '';
                 const dateB = b.datetime || b.date || '';
                 return dateB.localeCompare(dateA);
             });
             console.log(`✅ Загружено ${allSales.length} продаж (все)`);
-        }
         
         // Загружаем аккаунты
         await loadAccountsForWorkersStats();
@@ -10483,32 +10417,17 @@ async function loadAllWorkersStats() {
 // ============================================================
 // ЗАГРУЗКА АККАУНТОВ ДЛЯ СТАТИСТИКИ (ТОЛЬКО ПРИ НЕОБХОДИМОСТИ)
 // ============================================================
+async function fetchAllSalesOnce() {
+    if (window.firebaseSync && firebaseSync.ensureAllSales) return firebaseSync.ensureAllSales();
+    const snapshot = await firebase.database().ref('sales').once('value');
+    return snapshot.exists() ? Object.values(snapshot.val() || {}) : [];
+}
+
 async function loadAccountsForWorkersStats() {
-    if (accounts.length > 0) {
-        console.log(`✅ Аккаунты уже загружены: ${accounts.length}`);
-        return accounts;
-    }
-    
-    console.log('📋 Загружаем аккаунты для статистики...');
-    
-    try {
-        const db = firebaseSync ? firebaseSync.db : firebase.database();
-        const snapshot = await db.ref('accounts').once('value');
-        
-        if (snapshot.exists()) {
-            const accountsObj = snapshot.val();
-            const accountsArray = Object.values(accountsObj || {});
-            accounts = accountsArray;
-            window.accounts = accountsArray;
-            localStorage.setItem('accounts', JSON.stringify(accountsArray));
-            console.log(`✅ Загружено ${accounts.length} аккаунтов`);
-            return accounts;
-        }
-        return [];
-    } catch (error) {
-        console.error('❌ Ошибка загрузки аккаунтов:', error);
-        return JSON.parse(localStorage.getItem('accounts')) || [];
-    }
+    if (!accounts.length) accounts = readLocalList('accounts');
+    const pending = loadAccountsFromFirebase();
+    if (accounts.length) return accounts;
+    return pending;
 }
 
 // ============================================================
@@ -11402,6 +11321,7 @@ async function confirmMassSale() {
             timezoneOffset: '+03:00',
             isMassSale: true
         };
+        attachSaleEconomics(newSale);
         
         newSales.push(newSale);
         
@@ -11966,19 +11886,20 @@ const RULES_P3 = `❗️ Чтобы гарантия на игру сохран�
 function generateSimplePositionButtons(account, positionType, positionName, positionLabel) {
     const positionCount = account.positions[positionType] || 0;
     if (positionCount === 0) return '';
-    
+
+    const marketplaceNames = { telegram: 'TG', funpay: 'FP', avito: 'AV' };
+    const marketplaceClass = { telegram: 'tg', funpay: 'fp', avito: 'av' };
     const buttons = [];
-    
+
     for (let i = 1; i <= positionCount; i++) {
         const saleInfo = getPositionSaleInfo(account.id, positionType, i);
         const isSold = !!saleInfo;
         const inCart = isInCart(account.id, positionType, i);
-        
-        // Форматируем дату продажи
+
         let saleDate = '';
-        let managerInfo = '';
         let marketplaceBadge = '';
-        
+        let tipParts = [];
+
         if (saleInfo) {
             if (saleInfo.datetime) {
                 try {
@@ -11989,68 +11910,53 @@ function generateSimplePositionButtons(account, positionType, positionName, posi
                     saleDate = `${day}/${month}/${year}`;
                 } catch (e) {}
             }
-            
-            if (saleInfo.soldByName) {
-                const managerIcon = saleInfo.managerRole === 'admin' ? '👑' : '👷';
-                managerInfo = `
-                    <div style="font-size: 9px; color: ${saleInfo.managerRole === 'admin' ? '#f72585' : '#4361ee'}; font-weight: 700; margin-top: 2px;">
-                        ${saleInfo.soldByName} ${managerIcon}
-                    </div>
-                `;
-            }
-            
+
             if (saleInfo.marketplace) {
-                const marketplaceColors = { 'telegram': '#0088cc', 'funpay': '#ff6b00', 'avito': '#006cff' };
-                const marketplaceNames = { 'telegram': 'TG', 'funpay': 'FP', 'avito': 'AV' };
-                const color = marketplaceColors[saleInfo.marketplace] || '#64748b';
-                const name = marketplaceNames[saleInfo.marketplace] || saleInfo.marketplace.substring(0, 2).toUpperCase();
-                marketplaceBadge = `
-                    <div style="position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; background: ${color}; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
-                        ${name}
-                    </div>
-                `;
+                const name = marketplaceNames[saleInfo.marketplace]
+                    || String(saleInfo.marketplace).substring(0, 2).toUpperCase();
+                const cls = marketplaceClass[saleInfo.marketplace] || 'av';
+                marketplaceBadge = `<span class="position-market ${cls}">${name}</span>`;
             }
+
+            tipParts.push(`Продано: ${saleDate || 'без даты'}`);
+            if (saleInfo.marketplace) tipParts.push(`Площадка: ${saleInfo.marketplace}`);
+            if (saleInfo.soldByName) tipParts.push(`Менеджер: ${saleInfo.soldByName}`);
         }
-        
+
         if (isSold) {
-            // Проданная позиция — просто кнопка, без плюсика
             buttons.push(`
-                <div class="position-wrapper" style="margin-right: 8px; margin-bottom: 8px;">
-                    <button class="position-main-btn sold"
-                            onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
-                            title="Продано: ${saleDate || 'без даты'}\nПлощадка: ${saleInfo?.marketplace || 'не указана'}\nМенеджер: ${saleInfo?.soldByName || 'неизвестно'}"
-                            style="width: 40px; position: relative;">
-                        <div>${i}</div>
-                        <div style="font-size: 9px;">${positionLabel}</div>
-                        ${marketplaceBadge}
-                    </button>
-                    ${saleDate ? `
-                        <div style="position: absolute; bottom: -14px; left: 0; right: 0; font-size: 8px; color: #ef4444; font-weight: 700; white-space: nowrap; text-align: center;">
-                            ${saleDate}
-                        </div>
-                    ` : ''}
+                <div class="position-wrapper">
+                    <div class="position-slot">
+                        <button class="position-main-btn sold"
+                                onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
+                                title="${tipParts.join(' · ')}">
+                            ${i}<small>${positionLabel}</small>
+                            ${marketplaceBadge}
+                        </button>
+                    </div>
+                    ${saleDate ? `<div class="position-date">${saleDate}</div>` : ''}
                 </div>
             `);
         } else {
-            // Свободная позиция — с плюсиком
             buttons.push(`
-                <div class="position-wrapper" style="margin-bottom: 8px;">
-                    <button class="position-main-btn"
-                            onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
-                            title="Свободно">
-                        <div>${i}</div>
-                        <div style="font-size: 9px;">${positionLabel}</div>
-                    </button>
-                    <button class="position-add-btn ${inCart ? 'in-cart' : ''}"
-                            onclick="event.stopPropagation(); toggleCartPosition(${account.id}, '${positionType}', ${i}, '${positionName}')"
-                            title="${inCart ? 'Убрать из корзины' : 'Добавить в корзину'}">
-                        ${inCart ? '✓' : '➕'}
-                    </button>
+                <div class="position-wrapper">
+                    <div class="position-slot">
+                        <button class="position-main-btn"
+                                onclick="handlePositionClick(${account.id}, '${positionType}', '${positionName}', ${i})"
+                                title="Свободно">
+                            ${i}<small>${positionLabel}</small>
+                        </button>
+                        <button class="position-add-btn ${inCart ? 'in-cart' : ''}"
+                                onclick="event.stopPropagation(); toggleCartPosition(${account.id}, '${positionType}', ${i}, '${positionName}')"
+                                title="${inCart ? 'Убрать из корзины' : 'Добавить в корзину'}">
+                            ${inCart ? '✓' : '+'}
+                        </button>
+                    </div>
                 </div>
             `);
         }
     }
-    
+
     return buttons.join('');
 }
 
@@ -12068,8 +11974,8 @@ function refreshSearchResults() {
         );
         
         if (foundGame) {
-            const gameAccounts = accounts.filter(acc => acc.gameId === foundGame.id);
-            displaySearchResults(gameAccounts, foundGame.name);
+            const gameAccounts = accounts.filter(acc => sameId(acc.gameId, foundGame.id));
+            displaySearchResults(gameAccounts, foundGame.name, { animate: false });
         }
     }
 }

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Чаты - Менеджер игровых аккаунтов</title>
+  <link rel="stylesheet" href="style.css?v=20261108ui" />
+  <link rel="stylesheet" href="inbox.css?v=20261108reclaim" />
+</head>
+<body class="inbox-body">
+  <div id="mobileMenu" class="mobile-menu">
+    <div class="mobile-menu-header">
+      <div class="user-info-mobile">
+        <div class="user-avatar">👤</div>
+        <div>
+          <div class="user-name" id="mobileUserName"></div>
+          <div class="user-role" id="mobileUserRole"></div>
+        </div>
+      </div>
+      <button class="close-menu" onclick="toggleMobileMenu()">×</button>
+    </div>
+    <div class="mobile-menu-nav"></div>
+    <div class="mobile-menu-footer">
+      <button onclick="logout()" class="btn btn-danger btn-block">🚪 Выйти</button>
+    </div>
+  </div>
+
+  <div class="burger-container">
+    <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
+      <div class="burger-icon"><span></span><span></span><span></span></div>
+      <div class="burger-badge" id="menuBadge" style="display: none;">0</div>
+      <div class="burger-label">Меню</div>
+    </button>
+  </div>
+  <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
+
+  <div class="inbox-shell">
+    <aside class="inbox-col inbox-col-list">
+      <div class="inbox-col-head">
+        <div class="inbox-col-title-row">
+          <button type="button" class="inbox-menu-btn" id="inboxMenuBtn" onclick="toggleMobileMenu()" aria-label="Меню">☰</button>
+          <h1>Диалоги</h1>
+        </div>
+        <div class="inbox-tabs" id="inboxTabs" role="tablist">
+          <button type="button" class="inbox-tab active" data-tab="incoming" role="tab">
+            Входящие <b id="countIncoming">0</b>
+          </button>
+          <button type="button" class="inbox-tab" data-tab="mine" role="tab">
+            Мои <b id="countMine">0</b>
+          </button>
+          <button type="button" class="inbox-tab" data-tab="closed" role="tab">
+            Архив <b id="countClosed">0</b>
+          </button>
+        </div>
+        <div class="inbox-search">
+          <input
+            type="search"
+            id="inboxSearch"
+            class="inbox-search-input"
+            placeholder="Поиск"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+      <div class="inbox-list" id="inboxList"></div>
+    </aside>
+
+    <section class="inbox-col inbox-col-chat" id="inboxLayout">
+      <div id="inboxEmpty" class="inbox-placeholder">
+        <div class="inbox-placeholder-icon">💬</div>
+        <strong>Выберите диалог</strong>
+        <span>Слева очередь Авито. Примите чат, чтобы отвечать.</span>
+      </div>
+
+      <div id="inboxThread" class="inbox-thread hidden">
+        <header class="inbox-thread-head">
+          <button type="button" class="inbox-back" id="inboxBack" aria-label="К списку">←</button>
+          <div id="inboxMeta" class="inbox-meta"></div>
+          <div class="inbox-actions">
+            <button type="button" class="inbox-chip-btn" id="inboxRelease" title="Вернуть во входящие">В очередь</button>
+            <button type="button" class="inbox-chip-btn" id="inboxRead" title="Отметить прочитанным">Прочитано</button>
+            <button type="button" class="inbox-chip-btn success" id="inboxClose">Решён</button>
+            <button type="button" class="inbox-icon-btn inbox-desktop-only" id="inboxToggleInfo" title="О клиенте" aria-label="О клиенте">ⓘ</button>
+          </div>
+        </header>
+
+        <div class="inbox-messages" id="inboxMessages"></div>
+
+        <div class="inbox-claim-bar hidden" id="inboxClaimBar">
+          <div class="inbox-claim-hint hidden" id="inboxClaimHint"></div>
+          <button type="button" class="inbox-claim-btn" id="inboxClaim">Принять диалог</button>
+        </div>
+
+        <div class="inbox-composer hidden" id="inboxComposer">
+          <div class="inbox-mode-tabs" id="inboxModeTabs">
+            <button type="button" class="inbox-mode active" data-mode="reply">Чат</button>
+            <button type="button" class="inbox-mode" data-mode="note">Комментарий</button>
+          </div>
+          <div class="inbox-compose-wrap">
+            <div class="inbox-suggest hidden" id="inboxSuggest" role="listbox" aria-label="Быстрые ответы"></div>
+            <div class="inbox-compose-box">
+              <textarea id="inboxComposeText" rows="2" placeholder="Введите ваше сообщение" autocomplete="off"></textarea>
+              <div class="inbox-compose-bar">
+                <span class="inbox-compose-hint" id="inboxComposeHint">Уйдёт клиенту в Авито</span>
+                <button type="button" class="inbox-send" id="inboxComposeSend">Отправить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="inbox-col inbox-col-info" id="inboxInfoPane">
+      <div class="inbox-info-empty" id="inboxInfoEmpty">
+        <span>Карточка клиента появится после выбора диалога</span>
+      </div>
+      <div class="inbox-info-body hidden" id="inboxInfoBody">
+        <div class="inbox-info-profile">
+          <div class="inbox-info-avatar" id="inboxInfoAvatar">?</div>
+          <div class="inbox-info-name" id="inboxInfoName">—</div>
+          <div class="inbox-info-channel" id="inboxInfoChannel">Авито</div>
+        </div>
+
+        <div class="inbox-info-block">
+          <div class="inbox-info-block-title">О клиенте</div>
+          <div class="inbox-info-row">
+            <span>Статус</span>
+            <div id="inboxInfoStatus" class="inbox-tags"></div>
+          </div>
+          <div class="inbox-info-row">
+            <span>Менеджер</span>
+            <b id="inboxInfoAssignee">—</b>
+          </div>
+          <div class="inbox-info-row">
+            <span>Цена</span>
+            <b id="inboxInfoPrice">—</b>
+          </div>
+        </div>
+
+        <div class="inbox-info-block">
+          <div class="inbox-info-block-title">Объявление</div>
+          <a class="inbox-info-item" id="inboxInfoItem" href="#" target="_blank" rel="noopener">
+            <img id="inboxInfoThumb" class="inbox-info-thumb hidden" alt="" />
+            <div>
+              <strong id="inboxInfoTitle">—</strong>
+              <small id="inboxInfoItemHint">Открыть на Авито</small>
+            </div>
+          </a>
+        </div>
+
+        <div class="inbox-info-actions">
+          <a class="inbox-info-action" id="inboxInfoMessenger" href="#" target="_blank" rel="noopener">Открыть в Авито</a>
+          <button type="button" class="inbox-info-action" id="inboxInfoCopyLink">Скопировать ссылку</button>
+          <button type="button" class="inbox-info-action" id="inboxInfoCopy">Скопировать имя</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="firebase.js?v=20261108"></script>
+  <script src="security.js"></script>
+  <script src="script.js?v=20261108"></script>
+  <script src="inbox.js?v=20261108deeplink"></script>
+</body>
+</html>

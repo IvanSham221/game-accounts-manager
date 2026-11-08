@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Управление работниками</title>
-    <link rel="stylesheet" href="style.css?v=20250115">
+    <link rel="stylesheet" href="style.css?v=20261108uiui">
     <style>
         .worker-card {
             background: white;
@@ -316,11 +316,31 @@
     <!-- Подключение скриптов -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="firebase.js"></script>
+    <script src="firebase.js?v=20261108"></script>
     <script src="security.js"></script>
-    <script src="script.js?v=20250115"></script>
+    <script src="script.js?v=20261108"></script>
     
     <script>
+        async function patchSalesManagerName(username, newName, oldName) {
+            const snap = await firebase.database().ref('sales').once('value');
+            const all = snap.val() || {};
+            const patch = {};
+            Object.keys(all).forEach((id) => {
+                const sale = all[id];
+                if (!sale || sale.soldBy !== username || !sale.id && !id) return;
+                if (oldName && sale.soldByName !== oldName) return;
+                if (sale.soldByName === newName) return;
+                patch['sales/' + id + '/soldByName'] = newName;
+            });
+            const keys = Object.keys(patch);
+            for (let i = 0; i < keys.length; i += 80) {
+                const chunk = {};
+                keys.slice(i, i + 80).forEach((key) => { chunk[key] = patch[key]; });
+                await firebase.database().ref().update(chunk);
+            }
+            return keys.length;
+        }
+
         // ==================== ИНИЦИАЛИЗАЦИЯ ====================
         document.addEventListener('DOMContentLoaded', function() {
             console.log('=== ИНИЦИАЛИЗАЦИЯ WORKERS.HTML ===');
@@ -676,15 +696,6 @@
         await db.ref('workers/' + username).set(newWorker);
         console.log('✅ Работник сохранен в Firebase под ключом:', username);
         
-        // Также сохраняем весь массив для надежности
-        const workersObj = {};
-        workers.forEach(w => {
-            workersObj[w.username] = w;
-        });
-        
-        await db.ref('workers').set(workersObj);
-        console.log('✅ Весь массив сохранен в Firebase');
-        
         showDebugInfo(`✅ Работник "${name}" успешно добавлен! 👷`, 'success');
         showDebugInfo(`Логин: <strong>${username}</strong> | Пароль: <strong>${password}</strong>`, 'info');
         
@@ -809,7 +820,7 @@ function fixAllWorkersPasswords() {
     if (firebase) {
         const workersObj = {};
         workers.forEach(w => workersObj[w.username] = w);
-        firebase.database().ref('workers').set(workersObj);
+        firebase.database().ref('workers').update(workersObj);
     }
     
     // Обновляем список
@@ -995,12 +1006,8 @@ function fixAllWorkersPasswords() {
             
             // Синхронизируем с Firebase
             if (typeof firebase !== 'undefined' && firebase.database) {
-                const db = firebase.database();
-                const salesObj = {};
-                sales.forEach(s => { salesObj[s.id] = s; });
-                
-                db.ref('sales').set(salesObj).then(() => {
-                    showDebugInfo(`✅ Обновлено ${updated} продаж! Данные синхронизированы с Firebase.`, 'success');
+                patchSalesManagerName(username, newName).then((count) => {
+                    showDebugInfo(`✅ Обновлено ${count} продаж! Данные синхронизированы с Firebase.`, 'success');
                     
                     // Предлагаем перезагрузить страницу менеджера
                     if (confirm(`Обновлено ${updated} продаж!\n\nПерезагрузить страницу менеджера, чтобы увидеть изменения?`)) {
@@ -1037,7 +1044,7 @@ function fixAllWorkersPasswords() {
                     workersObj[w.username] = w;
                 });
                 
-                await db.ref('workers').set(workersObj);
+                await db.ref('workers').update(workersObj);
                 showDebugInfo(`✅ ${workers.length} работников синхронизированы с Firebase`, 'success');
                 
             } catch (error) {
@@ -1313,8 +1320,8 @@ function fixAllWorkersPasswords() {
                 { icon: '🆓', text: 'Свободные аккаунты', page: 'free-accounts.html' },
                 { icon: '🎯', text: 'Управление играми', page: 'games.html' },
                 { icon: '📊', text: 'Отчеты', page: 'reports.html' },
+                { icon: '💰', text: 'Все продажи', page: 'sales.html' },
                 { icon: '📈', text: 'Статистика работников', page: 'workers-stats.html' },
-                { icon: '🔥', text: 'Акции PS Store', page: 'discounts.html' },
                 { icon: '👑', text: 'Работники', page: 'workers.html' }
             ];
             
@@ -1478,15 +1485,10 @@ function fixAllWorkersPasswords() {
                 
                 // Обновляем все продажи
                 if (updatedCount > 0) {
-                    const salesObj = {};
-                    sales.forEach(s => { salesObj[s.id] = s; });
-                    await db.ref('sales').set(salesObj);
+                    await patchSalesManagerName(username, newName, oldName);
                 }
                 
-                // Обновляем весь объект работников
-                const workersObj = {};
-                workers.forEach(w => workersObj[w.username] = w);
-                await db.ref('workers').set(workersObj);
+                await db.ref('workers/' + username).update(updatedWorker);
                 
                 showDebugInfo(`✅ Данные синхронизированы с Firebase`, 'success');
                 
@@ -1548,9 +1550,7 @@ function fixAllWorkersPasswords() {
                 // Синхронизируем с Firebase
                 try {
                     const db = firebase.database();
-                    const salesObj = {};
-                    sales.forEach(s => { salesObj[s.id] = s; });
-                    await db.ref('sales').set(salesObj);
+                    await patchSalesManagerName(username, newName, oldName);
                     console.log('✅ Продажи синхронизированы с Firebase');
                 } catch (error) {
                     console.error('❌ Ошибка синхронизации продаж:', error);
@@ -1561,7 +1561,7 @@ function fixAllWorkersPasswords() {
         }
         
         // Принудительно обновить имя менеджера во всех продажах
-        function forceUpdateManagerNameInAllSales(username, newName) {
+        async function forceUpdateManagerNameInAllSales(username, newName) {
             console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ИМЕНИ');
             
             // Получаем продажи
@@ -1588,10 +1588,7 @@ function fixAllWorkersPasswords() {
                 
                 // Синхронизируем с Firebase
                 if (typeof firebase !== 'undefined' && firebase.database) {
-                    const db = firebase.database();
-                    const salesObj = {};
-                    sales.forEach(s => { salesObj[s.id] = s; });
-                    db.ref('sales').set(salesObj);
+                    await patchSalesManagerName(username, newName);
                 }
                 
                 alert(`✅ Обновлено ${changed} продаж!\nСтраница будет перезагружена.`);

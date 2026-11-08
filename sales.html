@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Все продажи - Менеджер игровых аккаунтов</title>
+    <link rel="stylesheet" href="style.css?v=20261108uiui">
+</head>
+<body>
+    <div id="mobileMenu" class="mobile-menu">
+        <div class="mobile-menu-header">
+            <div class="user-info-mobile">
+                <div class="user-avatar">👤</div>
+                <div>
+                    <div class="user-name" id="mobileUserName"></div>
+                    <div class="user-role" id="mobileUserRole"></div>
+                </div>
+            </div>
+            <button class="close-menu" onclick="toggleMobileMenu()">×</button>
+        </div>
+        <div class="mobile-menu-nav"></div>
+        <div class="mobile-menu-footer">
+            <button onclick="logout()" class="btn btn-danger btn-block">🚪 Выйти</button>
+        </div>
+    </div>
+
+    <div class="burger-container">
+        <button class="burger-btn" onclick="toggleMobileMenu()" title="Открыть меню">
+            <div class="burger-icon">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="burger-badge" id="menuBadge" style="display: none;">0</div>
+            <div class="burger-label">Меню</div>
+        </button>
+    </div>
+    <div id="menuOverlay" class="menu-overlay" onclick="toggleMobileMenu()"></div>
+
+    <div class="container">
+        <h1><span>💰</span><span>Все продажи</span></h1>
+
+        <div class="section">
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                <input id="salesSearch" class="input" type="search" placeholder="Игра, логин, менеджер или позиция"
+                       oninput="onSalesFilterInput()" style="flex: 1; min-width: 220px;">
+                <select id="salesMarket" class="input" onchange="onSalesFilterInput()" style="max-width: 220px;">
+                    <option value="">Все площадки</option>
+                    <option value="telegram">Telegram</option>
+                    <option value="avito">Avito</option>
+                    <option value="funpay">FunPay</option>
+                </select>
+            </div>
+            <p style="margin: 12px 0 0; color: #64748b; font-size: 0.9em;">
+                Удалить продажу может её автор или администратор.
+            </p>
+        </div>
+
+        <div id="salesList">
+            <div style="text-align: center; padding: 40px; color: #64748b;">
+                <div style="font-size: 3em; margin-bottom: 15px;">💰</div>
+                <h3>Загружаем продажи...</h3>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="firebase.js?v=20261108"></script>
+    <script src="security.js"></script>
+    <script src="script.js?v=20261108"></script>
+</body>
+</html>

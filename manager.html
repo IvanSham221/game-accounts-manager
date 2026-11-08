@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Менеджер аккаунтов - Менеджер игровых аккаунтов</title>
-    <link rel="stylesheet" href="style.css?v=20250115">
+    <link rel="stylesheet" href="style.css?v=20261108motion">
 </head>
 <body>
     <div id="mobileMenu" class="mobile-menu">
@@ -90,15 +90,15 @@
 
         <div class="section">
             <h2>📊 Результаты поиска</h2>
-            <div id="toggleButtonContainer" style="margin-bottom: 20px; display: flex; justify-content: flex-end; display: none;">
-        <button id="toggleSoldAccountsBtn" 
-                class="btn btn-secondary" 
-                onclick="toggleShowAllAccounts()"
-                style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
-            <span id="toggleBtnIcon">👁️</span>
-            <span id="toggleBtnText">Показать все</span>
-        </button>
-    </div>
+            <div id="toggleButtonContainer" style="margin-bottom: 14px; display: none;">
+                <button id="toggleSoldAccountsBtn"
+                        class="btn btn-secondary"
+                        onclick="toggleShowAllAccounts()"
+                        style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                    <span id="toggleBtnIcon">👁️</span>
+                    <span id="toggleBtnText">Показать все</span>
+                </button>
+            </div>
             <div id="searchResults" class="accounts-grid-horizontal"></div>
         </div>
     </div>
@@ -178,9 +178,9 @@
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="firebase.js"></script>
+    <script src="firebase.js?v=20261108"></script>
     <script src="security.js"></script>
-    <script src="script.js?v=20250115"></script>
+    <script src="script.js?v=20261108motion"></script>
     <script src="autocomplete.js"></script>
     <script src="totp.js"></script>
 </body>
