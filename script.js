@@ -864,6 +864,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if (input && dropdown && dropdown.style.display !== 'none' && input.value.trim() && window.autoComplete) {
                 window.autoComplete.searchGames(input.value, dropdown);
             }
+            // Deep-link from chats: manager.html?login=...
+            try {
+                const loginParam = new URLSearchParams(window.location.search).get('login');
+                if (loginParam) {
+                    const loginInput = document.getElementById('managerLogin');
+                    if (loginInput) {
+                        loginInput.value = loginParam;
+                        if (typeof searchByLogin === 'function') searchByLogin();
+                    }
+                }
+            } catch (_) {}
         }).catch(() => {});
     }
     Promise.all(refresh).then(() => renderCurrentPage(currentPage));
@@ -5211,7 +5222,14 @@ async function confirmSaleAndShowData() {
     const marketplace = document.getElementById('saleMarketplace').value;
     const saleDate = document.getElementById('saleDate').value;
     const saleTime = document.getElementById('saleTime').value;
-    const saleNotes = document.getElementById('saleNotes').value;
+    let saleNotes = document.getElementById('saleNotes').value;
+    const inboxCtxEarly = window.inboxSaleContext;
+    if (inboxCtxEarly?.chatLink) {
+        const link = String(inboxCtxEarly.chatLink);
+        const notes = String(saleNotes || '').trim();
+        if (!notes) saleNotes = link;
+        else if (!notes.includes(link)) saleNotes = `${notes} | ${link}`;
+    }
 
     if (!salePrice) {
         showNotification('Введите цену продажи', 'warning');
@@ -5369,8 +5387,22 @@ async function confirmSaleAndShowData() {
         // ===== 5. ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ =====
         refreshSearchResultsAfterSaleUpdate();
 
-        // ===== 6. ПОКАЗЫВАЕМ ДАННЫЕ КЛИЕНТУ =====
-        showAccountDataAfterSale(window.currentSaleAccount);
+        // ===== 6. ДАННЫЕ КЛИЕНТУ / АВТООТПРАВКА ИЗ ЧАТОВ =====
+        const inboxCtx = window.inboxSaleContext;
+        window.inboxSaleContext = null;
+        if (inboxCtx?.chatId && inboxCtx.autoSend) {
+            try {
+                await deliverSalePacketToInbox(window.currentSaleAccount, newSale, inboxCtx);
+            } catch (sendErr) {
+                console.error('❌ Автоотправка в чат:', sendErr);
+                showNotification(
+                    `Продажа сохранена, автоотправка не удалась: ${sendErr.message || sendErr}`,
+                    'warning'
+                );
+            }
+        } else {
+            showAccountDataAfterSale(window.currentSaleAccount);
+        }
 
         // ===== 7. ДИАГНОСТИКА РАЗМЕРА =====
         try {
@@ -5379,6 +5411,7 @@ async function confirmSaleAndShowData() {
         } catch (e) {}
 
     } catch (error) {
+        window.inboxSaleContext = null;
         console.error('❌ Критическая ошибка при сохранении продажи:', error);
         showNotification('❌ Ошибка при сохранении продажи. Проверьте консоль.', 'error');
 
@@ -5677,6 +5710,173 @@ function getPositionName(positionType) {
     return names[positionType] || positionType;
 }
 
+
+// ============================================
+// АВТООТПРАВКА ПАКЕТА В ЧАТ АВИТО ПОСЛЕ ПРОДАЖИ ИЗ INBOX
+// ============================================
+function buildSaleDeliveryTexts(account, positionType, marketplace = 'avito') {
+    const isP2 = String(positionType || '').includes('p2');
+    const platform = String(positionType || '').includes('ps4') ? 'ps4' : 'ps5';
+    const key = `${isP2 ? 'p2' : 'p3'}_${platform}`;
+
+    const rulesP2 = `❗️ Чтобы гарантия на игру сохранялась — при любых ошибках пишем только в чат, где была куплена игра.
+Правила пользования игрой (П2):
+— Данные пользователя не менять: пароль, аутентификатор, номер телефона.
+— Играем только на той консоли, для которой была приобретена игра.
+— Одна игра — один пользователь: не покупаем игры или подписки на выданном пользователе.
+— Используем только одну личную консоль: добавлять игру на другие устройства запрещено.
+— Включать активацию для PS4 или общий доступ для PS5 нельзя, вы играете только с выданных данных с включенным интернетом.`;
+
+    const rulesP3 = `❗️ Чтобы гарантия на игру сохранялась — при любых ошибках пишем только в чат, где была куплена игра.
+Правила пользования выданной игрой с Активацией / Общим доступом (П3):
+— Данные пользователя не менять: пароль, аутентификатор, номер телефона.
+— Одна игра — один пользователь: не покупаем игры или подписки на выданные данные.
+— Позиция с Активацией / Общим доступом — играем только с вашего личного пользователя. На выданном пользователе заходим только для настройки.
+— Пользователя нельзя добавлять на несколько консолей. Используем только одну личную консоль.
+— Если на игре появился “замочек”, зайдите на пользователя с игрой и:
+• на PS4 — активируйте как основную систему,
+• на PS5 — включите общий доступ к консоли.
+— Играем только на той консоли, для которой была приобретена игра. Купить игру для PS4 и играть на PS5 — это потеря гарантии.
+— При несоблюдении правил гарантии мы имеем право отобрать пользователя без возврата денег.`;
+
+    const review = `🙏 Мы будем благодарны за ваш отзыв — он очень помогает нам развиваться!
+🎮 Приятной игры!
+
+📝 Отзывы: https://t.me/pshubshoptg/29
+📌 Актуальные цены на игры: @pshubshoptg`;
+
+    let currentCode = 'По запросу';
+    const psnCodesArray = account.psnCodes
+        ? account.psnCodes.split(',').map((code) => code.trim()).filter(Boolean)
+        : [];
+    if (psnCodesArray.length > 0) {
+        currentCode = psnCodesArray[0];
+        psnCodesArray.shift();
+        const accountIndex = accounts.findIndex((acc) => sameId(acc.id, account.id));
+        if (accountIndex !== -1) {
+            accounts[accountIndex].psnCodes = psnCodesArray.join(', ');
+            if (typeof saveToStorage === 'function') {
+                saveToStorage('accounts', accounts);
+            }
+        }
+    }
+
+    const data = `Игра: ${account.gameName}
+Логин PSN: ${account.psnLogin}
+Пароль PSN: ${account.psnPassword || 'Не указан'}
+Код аутентификации PSN: ${currentCode}`;
+
+    const instruction =
+        (POSITION_INSTRUCTIONS && POSITION_INSTRUCTIONS[key]) ||
+        'Инструкция будет отправлена отдельно.';
+    const rules = isP2 ? rulesP2 : rulesP3;
+
+    const messages = [
+        { key: 'data', title: 'Данные', text: data },
+        { key: 'instruction', title: 'Инструкция', text: instruction },
+        { key: 'rules', title: 'Правила', text: rules }
+    ];
+    if (marketplace === 'telegram' || marketplace === 'avito') {
+        messages.push({ key: 'review', title: 'Отзыв', text: review });
+    }
+    return messages;
+}
+
+function sleepMs(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function deliverSalePacketToInbox(accountId, sale, context = {}) {
+    const account = accounts.find((acc) => sameId(acc.id, accountId));
+    const chatId = context.chatId;
+    if (!account || !chatId) {
+        throw new Error('Нет аккаунта или чата для автоотправки');
+    }
+    if (typeof window.inboxReply !== 'function') {
+        throw new Error('inboxReply недоступен');
+    }
+
+    const messages = buildSaleDeliveryTexts(
+        account,
+        sale.positionType,
+        sale.marketplace || 'avito'
+    );
+
+    const modalContent = document.getElementById('saleModalContent');
+    const renderProgress = (done, total, label, errorText) => {
+        if (!modalContent) return;
+        modalContent.innerHTML = `
+            <h2 style="text-align:center;margin-bottom:18px;">Отправка клиенту</h2>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+                <div style="font-weight:700;margin-bottom:8px;">${done}/${total} · ${label || '…'}</div>
+                <div style="height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden;">
+                    <div style="height:100%;width:${Math.round((done / Math.max(total, 1)) * 100)}%;background:linear-gradient(135deg,#2563eb,#0ea5e9);"></div>
+                </div>
+                ${errorText ? `<div style="margin-top:12px;color:#dc2626;font-weight:600;">${errorText}</div>` : ''}
+            </div>`;
+    };
+
+    renderProgress(0, messages.length, 'Старт');
+    const errors = [];
+    for (let i = 0; i < messages.length; i++) {
+        const item = messages[i];
+        renderProgress(i, messages.length, item.title);
+        try {
+            await window.inboxReply(item.text, chatId);
+            await sleepMs(700);
+        } catch (e) {
+            errors.push(`${item.title}: ${e.message || e}`);
+        }
+        renderProgress(i + 1, messages.length, item.title);
+    }
+
+    if (context.linkAccount && typeof window.inboxLinkAccount === 'function') {
+        try {
+            await window.inboxLinkAccount(accountId);
+        } catch (_) {}
+    }
+
+    if (typeof window.inboxRefreshAccountPanel === 'function') {
+        try {
+            await window.inboxRefreshAccountPanel();
+        } catch (_) {}
+    }
+
+    if (modalContent) {
+        modalContent.innerHTML = `
+            <h2 style="text-align:center;margin-bottom:16px;">${
+                errors.length ? 'Продажа сохранена, отправка с ошибками' : 'Продажа и отправка готовы'
+            }</h2>
+            <div style="background:${errors.length ? '#fef2f2' : '#f0fdf4'};border:1px solid ${
+                errors.length ? '#fecaca' : '#bbf7d0'
+            };border-radius:14px;padding:16px;margin-bottom:16px;">
+                <div style="font-weight:700;margin-bottom:8px;">
+                    ${account.psnLogin} · ${sale.positionName || sale.positionType}
+                </div>
+                <div style="color:#64748b;font-size:0.92rem;">
+                    В чат ушло: данные, инструкция, правила${
+                        sale.marketplace === 'telegram' || sale.marketplace === 'avito' ? ', отзыв' : ''
+                    }.
+                </div>
+                ${
+                    errors.length
+                        ? `<div style="margin-top:10px;color:#b91c1c;white-space:pre-wrap;">${errors.join(
+                              '\n'
+                          )}</div>`
+                        : ''
+                }
+            </div>
+            <button class="btn btn-primary" onclick="closeAnyModal('saleModal')" style="width:100%;padding:12px;">Готово</button>
+        `;
+        openModal('saleModal');
+    }
+
+    if (errors.length) {
+        showNotification('Продажа сохранена, часть сообщений не ушла', 'warning');
+    } else {
+        showNotification('Продажа оформлена, пакет отправлен в чат', 'success');
+    }
+}
 
 // ============================================
 // ПОКАЗ ДАННЫХ ПОСЛЕ ПРОДАЖИ (ТОЛЬКО ПРАВИЛА ДЛЯ ВЫБРАННОЙ ПОЗИЦИИ)

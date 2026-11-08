@@ -109,9 +109,90 @@ class FirebaseSync {
     // ============================================================
     // ИНИЦИАЛИЗАЦИЯ СЛУШАТЕЛЕЙ
     // ============================================================
+    setupOnDemandAccounts() {
+        const self = this;
+        window.loadAccountsOnDemand = function() {
+            if (self._accountsPromise) return self._accountsPromise;
+            console.log('📥 Загружаем аккаунты...');
+            self._accountsPromise = (async () => {
+                try {
+                    const snapshot = await self.db.ref('accounts').once('value');
+                    const accountsArray = snapshot.exists() ? Object.values(snapshot.val() || {}) : [];
+                    writeCacheSoon('accounts', accountsArray);
+                    if (typeof window.accounts !== 'undefined') window.accounts = accountsArray;
+                    if (typeof accounts !== 'undefined') accounts = accountsArray;
+                    console.log(`✅ Загружено ${accountsArray.length} аккаунтов`);
+                    return accountsArray;
+                } catch (error) {
+                    self._accountsPromise = null;
+                    console.error('❌ Ошибка загрузки аккаунтов:', error);
+                    const cached = JSON.parse(localStorage.getItem('accounts') || '[]');
+                    if (typeof window.accounts !== 'undefined') window.accounts = cached;
+                    if (typeof accounts !== 'undefined') accounts = cached;
+                    return cached;
+                }
+            })();
+            return self._accountsPromise;
+        };
+    }
+
+    setupOnDemandGames() {
+        const self = this;
+        window.loadGamesOnDemand = function() {
+            if (self._gamesPromise) return self._gamesPromise;
+            self._gamesPromise = (async () => {
+                try {
+                    const snapshot = await self.db.ref('games').once('value');
+                    const gamesArray = snapshot.exists() ? Object.values(snapshot.val() || {}) : [];
+                    writeCacheSoon('games', gamesArray);
+                    if (typeof window.games !== 'undefined') window.games = gamesArray;
+                    if (typeof games !== 'undefined') games = gamesArray;
+                    return gamesArray;
+                } catch (error) {
+                    self._gamesPromise = null;
+                    const cached = JSON.parse(localStorage.getItem('games') || '[]');
+                    if (typeof window.games !== 'undefined') window.games = cached;
+                    if (typeof games !== 'undefined') games = cached;
+                    return cached;
+                }
+            })();
+            return self._gamesPromise;
+        };
+    }
+
+    setupOnDemandSales() {
+        const self = this;
+        window.loadSalesOnDemand = async function(gameId) {
+            console.log(`📥 Загружаем продажи для игры ${gameId}...`);
+            try {
+                const allSales = await self.ensureAllSales();
+                const sourceAccounts = (window.accounts && window.accounts.length) ? window.accounts : (typeof accounts !== 'undefined' ? accounts : []);
+                const accountIds = new Set(
+                    sourceAccounts.filter(acc => String(acc.gameId) === String(gameId)).map(acc => String(acc.id))
+                );
+                const gameSales = allSales.filter(sale => accountIds.has(String(sale.accountId)));
+                window.sales = gameSales;
+                if (typeof sales !== 'undefined') sales = gameSales;
+                console.log(`✅ Загружено ${gameSales.length} продаж для игры`);
+                return gameSales;
+            } catch (error) {
+                console.error('❌ Ошибка загрузки продаж:', error);
+                return [];
+            }
+        };
+    }
+
     initAllSync() {
-        if (isLoginPage || isChatsPage) {
+        if (isLoginPage) {
             console.log('⏭️ Слушатели базы не запускаются на этой странице');
+            return;
+        }
+        // Чаты: без постоянных listeners, но база по запросу для привязки
+        if (isChatsPage) {
+            console.log('💬 Chats page — игры/аккаунты/продажи по запросу');
+            this.setupOnDemandAccounts();
+            this.setupOnDemandGames();
+            this.setupOnDemandSales();
             return;
         }
         // ---- ИГРЫ (всегда) ----
@@ -175,33 +256,7 @@ class FirebaseSync {
             // ============================================================
             if (isManagerPage) {
                 console.log('👨‍💼 Manager page — аккаунты будут загружены при поиске');
-                
-                const self = this;
-                
-                // Метод для загрузки аккаунтов по запросу
-                window.loadAccountsOnDemand = function() {
-                    if (self._accountsPromise) return self._accountsPromise;
-                    console.log('📥 Загружаем аккаунты...');
-                    self._accountsPromise = (async () => {
-                        try {
-                            const snapshot = await self.db.ref('accounts').once('value');
-                            const accountsArray = snapshot.exists() ? Object.values(snapshot.val() || {}) : [];
-                            writeCacheSoon('accounts', accountsArray);
-                            if (typeof window.accounts !== 'undefined') window.accounts = accountsArray;
-                            if (typeof accounts !== 'undefined') accounts = accountsArray;
-                            console.log(`✅ Загружено ${accountsArray.length} аккаунтов`);
-                            return accountsArray;
-                        } catch (error) {
-                            self._accountsPromise = null;
-                            console.error('❌ Ошибка загрузки аккаунтов:', error);
-                            const cached = JSON.parse(localStorage.getItem('accounts') || '[]');
-                            if (typeof window.accounts !== 'undefined') window.accounts = cached;
-                            if (typeof accounts !== 'undefined') accounts = cached;
-                            return cached;
-                        }
-                    })();
-                    return self._accountsPromise;
-                };
+                this.setupOnDemandAccounts();
             }
         }
 
@@ -256,28 +311,7 @@ class FirebaseSync {
             // ============================================================
             if (isManagerPage) {
                 console.log('👨‍💼 Manager page — продажи будут загружены при поиске');
-                
-                const self = this;
-                
-                // Метод для загрузки продаж по запросу
-                window.loadSalesOnDemand = async function(gameId) {
-                    console.log(`📥 Загружаем продажи для игры ${gameId}...`);
-                    try {
-                        const allSales = await self.ensureAllSales();
-                        const sourceAccounts = (window.accounts && window.accounts.length) ? window.accounts : accounts;
-                        const accountIds = new Set(
-                            sourceAccounts.filter(acc => String(acc.gameId) === String(gameId)).map(acc => String(acc.id))
-                        );
-                        const gameSales = allSales.filter(sale => accountIds.has(String(sale.accountId)));
-                        window.sales = gameSales;
-                        sales = gameSales;
-                        console.log(`✅ Загружено ${gameSales.length} продаж для игры`);
-                        return gameSales;
-                    } catch (error) {
-                        console.error('❌ Ошибка загрузки продаж:', error);
-                        return [];
-                    }
-                };
+                this.setupOnDemandSales();
             }
         }
 

@@ -16,7 +16,19 @@
     timelineSig: '',
     timelineChatId: null,
     recentOutbound: [],
-    pendingChatId: null
+    pendingChatId: null,
+    accountQuery: '',
+    accountHits: [],
+    accountSearchTimer: null,
+    accountsReady: false,
+    gamesReady: false,
+    selectedGame: null,
+    gameHits: [],
+    snippets: {},
+    localSnippets: {},
+    suggestHits: [],
+    suggestIndex: -1,
+    unsubSnippets: null
   };
 
   const els = {
@@ -35,6 +47,7 @@
     composeText: document.getElementById('inboxComposeText'),
     composeHint: document.getElementById('inboxComposeHint'),
     btnComposeSend: document.getElementById('inboxComposeSend'),
+    suggest: document.getElementById('inboxSuggest'),
     claimBar: document.getElementById('inboxClaimBar'),
     claimHint: document.getElementById('inboxClaimHint'),
     btnClaim: document.getElementById('inboxClaim'),
@@ -56,6 +69,12 @@
     infoMessenger: document.getElementById('inboxInfoMessenger'),
     infoCopyLink: document.getElementById('inboxInfoCopyLink'),
     infoCopy: document.getElementById('inboxInfoCopy'),
+    accountLinked: document.getElementById('inboxAccountLinked'),
+    accountSearchWrap: document.getElementById('inboxAccountSearchWrap'),
+    accountSearch: document.getElementById('inboxAccountSearch'),
+    gameDropdown: document.getElementById('inboxGameDropdown'),
+    selectedGame: document.getElementById('inboxSelectedGame'),
+    accountResults: document.getElementById('inboxAccountResults'),
     counts: {
       incoming: document.getElementById('countIncoming'),
       mine: document.getElementById('countMine'),
@@ -419,6 +438,553 @@
         els.infoMessenger.classList.add('hidden');
       }
     }
+
+    renderAccountPanel(chat);
+  }
+
+  function accountsList() {
+    return (
+      (typeof accounts !== 'undefined' && Array.isArray(accounts) && accounts) ||
+      window.accounts ||
+      []
+    );
+  }
+
+  function gamesList() {
+    return (
+      (typeof games !== 'undefined' && Array.isArray(games) && games) ||
+      window.games ||
+      []
+    );
+  }
+
+  async function ensureAccountsLoaded() {
+    if (state.accountsReady && accountsList().length) return accountsList();
+    if (typeof window.loadAccountsOnDemand === 'function') {
+      const list = await window.loadAccountsOnDemand();
+      state.accountsReady = true;
+      return list || accountsList();
+    }
+    state.accountsReady = true;
+    return accountsList();
+  }
+
+  async function ensureGamesLoaded() {
+    if (state.gamesReady && gamesList().length) return gamesList();
+    if (typeof window.loadGamesOnDemand === 'function') {
+      const list = await window.loadGamesOnDemand();
+      state.gamesReady = true;
+      return list || gamesList();
+    }
+    state.gamesReady = true;
+    return gamesList();
+  }
+
+  function findAccountById(id) {
+    if (id == null || id === '') return null;
+    return accountsList().find((a) => String(a.id) === String(id)) || null;
+  }
+
+  function idsEqual(a, b) {
+    if (typeof sameId === 'function') return sameId(a, b);
+    return String(a) === String(b);
+  }
+
+  function isSlotSold(accountId, positionType, positionIndex) {
+    if (typeof getPositionSaleInfo === 'function') {
+      return !!getPositionSaleInfo(accountId, positionType, positionIndex);
+    }
+    const list = window.sales || (typeof sales !== 'undefined' ? sales : []) || [];
+    return list.some(
+      (sale) =>
+        idsEqual(sale.accountId, accountId) &&
+        sale.positionType === positionType &&
+        Number(sale.positionIndex) === Number(positionIndex) &&
+        !sale.isTransplanted
+    );
+  }
+
+  function getLinkedAccountEntries(chat) {
+    const raw = Array.isArray(chat?.linkedAccounts) ? chat.linkedAccounts : [];
+    const list = raw.filter(Boolean).map((x) => ({
+      id: x.id,
+      psnLogin: x.psnLogin || '',
+      gameName: x.gameName || '',
+      email: x.email || '',
+      linkedAt: x.linkedAt || '',
+      linkedBy: x.linkedBy || '',
+      linkedByName: x.linkedByName || ''
+    }));
+    if (!list.length && chat?.linkedAccountId) {
+      list.push({
+        id: chat.linkedAccountId,
+        psnLogin: chat.linkedPsnLogin || '',
+        gameName: chat.linkedGameName || '',
+        email: chat.linkedEmail || '',
+        linkedAt: chat.linkedAt || '',
+        linkedBy: chat.linkedBy || '',
+        linkedByName: chat.linkedByName || ''
+      });
+    }
+    const seen = new Set();
+    return list.filter((item) => {
+      const key = String(item.id ?? '');
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function isAccountLinkedToChat(chat, accountId) {
+    return getLinkedAccountEntries(chat).some((x) => idsEqual(x.id, accountId));
+  }
+
+  function linkedAccountsPatch(entries) {
+    const first = entries[0] || null;
+    return {
+      linkedAccounts: entries.length ? entries : null,
+      linkedAccountId: first ? first.id : null,
+      linkedPsnLogin: first ? first.psnLogin || null : null,
+      linkedGameName: first ? first.gameName || null : null,
+      linkedEmail: first ? first.email || null : null,
+      linkedAt: first ? first.linkedAt || null : null,
+      linkedBy: first ? first.linkedBy || null : null,
+      linkedByName: first ? first.linkedByName || null : null,
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  function formatCompactSaleDate(saleInfo) {
+    if (!saleInfo) return '';
+    const raw = saleInfo.datetime || saleInfo.date || '';
+    if (!raw) return '';
+    try {
+      if (saleInfo.date && /^\d{4}-\d{2}-\d{2}/.test(String(saleInfo.date))) {
+        const [, , m, d] = String(saleInfo.date).match(/(\d{4})-(\d{2})-(\d{2})/) || [];
+        if (d && m) return `${d}.${m}`;
+      }
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return '';
+      return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function getSlotSaleInfo(accountId, positionType, positionIndex) {
+    if (typeof getPositionSaleInfo === 'function') {
+      return getPositionSaleInfo(accountId, positionType, positionIndex) || null;
+    }
+    const list = window.sales || (typeof sales !== 'undefined' ? sales : []) || [];
+    return (
+      list.find(
+        (sale) =>
+          idsEqual(sale.accountId, accountId) &&
+          sale.positionType === positionType &&
+          Number(sale.positionIndex) === Number(positionIndex) &&
+          !sale.isTransplanted
+      ) || null
+    );
+  }
+
+  function renderMiniSlots(account, positionType, label) {
+    const count = Number(account?.positions?.[positionType]) || 0;
+    if (!count) return '';
+    const bits = [];
+    for (let i = 1; i <= count; i++) {
+      const saleInfo = getSlotSaleInfo(account.id, positionType, i);
+      const sold = !!saleInfo;
+      const dateStr = sold ? formatCompactSaleDate(saleInfo) : '';
+      const tip = sold
+        ? `Продано${dateStr ? `: ${dateStr}` : ''}${
+            saleInfo?.soldByName ? ` · ${saleInfo.soldByName}` : ''
+          }`
+        : 'Продать и отправить клиенту';
+      bits.push(
+        `<span class="inbox-mini-slot-wrap">
+          <button type="button" class="inbox-mini-slot ${sold ? 'sold' : 'free'}"
+            data-slot-action="${sold ? 'view' : 'sell'}"
+            data-account-id="${escapeHtml(String(account.id))}"
+            data-pos-type="${escapeHtml(positionType)}"
+            data-pos-index="${i}"
+            title="${escapeHtml(tip)}">
+            ${i}<small>${label}</small>
+          </button>
+          ${dateStr ? `<span class="inbox-mini-slot-date">${escapeHtml(dateStr)}</span>` : ''}
+        </span>`
+      );
+    }
+    return bits.join('');
+  }
+
+  function renderMiniAccountCard(account, { linked = false, alreadyLinked = false } = {}) {
+    const game =
+      gamesList().find((g) => idsEqual(g.id, account.gameId)) || null;
+    const cover = game?.imageUrl
+      ? `<img class="inbox-mini-cover" src="${escapeHtml(game.imageUrl)}" alt="" />`
+      : `<div class="inbox-mini-cover fallback">🎮</div>`;
+    const ps4 =
+      renderMiniSlots(account, 'p2_ps4', 'П2') +
+      renderMiniSlots(account, 'p3_ps4', 'П3');
+    const ps5 =
+      renderMiniSlots(account, 'p2_ps5', 'П2') +
+      renderMiniSlots(account, 'p3_ps5', 'П3');
+
+    let actions = '';
+    if (linked) {
+      actions = `
+        <a class="inbox-info-action" href="manager.html?login=${encodeURIComponent(
+          account.psnLogin || ''
+        )}" target="_blank" rel="noopener">Открыть в базе</a>
+        <button type="button" class="inbox-info-action is-danger" data-unlink-account="${escapeHtml(
+          String(account.id)
+        )}">Отвязать</button>`;
+    } else if (alreadyLinked) {
+      actions = `<div class="inbox-mini-already">Уже привязан к диалогу</div>`;
+    } else {
+      actions = `
+        <button type="button" class="inbox-info-action inbox-mini-link-btn" data-link-account="${escapeHtml(
+          String(account.id)
+        )}">Привязать к диалогу</button>
+        <a class="inbox-info-action" href="manager.html?login=${encodeURIComponent(
+          account.psnLogin || ''
+        )}" target="_blank" rel="noopener">В базе</a>`;
+    }
+
+    return `
+      <div class="inbox-mini-card ${linked ? 'is-linked' : ''}" data-account-id="${escapeHtml(
+        String(account.id)
+      )}">
+        <div class="inbox-mini-head">
+          ${cover}
+          <div class="inbox-mini-head-text">
+            <strong>${escapeHtml(account.psnLogin || '—')}</strong>
+            <span>${escapeHtml(account.gameName || game?.name || 'Игра')}</span>
+          </div>
+        </div>
+        <div class="inbox-mini-platforms">
+          ${
+            ps4
+              ? `<div class="inbox-mini-platform"><div class="inbox-mini-platform-title">PS4</div><div class="inbox-mini-slots">${ps4}</div></div>`
+              : ''
+          }
+          ${
+            ps5
+              ? `<div class="inbox-mini-platform"><div class="inbox-mini-platform-title">PS5</div><div class="inbox-mini-slots">${ps5}</div></div>`
+              : ''
+          }
+          ${!ps4 && !ps5 ? `<div class="inbox-mini-empty">Нет посадок</div>` : ''}
+        </div>
+        <div class="inbox-mini-hint">Клик по слоту — продажа ${
+          linked || alreadyLinked ? '+ автоотправка в чат' : ''
+        }</div>
+        <div class="inbox-mini-actions">${actions}</div>
+      </div>`;
+  }
+
+  function matchGames(query) {
+    const q = String(query || '').trim().toLowerCase();
+    const list = gamesList();
+    if (!q) return list.slice(0, 8);
+    return list
+      .filter((g) => String(g.name || '').toLowerCase().includes(q))
+      .sort((a, b) => {
+        const an = String(a.name || '').toLowerCase();
+        const bn = String(b.name || '').toLowerCase();
+        const as = an.startsWith(q) ? 0 : 1;
+        const bs = bn.startsWith(q) ? 0 : 1;
+        return as - bs || an.localeCompare(bn);
+      })
+      .slice(0, 10);
+  }
+
+  function guessGameFromChat(chat) {
+    const title = String(chat?.itemTitle || '').toLowerCase();
+    if (!title) return null;
+    const list = gamesList();
+    let best = null;
+    let bestScore = 0;
+    list.forEach((g) => {
+      const name = String(g.name || '').toLowerCase();
+      if (!name) return;
+      let score = 0;
+      if (title.includes(name) || name.includes(title)) score = 100 + name.length;
+      else {
+        const words = name.split(/\s+/).filter((w) => w.length > 2);
+        const hits = words.filter((w) => title.includes(w)).length;
+        if (hits) score = hits * 20 + name.length / 10;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        best = g;
+      }
+    });
+    return bestScore >= 20 ? best : null;
+  }
+
+  function renderGameDropdown(hits) {
+    if (!els.gameDropdown) return;
+    if (!hits?.length) {
+      els.gameDropdown.classList.add('hidden');
+      els.gameDropdown.innerHTML = `<div class="inbox-game-empty">Игры не найдены</div>`;
+      els.gameDropdown.classList.remove('hidden');
+      return;
+    }
+    els.gameDropdown.classList.remove('hidden');
+    els.gameDropdown.innerHTML = hits
+      .map((g) => {
+        const count = accountsList().filter((a) => idsEqual(a.gameId, g.id)).length;
+        const img = g.imageUrl
+          ? `<img src="${escapeHtml(g.imageUrl)}" alt="" />`
+          : `<span class="inbox-game-fallback">🎮</span>`;
+        return `<button type="button" class="inbox-game-item" data-pick-game="${escapeHtml(
+          String(g.id)
+        )}">
+          <span class="inbox-game-thumb">${img}</span>
+          <span class="inbox-game-meta">
+            <strong>${escapeHtml(g.name || '—')}</strong>
+            <small>${count ? `${count} акк.` : 'нет аккаунтов'}</small>
+          </span>
+        </button>`;
+      })
+      .join('');
+  }
+
+  function hideGameDropdown() {
+    els.gameDropdown?.classList.add('hidden');
+  }
+
+  function renderSelectedGameBar(game) {
+    if (!els.selectedGame) return;
+    if (!game) {
+      els.selectedGame.classList.add('hidden');
+      els.selectedGame.innerHTML = '';
+      return;
+    }
+    els.selectedGame.classList.remove('hidden');
+    els.selectedGame.innerHTML = `
+      <div class="inbox-selected-game-inner">
+        <strong>${escapeHtml(game.name || 'Игра')}</strong>
+        <button type="button" class="inbox-selected-game-clear" data-clear-game title="Сбросить">×</button>
+      </div>`;
+  }
+
+  function renderAccountPanel(chat) {
+    if (!els.accountLinked || !els.accountSearchWrap) return;
+
+    const linkedEntries = getLinkedAccountEntries(chat);
+    els.accountSearchWrap.classList.remove('hidden');
+
+    if (linkedEntries.length) {
+      els.accountLinked.classList.remove('hidden');
+      const cards = linkedEntries
+        .map((entry) => {
+          const live = findAccountById(entry.id);
+          if (live) return renderMiniAccountCard(live, { linked: true });
+          return `
+            <div class="inbox-mini-card is-linked" data-account-id="${escapeHtml(String(entry.id))}">
+              <div class="inbox-mini-head-text">
+                <strong>${escapeHtml(entry.psnLogin || 'Аккаунт')}</strong>
+                <span>${escapeHtml(entry.gameName || '')}</span>
+              </div>
+              <div class="inbox-mini-actions">
+                <a class="inbox-info-action" href="manager.html?login=${encodeURIComponent(
+                  entry.psnLogin || ''
+                )}" target="_blank" rel="noopener">Открыть в базе</a>
+                <button type="button" class="inbox-info-action is-danger" data-unlink-account="${escapeHtml(
+                  String(entry.id)
+                )}">Отвязать</button>
+              </div>
+            </div>`;
+        })
+        .join('');
+      els.accountLinked.innerHTML = `
+        <div class="inbox-linked-title">Привязано: ${linkedEntries.length}</div>
+        ${cards}`;
+    } else {
+      els.accountLinked.classList.add('hidden');
+      els.accountLinked.innerHTML = '';
+    }
+
+    renderSelectedGameBar(state.selectedGame);
+    if (state.accountHits.length) renderMiniResults(state.accountHits);
+  }
+
+  function renderMiniResults(hits) {
+    if (!els.accountResults) return;
+    const chat = selectedChat();
+    if (!hits?.length) {
+      els.accountResults.classList.remove('hidden');
+      els.accountResults.innerHTML = `<div class="inbox-mini-empty-list">По этой игре аккаунтов нет</div>`;
+      return;
+    }
+    els.accountResults.classList.remove('hidden');
+    els.accountResults.innerHTML = hits
+      .map((acc) =>
+        renderMiniAccountCard(acc, {
+          alreadyLinked: isAccountLinkedToChat(chat, acc.id)
+        })
+      )
+      .join('');
+  }
+
+  async function runGameSuggest(query) {
+    state.accountQuery = query;
+    try {
+      await Promise.all([ensureGamesLoaded(), ensureAccountsLoaded()]);
+      state.gameHits = matchGames(query);
+      renderGameDropdown(state.gameHits);
+    } catch (e) {
+      toast(e.message || 'Не удалось загрузить игры', 'error');
+    }
+  }
+
+  async function selectGameForInbox(gameId) {
+    await Promise.all([ensureGamesLoaded(), ensureAccountsLoaded()]);
+    const game = gamesList().find((g) => idsEqual(g.id, gameId));
+    if (!game) {
+      toast('Игра не найдена', 'error');
+      return;
+    }
+    state.selectedGame = game;
+    hideGameDropdown();
+    if (els.accountSearch) els.accountSearch.value = game.name || '';
+    renderSelectedGameBar(game);
+    if (els.accountResults) {
+      els.accountResults.classList.remove('hidden');
+      els.accountResults.innerHTML = `<div class="inbox-mini-empty-list">Загрузка аккаунтов…</div>`;
+    }
+    try {
+      if (typeof window.loadSalesOnDemand === 'function') {
+        await window.loadSalesOnDemand(game.id);
+      }
+      const hits = accountsList().filter((a) => idsEqual(a.gameId, game.id));
+      state.accountHits = hits;
+      renderMiniResults(hits);
+    } catch (e) {
+      toast(e.message || 'Ошибка загрузки', 'error');
+    }
+  }
+
+  async function maybeAutofillGameFromChat(chat) {
+    if (!chat || state.selectedGame) return;
+    try {
+      await Promise.all([ensureGamesLoaded(), ensureAccountsLoaded()]);
+      const guessed = guessGameFromChat(chat);
+      if (guessed) await selectGameForInbox(guessed.id);
+    } catch (_) {}
+  }
+
+  async function linkAccountToChat(accountId) {
+    const chat = selectedChat();
+    if (!chat?.id || !firebase?.database) return;
+    await ensureAccountsLoaded();
+    const acc = findAccountById(accountId);
+    if (!acc) {
+      toast('Аккаунт не найден', 'error');
+      return;
+    }
+    const current = getLinkedAccountEntries(chat);
+    if (current.some((x) => idsEqual(x.id, acc.id))) {
+      toast('Этот аккаунт уже привязан', 'info');
+      return;
+    }
+    const m = me();
+    const entry = {
+      id: acc.id,
+      psnLogin: acc.psnLogin || '',
+      gameName: acc.gameName || '',
+      email: acc.email || '',
+      linkedAt: new Date().toISOString(),
+      linkedBy: m.id,
+      linkedByName: m.name
+    };
+    const linkedAccounts = [...current, entry];
+    const patch = linkedAccountsPatch(linkedAccounts);
+    await firebase.database().ref(`inboxChats/${chat.id}`).update(patch);
+    state.chats[chat.id] = { ...chat, ...patch };
+    hideGameDropdown();
+    if (state.accountHits.length) renderMiniResults(state.accountHits);
+    renderInfo(state.chats[chat.id]);
+    toast(`Аккаунт привязан (${linkedAccounts.length})`, 'success');
+  }
+
+  async function unlinkAccountFromChat(accountId) {
+    const chat = selectedChat();
+    if (!chat?.id || !firebase?.database) return;
+    const linkedAccounts = getLinkedAccountEntries(chat).filter(
+      (x) => !idsEqual(x.id, accountId)
+    );
+    const patch = linkedAccountsPatch(linkedAccounts);
+    await firebase.database().ref(`inboxChats/${chat.id}`).update(patch);
+    state.chats[chat.id] = { ...chat, ...patch };
+    if (state.accountHits.length) renderMiniResults(state.accountHits);
+    renderInfo(state.chats[chat.id]);
+    toast(
+      linkedAccounts.length ? `Отвязан · осталось ${linkedAccounts.length}` : 'Аккаунт отвязан',
+      'info'
+    );
+  }
+
+  function startInboxSale(accountId, positionType, positionIndex) {
+    if (!state.selectedId) {
+      toast('Сначала выбери диалог', 'warning');
+      return;
+    }
+    const chat = selectedChat();
+    const m = me();
+    const canWrite =
+      (chat?.status === 'assigned' && chat.assigneeId === m.id) || m.role === 'admin';
+    if (!canWrite) {
+      toast('Сначала прими диалог в «Мои»', 'warning');
+      return;
+    }
+    if (typeof openSaleModal !== 'function') {
+      toast('Модалка продажи недоступна', 'error');
+      return;
+    }
+    const positionName =
+      typeof getPositionName === 'function'
+        ? getPositionName(positionType)
+        : positionType;
+    const chatLink = chatDeepLink(state.selectedId);
+    window.inboxSaleContext = {
+      chatId: state.selectedId,
+      autoSend: true,
+      linkAccount: true,
+      chatLink
+    };
+    openSaleModal(accountId, positionType, positionName, positionIndex);
+    setTimeout(() => {
+      const sel = document.getElementById('saleMarketplace');
+      if (sel) {
+        sel.value = 'avito';
+        if (typeof updateCommission === 'function') updateCommission();
+      }
+      const notes = document.getElementById('saleNotes');
+      if (notes && chatLink) {
+        notes.value = chatLink;
+        notes.placeholder = 'Ссылка на чат подставится сама';
+      }
+    }, 30);
+  }
+
+  function handleInboxSlotClick(btn) {
+    const accountId = btn.dataset.accountId;
+    const positionType = btn.dataset.posType;
+    const positionIndex = Number(btn.dataset.posIndex);
+    if (!accountId || !positionType || !positionIndex) return;
+    if (btn.dataset.slotAction === 'view') {
+      if (typeof handlePositionClick === 'function') {
+        const name =
+          typeof getPositionName === 'function'
+            ? getPositionName(positionType)
+            : positionType;
+        handlePositionClick(accountId, positionType, name, positionIndex);
+      }
+      return;
+    }
+    startInboxSale(accountId, positionType, positionIndex);
   }
 
   function syncComposeMode() {
@@ -635,6 +1201,11 @@
   function selectChat(id) {
     state.selectedId = id;
     state.timelineSig = '';
+    state.selectedGame = null;
+    state.accountHits = [];
+    state.gameHits = [];
+    if (els.accountSearch) els.accountSearch.value = '';
+    hideGameDropdown();
     if (els.messages) delete els.messages.dataset.ready;
     els.shell?.classList.remove('info-open');
     syncUrlWithChat(id);
@@ -642,6 +1213,7 @@
     listenMessages(id);
     listenNotes(id);
     renderThread();
+    maybeAutofillGameFromChat(selectedChat());
   }
 
   function closeChatPane() {
@@ -679,6 +1251,7 @@
     const ref = firebase.database().ref(`inboxMessages/${chatId}`).orderByKey().limitToLast(200);
     const handler = (snap) => {
       state.messages = snap.val() || {};
+      harvestOutboundSnippets(state.messages);
       renderThread();
     };
     ref.on('value', handler);
@@ -720,9 +1293,163 @@
     toast('Комментарий сохранён', 'success');
   }
 
+  function normalizeSnippet(text) {
+    return String(text || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .slice(0, 800);
+  }
+
+  function snippetKey(text) {
+    const norm = normalizeSnippet(text);
+    let h = 2166136261;
+    for (let i = 0; i < norm.length; i++) {
+      h ^= norm.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return `s_${(h >>> 0).toString(36)}_${norm.length}`;
+  }
+
+  function allSnippets() {
+    const map = {};
+    Object.values(state.localSnippets || {}).forEach((s) => {
+      if (!s?.text) return;
+      map[snippetKey(s.text)] = { text: s.text, count: Number(s.count) || 1 };
+    });
+    Object.entries(state.snippets || {}).forEach(([key, s]) => {
+      if (!s?.text) return;
+      map[key] = {
+        text: s.text,
+        count: Math.max(Number(s.count) || 1, map[key]?.count || 0)
+      };
+    });
+    return Object.values(map);
+  }
+
+  function harvestOutboundSnippets(messages) {
+    const map = {};
+    Object.values(messages || {}).forEach((msg) => {
+      if (messageDirection(msg) !== 'out') return;
+      const text = normalizeSnippet(msg.text);
+      if (text.length < 2) return;
+      const key = snippetKey(text);
+      if (!map[key]) map[key] = { text, count: 0 };
+      map[key].count += 1;
+    });
+    state.localSnippets = map;
+  }
+
+  function listenSnippets() {
+    if (state.unsubSnippets) {
+      try {
+        state.unsubSnippets();
+      } catch (_) {}
+      state.unsubSnippets = null;
+    }
+    if (!firebase?.database) return;
+    const ref = firebase.database().ref('inboxSnippets');
+    const handler = (snap) => {
+      state.snippets = snap.val() || {};
+      updateSuggestFromInput();
+    };
+    ref.on('value', handler);
+    state.unsubSnippets = () => ref.off('value', handler);
+  }
+
+  async function bumpSnippet(text) {
+    const norm = normalizeSnippet(text);
+    if (norm.length < 2) return;
+    const key = snippetKey(norm);
+    if (!state.localSnippets[key]) state.localSnippets[key] = { text: norm, count: 0 };
+    state.localSnippets[key].count += 1;
+    if (!firebase?.database) return;
+    try {
+      const ref = firebase.database().ref(`inboxSnippets/${key}`);
+      await ref.transaction((cur) => {
+        if (!cur) {
+          return { text: norm, count: 1, updatedAt: new Date().toISOString() };
+        }
+        return {
+          text: cur.text || norm,
+          count: (Number(cur.count) || 0) + 1,
+          updatedAt: new Date().toISOString()
+        };
+      });
+    } catch (_) {}
+  }
+
+  function filterSuggestHits(query) {
+    const q = normalizeSnippet(query).toLowerCase();
+    if (q.length < 2 || state.composeMode === 'note') return [];
+    const starts = [];
+    const includes = [];
+    allSnippets().forEach((s) => {
+      const t = String(s.text || '');
+      const low = t.toLowerCase();
+      if (low === q) return;
+      if (low.startsWith(q)) starts.push(s);
+      else if (low.includes(q)) includes.push(s);
+    });
+    const sortFn = (a, b) =>
+      (Number(b.count) || 0) - (Number(a.count) || 0) ||
+      String(a.text).length - String(b.text).length;
+    return [...starts.sort(sortFn), ...includes.sort(sortFn)].slice(0, 10);
+  }
+
+  function hideSuggest() {
+    state.suggestHits = [];
+    state.suggestIndex = -1;
+    if (els.suggest) {
+      els.suggest.classList.add('hidden');
+      els.suggest.innerHTML = '';
+    }
+  }
+
+  function renderSuggest() {
+    if (!els.suggest) return;
+    const hits = state.suggestHits || [];
+    if (!hits.length) {
+      hideSuggest();
+      return;
+    }
+    els.suggest.classList.remove('hidden');
+    els.suggest.innerHTML = hits
+      .map((item, idx) => {
+        const active = idx === state.suggestIndex ? ' active' : '';
+        return `<button type="button" class="inbox-suggest-item${active}" data-suggest-idx="${idx}" role="option">
+          <span class="inbox-suggest-count">${escapeHtml(String(item.count || 1))}</span>
+          <span class="inbox-suggest-text">${escapeHtml(item.text)}</span>
+        </button>`;
+      })
+      .join('');
+  }
+
+  function updateSuggestFromInput() {
+    if (state.composeMode === 'note') {
+      hideSuggest();
+      return;
+    }
+    const q = els.composeText?.value || '';
+    state.suggestHits = filterSuggestHits(q);
+    state.suggestIndex = state.suggestHits.length ? 0 : -1;
+    renderSuggest();
+  }
+
+  function applySuggest(idx) {
+    const item = state.suggestHits[idx];
+    if (!item || !els.composeText) return;
+    els.composeText.value = item.text;
+    hideSuggest();
+    autoGrowCompose();
+    els.composeText.focus();
+    const len = els.composeText.value.length;
+    els.composeText.setSelectionRange(len, len);
+  }
+
   async function composeSubmit() {
     const text = String(els.composeText?.value || '').trim();
     if (!text) return;
+    hideSuggest();
     try {
       els.btnComposeSend.disabled = true;
       if (state.composeMode === 'note') {
@@ -736,6 +1463,7 @@
           managerName: m.name,
           managerRole: m.role
         });
+        bumpSnippet(text);
         state.recentOutbound = [
           { text, at: Date.now(), author: m.name },
           ...state.recentOutbound.filter((r) => Date.now() - r.at < 120000)
@@ -937,21 +1665,164 @@
     }
   });
 
+  els.accountSearch?.addEventListener('focus', () => {
+    const q = els.accountSearch.value || '';
+    if (!state.selectedGame) runGameSuggest(q);
+  });
+
+  els.accountSearch?.addEventListener('input', () => {
+    clearTimeout(state.accountSearchTimer);
+    state.selectedGame = null;
+    renderSelectedGameBar(null);
+    state.accountHits = [];
+    if (els.accountResults) {
+      els.accountResults.classList.add('hidden');
+      els.accountResults.innerHTML = '';
+    }
+    const q = els.accountSearch.value || '';
+    state.accountSearchTimer = setTimeout(() => {
+      if (q.trim().length < 1) {
+        hideGameDropdown();
+        return;
+      }
+      runGameSuggest(q);
+    }, 180);
+  });
+
+  els.gameDropdown?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-pick-game]');
+    if (!btn) return;
+    selectGameForInbox(btn.dataset.pickGame);
+  });
+
+  els.selectedGame?.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-clear-game]')) return;
+    state.selectedGame = null;
+    state.accountHits = [];
+    renderSelectedGameBar(null);
+    if (els.accountSearch) {
+      els.accountSearch.value = '';
+      els.accountSearch.focus();
+    }
+    if (els.accountResults) {
+      els.accountResults.classList.add('hidden');
+      els.accountResults.innerHTML = '';
+    }
+    hideGameDropdown();
+  });
+
+  function onAccountPanelClick(e) {
+    const slot = e.target.closest('[data-slot-action]');
+    if (slot) {
+      e.preventDefault();
+      handleInboxSlotClick(slot);
+      return;
+    }
+    const linkBtn = e.target.closest('[data-link-account]');
+    if (linkBtn) {
+      linkAccountToChat(linkBtn.dataset.linkAccount);
+      return;
+    }
+    const unlinkBtn = e.target.closest('[data-unlink-account]');
+    if (unlinkBtn) {
+      unlinkAccountFromChat(unlinkBtn.dataset.unlinkAccount);
+    }
+  }
+
+  els.accountResults?.addEventListener('click', onAccountPanelClick);
+  els.accountLinked?.addEventListener('click', onAccountPanelClick);
+
+  document.addEventListener('click', (e) => {
+    if (!els.accountSearchWrap?.contains(e.target)) hideGameDropdown();
+  });
+
   els.modeTabs?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-mode]');
     if (!btn || btn.classList.contains('hidden')) return;
     state.composeMode = btn.dataset.mode;
     syncComposeMode();
+    hideSuggest();
     els.composeText?.focus();
   });
   els.btnComposeSend?.addEventListener('click', composeSubmit);
-  els.composeText?.addEventListener('input', autoGrowCompose);
+  els.composeText?.addEventListener('input', () => {
+    autoGrowCompose();
+    updateSuggestFromInput();
+  });
   els.composeText?.addEventListener('keydown', (e) => {
+    const open = state.suggestHits.length > 0 && !els.suggest?.classList.contains('hidden');
+    if (open && e.key === 'ArrowDown') {
+      e.preventDefault();
+      state.suggestIndex = (state.suggestIndex + 1) % state.suggestHits.length;
+      renderSuggest();
+      return;
+    }
+    if (open && e.key === 'ArrowUp') {
+      e.preventDefault();
+      state.suggestIndex =
+        (state.suggestIndex - 1 + state.suggestHits.length) % state.suggestHits.length;
+      renderSuggest();
+      return;
+    }
+    if (open && e.key === 'Escape') {
+      e.preventDefault();
+      hideSuggest();
+      return;
+    }
+    if (open && (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) && state.suggestIndex >= 0) {
+      e.preventDefault();
+      applySuggest(state.suggestIndex);
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       composeSubmit();
     }
   });
+  els.suggest?.addEventListener('mousedown', (e) => {
+    const btn = e.target.closest('[data-suggest-idx]');
+    if (!btn) return;
+    e.preventDefault();
+    applySuggest(Number(btn.dataset.suggestIdx));
+  });
+  document.addEventListener('click', (e) => {
+    if (
+      els.suggest &&
+      !els.suggest.contains(e.target) &&
+      e.target !== els.composeText &&
+      !els.composeText?.contains(e.target)
+    ) {
+      hideSuggest();
+    }
+  });
+
+  window.inboxReply = async function inboxReply(text, chatId) {
+    const id = chatId || state.selectedId;
+    if (!id) throw new Error('Нет выбранного диалога');
+    const m = me();
+    return api('/api/inbox/reply', {
+      chatId: id,
+      text,
+      managerId: m.id,
+      managerName: m.name,
+      managerRole: m.role
+    });
+  };
+
+  window.inboxLinkAccount = linkAccountToChat;
+
+  window.inboxRefreshAccountPanel = async function inboxRefreshAccountPanel() {
+    const chat = selectedChat();
+    if (!chat) return;
+    if (state.selectedGame?.id && typeof window.loadSalesOnDemand === 'function') {
+      try {
+        await window.loadSalesOnDemand(state.selectedGame.id);
+        const hits = accountsList().filter((a) => idsEqual(a.gameId, state.selectedGame.id));
+        state.accountHits = hits;
+      } catch (_) {}
+    }
+    renderInfo(chat);
+  };
 
   function boot() {
     if (typeof checkAuth === 'function') checkAuth();
@@ -960,6 +1831,7 @@
     } catch (_) {}
     state.pendingChatId = readChatIdFromUrl();
     listenChats();
+    listenSnippets();
     renderList();
     renderThread();
     autoGrowCompose();

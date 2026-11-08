@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Чаты - Менеджер игровых аккаунтов</title>
   <link rel="stylesheet" href="style.css?v=20261108ui" />
-  <link rel="stylesheet" href="inbox.css?v=20261108reclaim" />
+  <link rel="stylesheet" href="inbox.css?v=20261108dates" />
 </head>
 <body class="inbox-body">
   <div id="mobileMenu" class="mobile-menu">
@@ -148,6 +148,23 @@
           </a>
         </div>
 
+        <div class="inbox-info-block" id="inboxAccountBlock">
+          <div class="inbox-info-block-title">Аккаунты клиента</div>
+          <div id="inboxAccountLinked" class="inbox-account-linked hidden"></div>
+          <div id="inboxAccountSearchWrap" class="inbox-account-search-wrap">
+            <input
+              type="search"
+              id="inboxAccountSearch"
+              class="inbox-account-search"
+              placeholder="Название игры…"
+              autocomplete="off"
+            />
+            <div id="inboxGameDropdown" class="inbox-game-dropdown hidden" role="listbox"></div>
+            <div id="inboxSelectedGame" class="inbox-selected-game hidden"></div>
+            <div id="inboxAccountResults" class="inbox-mini-results hidden"></div>
+          </div>
+        </div>
+
         <div class="inbox-info-actions">
           <a class="inbox-info-action" id="inboxInfoMessenger" href="#" target="_blank" rel="noopener">Открыть в Авито</a>
           <button type="button" class="inbox-info-action" id="inboxInfoCopyLink">Скопировать ссылку</button>
@@ -157,11 +174,18 @@
     </aside>
   </div>
 
+  <div id="saleModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeAnyModal('saleModal')">&times;</span>
+      <div id="saleModalContent"></div>
+    </div>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-  <script src="firebase.js?v=20261108"></script>
+  <script src="firebase.js?v=20261108gamepanel"></script>
   <script src="security.js"></script>
-  <script src="script.js?v=20261108"></script>
-  <script src="inbox.js?v=20261108deeplink"></script>
+  <script src="script.js?v=20261108chatlink"></script>
+  <script src="inbox.js?v=20261108suggest"></script>
 </body>
 </html>
