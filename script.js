@@ -5385,7 +5385,11 @@ async function confirmSaleAndShowData() {
         }
 
         // ===== 5. ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ =====
-        refreshSearchResultsAfterSaleUpdate();
+        try {
+            refreshSearchResultsAfterSaleUpdate();
+        } catch (refreshErr) {
+            console.warn('Поиск на этой странице не обновлялся:', refreshErr);
+        }
 
         // ===== 6. ДАННЫЕ КЛИЕНТУ / АВТООТПРАВКА ИЗ ЧАТОВ =====
         const inboxCtx = window.inboxSaleContext;
@@ -7081,15 +7085,15 @@ function updateCommission() {
 function refreshSearchResultsAfterSaleUpdate() {
     const searchInput = document.getElementById('managerGameSearch');
     const loginInput = document.getElementById('managerLogin');
-    
-    // Просто перезапускаем текущий поиск
+    const results = document.getElementById('searchResults');
+    if (!searchInput && !loginInput && !results) return;
+
     if (searchInput && searchInput.value.trim()) {
         searchByGame();
     } else if (loginInput && loginInput.value.trim()) {
         searchByLogin();
-    } else {
-        // Если ничего не искали, очищаем результаты
-        document.getElementById('searchResults').innerHTML = '';
+    } else if (results) {
+        results.innerHTML = '';
     }
 }
 
