@@ -5718,6 +5718,19 @@ function getPositionName(positionType) {
 // ============================================
 // АВТООТПРАВКА ПАКЕТА В ЧАТ АВИТО ПОСЛЕ ПРОДАЖИ ИЗ INBOX
 // ============================================
+const TELEGRAM_REVIEW_RU = `🙏 Мы будем благодарны за ваш отзыв — он очень помогает нам развиваться!
+🎮 Приятной игры!
+
+📝 Отзывы: https://t.me/pshubshoptg/29
+📌 Актуальные цены на игры: @pshubshoptg`;
+
+const AVITO_REVIEW_RU = `https://www.avito.ru/user/review?fid=2_MVRPVc9AMJM-jStxYYpOdOjowHx4ZBZ87DElF8B0nlyL6RdaaYzvyPSWRjp4ZyNE
+Сможете оставить отзыв, пожалуйста?😇🙏`;
+
+function reviewTextForMarketplace(marketplace) {
+    return marketplace === 'avito' ? AVITO_REVIEW_RU : TELEGRAM_REVIEW_RU;
+}
+
 function buildSaleDeliveryTexts(account, positionType, marketplace = 'avito') {
     const isP2 = String(positionType || '').includes('p2');
     const platform = String(positionType || '').includes('ps4') ? 'ps4' : 'ps5';
@@ -5743,11 +5756,7 @@ function buildSaleDeliveryTexts(account, positionType, marketplace = 'avito') {
 — Играем только на той консоли, для которой была приобретена игра. Купить игру для PS4 и играть на PS5 — это потеря гарантии.
 — При несоблюдении правил гарантии мы имеем право отобрать пользователя без возврата денег.`;
 
-    const review = `🙏 Мы будем благодарны за ваш отзыв — он очень помогает нам развиваться!
-🎮 Приятной игры!
-
-📝 Отзывы: https://t.me/pshubshoptg/29
-📌 Актуальные цены на игры: @pshubshoptg`;
+    const review = reviewTextForMarketplace(marketplace);
 
     let currentCode = 'По запросу';
     const psnCodesArray = account.psnCodes
@@ -5927,11 +5936,8 @@ function showAccountDataAfterSale(accountId) {
 — Играем только на той консоли, для которой была приобретена игра. Купить игру для PS4 и играть на PS5 — это потеря гарантии.
 — При несоблюдении правил гарантии мы имеем право отобрать пользователя без возврата денег.`;
 
-    const review_RU = `🙏 Мы будем благодарны за ваш отзыв — он очень помогает нам развиваться!
-🎮 Приятной игры!
-
-📝 Отзывы: https://t.me/pshubshoptg/29
-📌 Актуальные цены на игры: @pshubshoptg`;
+    const review_RU = TELEGRAM_REVIEW_RU;
+    const review_AVITO = AVITO_REVIEW_RU;
 
     // --- ТЕКСТЫ ДЛЯ ПЛАШЕК (Английский) ---
     const rulesP2_EN = `❗️ To maintain the game warranty, please only write to the chat where the game was purchased if you encounter any errors.
@@ -5991,11 +5997,13 @@ Rules for using the game (P2):
     };
 
     window.copyReview = function() {
-        if (marketplace !== 'telegram') {
-            showNotification(window.currentLanguage === 'EN' ? 'Feedback is only for Telegram' : 'Отзыв только для Telegram', 'info');
+        if (marketplace !== 'telegram' && marketplace !== 'avito') {
+            showNotification(window.currentLanguage === 'EN' ? 'No feedback text for this marketplace' : 'Для этой площадки нет текста отзыва', 'info');
             return;
         }
-        const text = window.currentLanguage === 'EN' ? review_EN : review_RU;
+        const text = marketplace === 'avito'
+            ? review_AVITO
+            : (window.currentLanguage === 'EN' ? review_EN : review_RU);
         navigator.clipboard.writeText(text).then(() => {
             showNotification(window.currentLanguage === 'EN' ? '✅ Feedback copied!' : '✅ Отзыв скопирован!', 'success');
         });
@@ -6030,7 +6038,9 @@ Rules for using the game (P2):
         const currentRules = isEn 
             ? (isP2 ? rulesP2_EN : rulesP3_EN)
             : (isP2 ? rulesP2_RU : rulesP3_RU);
-        const currentReview = isEn ? review_EN : review_RU;
+        const currentReview = marketplace === 'avito'
+            ? review_AVITO
+            : (isEn ? review_EN : review_RU);
 
         // Тексты для кнопок и заголовков
         const dataTitle = isEn ? 'Customer data:' : 'Данные для клиента:';
@@ -6070,6 +6080,12 @@ Rules for using the game (P2):
                     <h4 style="color: #856404; margin-bottom: 10px;">${rulesTitle}</h4>
                     <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ffe69c; font-size: 13px; white-space: pre-wrap; margin-bottom: 10px;">${currentRules}</div>
                     <button class="btn btn-warning btn-small" onclick="window.copyRules()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${copyRulesBtn}</button>
+                </div>
+                <!-- Отзыв Авито -->
+                <div class="instruction-section" style="background: linear-gradient(135deg, #d1e7dd 0%, #b8dfd0 100%); border-color: #20c997; margin-top: 15px; padding: 20px; border-radius: 15px;">
+                    <h4 style="color: #0f5132; margin-bottom: 10px;">${reviewTitle}:</h4>
+                    <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #b8dfd0; font-size: 13px; white-space: pre-wrap; margin-bottom: 10px;">${currentReview}</div>
+                    <button class="btn btn-success btn-small" onclick="window.copyReview()" style="width: 100%;"><span style="margin-right: 8px;">📋</span> ${copyReviewBtn}</button>
                 </div>
             `;
         }
@@ -11854,13 +11870,9 @@ ${rules}`;
         }
     });
     
-    // ===== ОТЗЫВ (если Telegram) =====
-    if (marketplace === 'telegram') {
-        const review = `🙏 Мы будем благодарны за ваш отзыв — он очень помогает нам развиваться!
-🎮 Приятной игры!
-
-📝 Отзывы: https://t.me/pshubshoptg/29
-📌 Актуальные цены на игры: @pshubshoptg`;
+    // ===== ОТЗЫВ (Telegram или Авито) =====
+    if (marketplace === 'telegram' || marketplace === 'avito') {
+        const review = reviewTextForMarketplace(marketplace);
         
         copyAllText += `\n\n${review}`;
         
