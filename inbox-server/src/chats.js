@@ -102,29 +102,26 @@ async function upsertIncomingMessage({
   }
   if (authorId) msgPatch.authorId = String(authorId);
 
-  // Keep our outbound authorship if Avito echoes the same message as inbound/out
+  // A repeat webhook must not relabel an older line just because the text matches.
   try {
     const prev = await fb.get(`inboxMessages/${id}/${msgId}`);
-    if (prev && prev.direction === 'out') {
-      msgPatch.direction = 'out';
-      msgPatch.authorName =
-        prev.authorName ||
-        assigneeName ||
-        existing.assigneeName ||
-        'Менеджер';
+    if (prev) {
+      if (prev.direction) msgPatch.direction = prev.direction;
+      if (prev.authorName) msgPatch.authorName = prev.authorName;
       if (prev.authorId) msgPatch.authorId = prev.authorId;
       if (prev.createdAt) msgPatch.createdAt = prev.createdAt;
-    } else if (
-      direction === 'in' &&
-      existing.lastDirection === 'out' &&
-      String(existing.lastMessage || '').trim() === String(text || '').trim() &&
-      existing.updatedAt &&
-      Date.now() - new Date(existing.updatedAt).getTime() < 120000
-    ) {
-      // Duplicate webhook of a message we just sent via API
-      msgPatch.direction = 'out';
-      msgPatch.authorName =
-        assigneeName || existing.assigneeName || prev?.authorName || 'Менеджер';
+    } else if (direction === 'in') {
+      const createdMs = createdAt ? new Date(createdAt).getTime() : Date.now();
+      const fresh = Date.now() - createdMs < 20000;
+      const echoOfSend =
+        fresh &&
+        existing.lastDirection === 'out' &&
+        String(existing.lastMessage || '').trim() === String(text || '').trim();
+      if (echoOfSend) {
+        msgPatch.direction = 'out';
+        msgPatch.authorName =
+          assigneeName || existing.assigneeName || authorName || 'Менеджер';
+      }
     }
   } catch (_) {}
 

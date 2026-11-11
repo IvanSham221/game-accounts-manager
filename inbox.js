@@ -1032,25 +1032,11 @@
     );
   }
 
-  function looksLikeOurEcho(msg) {
-    if (messageDirection(msg) === 'out') return true;
-    const text = String(msg?.text || '').trim();
-    if (!text) return false;
-    const recent = state.recentOutbound || [];
-    if (recent.some((r) => r.text === text && Date.now() - r.at < 120000)) {
-      return true;
-    }
-    const authorId = String(msg?.authorId || '');
-    const myId = String(me().id || '');
-    return Boolean(myId && authorId && authorId === myId);
-  }
-
   function buildTimeline(chat) {
     const buyer = chat.buyerName || 'Покупатель';
     const mgr = managerLabel(chat);
     const msgs = Object.values(state.messages || {}).map((msg) => {
-      let direction = messageDirection(msg);
-      if (looksLikeOurEcho(msg)) direction = 'out';
+      const direction = messageDirection(msg);
       const storedAuthor = String(msg.authorName || '').trim();
       const author = direction === 'out' ? storedAuthor || mgr : storedAuthor || buyer;
       return {
@@ -1473,10 +1459,6 @@
           managerRole: m.role
         });
         bumpSnippet(text);
-        state.recentOutbound = [
-          { text, at: Date.now(), author: m.name },
-          ...state.recentOutbound.filter((r) => Date.now() - r.at < 120000)
-        ].slice(0, 20);
         state.timelineSig = '';
         renderThread();
         toast('Отправлено', 'success');
