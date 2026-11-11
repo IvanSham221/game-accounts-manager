@@ -182,6 +182,14 @@
     return data;
   }
 
+  async function saveChatPatch(chatId, patch) {
+    if (!chatId || !firebase?.database) throw new Error('Нет доступа к базе');
+    await firebase.database().ref(`inboxChats/${chatId}`).update(patch);
+    const prev = state.chats[chatId] || { id: chatId };
+    state.chats[chatId] = { ...prev, ...patch, id: chatId };
+    return state.chats[chatId];
+  }
+
   function toast(text, type = 'info') {
     if (typeof showNotification === 'function') showNotification(text, type);
     else console.log(text);
@@ -1567,18 +1575,30 @@
   els.btnClaim?.addEventListener('click', async () => {
     try {
       els.btnClaim.disabled = true;
+      const chat = selectedChat();
       const m = me();
-      const fromArchive = selectedChat()?.status === 'closed';
-      await api('/api/inbox/claim', {
-        chatId: state.selectedId,
-        managerId: m.id,
-        managerName: m.name,
-        managerRole: m.role
+      if (!chat?.id) throw new Error('Диалог не выбран');
+      if (chat.status === 'assigned' && chat.assigneeId && chat.assigneeId !== m.id) {
+        throw new Error(`Уже принял: ${chat.assigneeName || chat.assigneeId}`);
+      }
+      const fromArchive = chat.status === 'closed';
+      const now = new Date().toISOString();
+      await saveChatPatch(chat.id, {
+        status: 'assigned',
+        assigneeId: m.id,
+        assigneeName: m.name || m.id,
+        claimedAt: now,
+        updatedAt: now,
+        closedAt: null,
+        closedBy: null,
+        closedByName: null
       });
       state.tab = 'mine';
       els.tabs.querySelectorAll('[data-tab]').forEach((b) =>
         b.classList.toggle('active', b.dataset.tab === 'mine')
       );
+      renderList();
+      renderThread();
       toast(fromArchive ? 'Вернули в «Мои»' : 'Диалог принят', 'success');
     } catch (e) {
       toast(e.message, 'error');
@@ -1589,17 +1609,25 @@
 
   els.btnRelease?.addEventListener('click', async () => {
     try {
+      const chat = selectedChat();
       const m = me();
-      await api('/api/inbox/release', {
-        chatId: state.selectedId,
-        managerId: m.id,
-        managerName: m.name,
-        managerRole: m.role
+      if (!chat?.id) throw new Error('Диалог не выбран');
+      const isOwner = chat.assigneeId === m.id;
+      if (!isOwner && m.role !== 'admin') throw new Error('Можно вернуть только свой диалог');
+      const now = new Date().toISOString();
+      await saveChatPatch(chat.id, {
+        status: 'open',
+        assigneeId: null,
+        assigneeName: null,
+        claimedAt: null,
+        updatedAt: now
       });
       state.tab = 'incoming';
       els.tabs.querySelectorAll('[data-tab]').forEach((b) =>
         b.classList.toggle('active', b.dataset.tab === 'incoming')
       );
+      renderList();
+      renderThread();
       toast('Вернули во входящие', 'success');
     } catch (e) {
       toast(e.message, 'error');
@@ -1617,12 +1645,19 @@
     try {
       const currentId = state.selectedId;
       const nextId = pickNeighborChatId(currentId);
+      const chat = selectedChat();
       const m = me();
-      await api('/api/inbox/close', {
-        chatId: currentId,
-        managerId: m.id,
-        managerName: m.name,
-        managerRole: m.role
+      if (!chat?.id) throw new Error('Диалог не выбран');
+      const isOwner = chat.assigneeId === m.id;
+      if (!isOwner && m.role !== 'admin') throw new Error('Можно завершить только свой диалог');
+      const now = new Date().toISOString();
+      await saveChatPatch(chat.id, {
+        status: 'closed',
+        closedAt: now,
+        closedBy: m.id,
+        closedByName: m.name || m.id,
+        updatedAt: now,
+        unread: 0
       });
       toast('Диалог завершён', 'success');
       if (nextId) selectChat(nextId);
@@ -1634,7 +1669,10 @@
 
   els.btnRead?.addEventListener('click', async () => {
     try {
-      await api('/api/inbox/read', { chatId: state.selectedId });
+      const chat = selectedChat();
+      if (!chat?.id) throw new Error('Диалог не выбран');
+      await saveChatPatch(chat.id, { unread: 0, updatedAt: new Date().toISOString() });
+      renderList();
       toast('Прочитано', 'success');
     } catch (e) {
       toast(e.message, 'error');
