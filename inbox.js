@@ -1036,9 +1036,13 @@
     const buyer = chat.buyerName || 'Покупатель';
     const mgr = managerLabel(chat);
     const msgs = Object.values(state.messages || {}).map((msg) => {
-      const direction = messageDirection(msg);
+      const aid = String(msg.authorId || '');
+      const fromBuyer = /^\d+$/.test(aid) && aid !== '449045044';
+      const direction = fromBuyer ? 'in' : messageDirection(msg);
       const storedAuthor = String(msg.authorName || '').trim();
-      const author = direction === 'out' ? storedAuthor || mgr : storedAuthor || buyer;
+      const author = direction === 'in'
+        ? (fromBuyer ? buyer : storedAuthor || buyer)
+        : storedAuthor || mgr;
       return {
         kind: 'message',
         createdAt: msg.createdAt || '',

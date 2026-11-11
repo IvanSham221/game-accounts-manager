@@ -81,46 +81,48 @@ async function upsertIncomingMessage({
 
   await fb.update(`inboxChats/${id}`, chatPatch);
 
+  const sellerId = String(process.env.AVITO_USER_ID || '');
+  const aid = String(authorId || '');
+  const fromBuyer = Boolean(aid && sellerId && aid !== sellerId && /^\d+$/.test(aid));
+
   const msgPatch = {
     id: msgId,
     text: text || '',
-    direction,
+    direction: fromBuyer ? 'in' : direction,
     createdAt: createdAt || nowIso(),
     channel: 'avito'
   };
-  // Outbound always belongs to the assignee / CRM manager — never Avito buyer/shop name
-  if (direction === 'out') {
-    msgPatch.authorName =
-      authorName ||
-      assigneeName ||
-      existing.assigneeName ||
-      'Менеджер';
+  if (fromBuyer) {
+    msgPatch.authorName = buyerName || existing.buyerName || authorName || 'Покупатель';
+    msgPatch.authorId = aid;
+  } else if (msgPatch.direction === 'out') {
+    // Only an explicit CRM send passes the manager name. A webhook must not stamp the current assignee.
+    msgPatch.authorName = authorName || 'Менеджер';
+    if (aid) msgPatch.authorId = aid;
   } else if (authorName) {
     msgPatch.authorName = authorName;
+    if (aid) msgPatch.authorId = aid;
   } else {
     msgPatch.authorName = buyerName || existing.buyerName || 'Покупатель';
+    if (aid) msgPatch.authorId = aid;
   }
-  if (authorId) msgPatch.authorId = String(authorId);
 
-  // A repeat webhook must not relabel an older line just because the text matches.
   try {
     const prev = await fb.get(`inboxMessages/${id}/${msgId}`);
-    if (prev) {
+    if (fromBuyer) {
+      if (prev?.createdAt) msgPatch.createdAt = prev.createdAt;
+    } else if (prev) {
       if (prev.direction) msgPatch.direction = prev.direction;
       if (prev.authorName) msgPatch.authorName = prev.authorName;
       if (prev.authorId) msgPatch.authorId = prev.authorId;
       if (prev.createdAt) msgPatch.createdAt = prev.createdAt;
-    } else if (direction === 'in') {
-      const createdMs = createdAt ? new Date(createdAt).getTime() : Date.now();
-      const fresh = Date.now() - createdMs < 20000;
-      const echoOfSend =
-        fresh &&
-        existing.lastDirection === 'out' &&
-        String(existing.lastMessage || '').trim() === String(text || '').trim();
-      if (echoOfSend) {
-        msgPatch.direction = 'out';
-        msgPatch.authorName =
-          assigneeName || existing.assigneeName || authorName || 'Менеджер';
+      if (
+        authorName &&
+        msgPatch.direction === 'out' &&
+        (!prev.authorName || prev.authorName === 'Менеджер')
+      ) {
+        msgPatch.authorName = authorName;
+        if (aid) msgPatch.authorId = aid;
       }
     }
   } catch (_) {}
