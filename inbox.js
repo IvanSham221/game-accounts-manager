@@ -1051,8 +1051,8 @@
     const msgs = Object.values(state.messages || {}).map((msg) => {
       let direction = messageDirection(msg);
       if (looksLikeOurEcho(msg)) direction = 'out';
-      const author =
-        direction === 'out' ? mgr : msg.authorName || buyer;
+      const storedAuthor = String(msg.authorName || '').trim();
+      const author = direction === 'out' ? storedAuthor || mgr : storedAuthor || buyer;
       return {
         kind: 'message',
         createdAt: msg.createdAt || '',
@@ -1477,22 +1477,6 @@
           { text, at: Date.now(), author: m.name },
           ...state.recentOutbound.filter((r) => Date.now() - r.at < 120000)
         ].slice(0, 20);
-        // Patch echo in Firebase if Avito saved it under the buyer name
-        try {
-          if (firebase?.database && state.selectedId) {
-            const chatId = state.selectedId;
-            const updates = {};
-            Object.entries(state.messages || {}).forEach(([id, msg]) => {
-              if (String(msg?.text || '').trim() !== text) return;
-              updates[`inboxMessages/${chatId}/${id}/direction`] = 'out';
-              updates[`inboxMessages/${chatId}/${id}/authorName`] = m.name;
-              updates[`inboxMessages/${chatId}/${id}/authorId`] = m.id;
-            });
-            if (Object.keys(updates).length) {
-              firebase.database().ref().update(updates);
-            }
-          }
-        } catch (_) {}
         state.timelineSig = '';
         renderThread();
         toast('Отправлено', 'success');
