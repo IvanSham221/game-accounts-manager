@@ -1,7 +1,8 @@
 (() => {
   const INBOX_API = 'https://147.45.149.39.sslip.io/inbox';
   // Same key for everyone; keep localStorage only as fallback for already configured browsers
-  const INBOX_KEY = localStorage.getItem('inbox_api_key') || '';
+  const INBOX_KEY =
+    localStorage.getItem('inbox_api_key') || '67aa80dd8b6bad25640d8a95db167506';
 
   const state = {
     tab: 'incoming',
